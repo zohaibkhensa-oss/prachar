@@ -1,0 +1,234 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: "Space Grotesk", sans-serif;
+    --font-body: "Inter", sans-serif;
+    --font-mono: "IBM Plex Mono", monospace;
+  }
+
+  * {
+    border-color: rgba(148, 163, 184, 0.08);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg text-text font-body antialiased;
+    background-image: radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.04) 0%, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(255, 212, 0, 0.03) 0%, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(34, 197, 94, 0.02) 0%, transparent 50%);
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+    text-transform: none;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.15);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(148, 163, 184, 0.3);
+  }
+
+  /* Focus visible */
+  *:focus-visible {
+    outline: 2px solid rgba(255, 212, 0, 0.5);
+    outline-offset: 2px;
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(255, 212, 0, 0.2);
+    color: #F9FAFB;
+  }
+}
+
+@layer components {
+  /* ─── 3D Card ─── */
+  .card-3d {
+    @apply bg-bg-card rounded-xl border border-white/[0.06] shadow-3d;
+    background-image: linear-gradient(145deg, rgba(28, 35, 51, 0.5) 0%, rgba(17, 24, 39, 0.5) 100%);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+  .card-3d:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  /* ─── Glass surface ─── */
+  .glass {
+    background: rgba(17, 24, 39, 0.6);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  .glass-strong {
+    background: rgba(11, 15, 20, 0.85);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* ─── Buttons ─── */
+  .btn-primary {
+    @apply bg-accent text-bg font-body font-semibold rounded-lg px-4 py-2.5 text-sm
+           inline-flex items-center justify-center gap-2 transition-all duration-200
+           hover:shadow-glow hover:brightness-110 active:scale-[0.98]
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply bg-bg-elevated text-text font-body font-medium rounded-lg px-4 py-2.5 text-sm
+           border border-white/[0.08] inline-flex items-center justify-center gap-2
+           transition-all duration-200 hover:bg-bg-hover hover:border-white/[0.12]
+           active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply text-text-secondary font-body font-medium rounded-lg px-3 py-2 text-sm
+           inline-flex items-center justify-center gap-2 transition-all duration-200
+           hover:bg-white/[0.04] hover:text-text active:scale-[0.98];
+  }
+  .btn-danger {
+    @apply bg-danger/10 text-danger font-body font-medium rounded-lg px-4 py-2.5 text-sm
+           border border-danger/20 inline-flex items-center justify-center gap-2
+           transition-all duration-200 hover:bg-danger/20 active:scale-[0.98];
+  }
+
+  /* ─── Inputs ─── */
+  .input-field {
+    @apply bg-bg-surface text-text font-body rounded-lg px-4 py-2.5 text-sm
+           border border-white/[0.06] w-full transition-all duration-200
+           placeholder:text-text-muted
+           focus:outline-none focus:border-accent/40 focus:ring-1 focus:ring-accent/20;
+  }
+
+  /* ─── Labels ─── */
+  .label-field {
+    @apply font-mono text-[11px] uppercase tracking-wider text-text-secondary;
+  }
+
+  /* ─── Badge ─── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5
+           font-mono text-[10px] uppercase tracking-wider font-medium;
+  }
+  .badge-success {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+  .badge-danger {
+    @apply bg-danger/10 text-danger border border-danger/20;
+  }
+  .badge-info {
+    @apply bg-info/10 text-info border border-info/20;
+  }
+  .badge-warning {
+    @apply bg-warning/10 text-warning border border-warning/20;
+  }
+  .badge-accent {
+    @apply bg-accent/10 text-accent border border-accent/20;
+  }
+  .badge-neutral {
+    @apply bg-white/[0.04] text-text-secondary border border-white/[0.06];
+  }
+
+  /* ─── Shimmer skeleton ─── */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.02) 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* ─── AI thinking dots ─── */
+  .ai-dots span {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #FFD400;
+    margin: 0 2px;
+    animation: ai-thinking 1.4s ease-in-out infinite;
+  }
+  .ai-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .ai-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  /* ─── 3D perspective container ─── */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .perspective-2000 {
+    perspective: 2000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* ─── Gradient text ─── */
+  .text-gradient {
+    background: linear-gradient(135deg, #F9FAFB 0%, #94A3B8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .text-gradient-accent {
+    background: linear-gradient(135deg, #FFD400 0%, #F59E0B 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* ─── Grid pattern background ─── */
+  .grid-pattern {
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ─── Glow ring ─── */
+  .glow-ring {
+    box-shadow: 0 0 0 1px rgba(255, 212, 0, 0.2), 0 0 20px rgba(255, 212, 0, 0.1);
+  }
+
+  /* ─── Divider ─── */
+  .divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-white/[0.06] to-transparent;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+}

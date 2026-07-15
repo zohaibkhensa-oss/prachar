@@ -1,0 +1,28 @@
+[project]
+name = "prachar-monorepo"
+version = "0.1.0"
+description = "PRACHAR — AI-driven global ad agency platform"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["apps/web", "node_modules", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "ASYNC"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = ["apps/web/", "node_modules/", ".venv/"]
+plugins = ["pydantic.mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["apps/api/tests", "apps/workers/tests", "packages/shared/tests"]
+addopts = "-q --strict-markers"

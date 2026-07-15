@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prachar-workers"
+version = "0.1.0"
+description = "PRACHAR Celery workers: ingest, organic, ads, measure, creative + weekly loop"
+requires-python = ">=3.12"
+dependencies = [
+    "celery[redis]>=5.4",
+    "prachar-shared",
+    "sqlalchemy>=2",
+    "psycopg2-binary",
+    "anthropic",
+    "openai",
+    "httpx",
+    "playwright",
+    "pillow",
+    "reportlab",
+    "pydantic>=2.7",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-celery",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["prachar_workers"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pytest.ini_options]
+testpaths = ["prachar_workers/tests"]

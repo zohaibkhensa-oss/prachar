@@ -1,0 +1,71 @@
+# Local dev compose — Postgres16, Redis, MinIO, API, Web, Worker, Beat, Mailpit.
+# NOTE: on this host Postgres16 + Redis already run via brew; you can skip
+# postgres/redis services by `docker compose up api web worker beat minio mailpit`.
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: prachar
+      POSTGRES_PASSWORD: prachar
+      POSTGRES_DB: prachar
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prachar"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [minio_data:/data]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]
+
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis, minio]
+    ports: ["8000:8000"]
+    command: uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+
+  web:
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    env_file: .env
+    depends_on: [api]
+    ports: ["3000:3000"]
+    command: pnpm --dir apps/web dev
+
+  worker:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info
+
+  beat:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app beat -l info
+
+volumes:
+  pgdata:
+  minio_data:

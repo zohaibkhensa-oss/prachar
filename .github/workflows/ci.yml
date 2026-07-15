@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: prachar
+          POSTGRES_PASSWORD: prachar
+          POSTGRES_DB: prachar
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://prachar:prachar@localhost:5432/prachar
+      DATABASE_URL_SYNC: postgresql+psycopg://prachar:prachar@localhost:5432/prachar
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET: ci-test-secret-jwt-xxxxxxxxxxxxxxxxxxxxxx
+      JWT_REFRESH_SECRET: ci-test-secret-refresh-xxxxxxxxxxxxxxxxxxxx
+      TOKEN_ENC_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+      ANTHROPIC_API_KEY: ""
+      OPENAI_API_KEY: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install -U pip
+          pip install -e packages/shared[dev] -e apps/api[dev] -e apps/workers[dev]
+      - name: Lint (ruff)
+        run: ruff check apps packages
+      - name: Migrate
+        run: alembic -c apps/api/alembic.ini upgrade head
+      - name: Seed
+        run: python scripts/seed.py
+      - name: Test
+        run: pytest packages/shared/prachar_shared/tests apps/workers/prachar_workers/tests apps/api/prachar_api/tests -q
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: cd apps/web && pnpm install --frozen-lockfile
+      - name: Lint
+        run: cd apps/web && pnpm lint
+      - name: Typecheck
+        run: cd apps/web && pnpm typecheck
+      - name: Build
+        run: cd apps/web && pnpm build

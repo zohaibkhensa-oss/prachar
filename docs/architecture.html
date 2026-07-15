@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRACHAR — Architecture Diagram</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Anton&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'IBM Plex Sans', sans-serif; background: #F7F7F4; color: #141414; padding: 40px; }
+  h1 { font-family: 'Anton', sans-serif; font-size: 48px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  h2 { font-family: 'Anton', sans-serif; font-size: 28px; letter-spacing: 1px; text-transform: uppercase; margin-top: 40px; margin-bottom: 16px; border-bottom: 3px solid #141414; padding-bottom: 8px; }
+  .subtitle { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #14141499; margin-bottom: 32px; text-transform: uppercase; letter-spacing: 1px; }
+  .diagram-card { background: #fff; border: 3px solid #141414; padding: 24px; margin-bottom: 32px; overflow-x: auto; }
+  .mermaid { display: flex; justify-content: center; }
+  .legend { font-family: 'IBM Plex Mono', monospace; font-size: 12px; margin-top: 12px; padding: 12px; background: #F7F7F4; border: 2px solid #141414; }
+  .legend strong { color: #1F3DFF; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .stat { border: 3px solid #141414; padding: 16px; text-align: center; }
+  .stat .num { font-family: 'Anton', sans-serif; font-size: 36px; color: #1F3DFF; }
+  .stat .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+  .yellow-accent { border-color: #FFD400; border-width: 4px; }
+</style>
+</head>
+<body>
+
+<h1>PRACHAR — Architecture</h1>
+<p class="subtitle">AI-Driven Global Ad Agency Platform · Monorepo · 154 Tests · 27 API Endpoints · 16 Channels · 10 Ad Networks</p>
+
+<div class="stats">
+  <div class="stat"><div class="num">3</div><div class="label">Apps</div></div>
+  <div class="stat"><div class="num">26</div><div class="label">Adapters</div></div>
+  <div class="stat"><div class="num">17</div><div class="label">DB Tables</div></div>
+  <div class="stat"><div class="num">14</div><div class="label">Locales</div></div>
+</div>
+
+<h2>1. System Overview</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph CLIENT["Client"]
+        USER["👤 User / Agency"]
+        BROWSER["🌐 Browser"]
+        PIXEL["📊 Tracking Pixel JS"]
+    end
+
+    subgraph FRONTEND["Frontend — Next.js 15 :3000"]
+        LANDING["Landing Page /"]
+        AUTH_PAGES["Login / Register"]
+        AUDIT_PAGE["Free Audit /audit"]
+        APP["App Dashboard /app"]
+        BRAND_DETAIL["Brand Detail /app/brands/[id]"]
+        CAMPAIGNS["Campaigns /app/brands/[id]/campaigns"]
+        CHANNELS["Channels /app/brands/[id]/channels"]
+        CONTENT["Content /app/brands/[id]/content"]
+        REPORT["Report /app/brands/[id]/report"]
+        CONNECTIONS["Connections /app/connections"]
+        SETTINGS["Settings /app/settings"]
+    end
+
+    subgraph API["Backend — FastAPI :8000"]
+        MIDDLEWARE["TenantMiddleware + CORS"]
+        AUTH_ROUTER["auth router<br/>register/login/refresh/me"]
+        BRAND_ROUTER["brands router<br/>CRUD + audit trigger"]
+        AUDIT_ROUTER["audits router<br/>POST /brands/audit + SSE"]
+        CAMPAIGN_ROUTER["campaigns router<br/>create/pause/resume"]
+        CONN_ROUTER["connections router<br/>OAuth callback"]
+        REPORT_ROUTER["reports router<br/>list + latest PDF"]
+        ATTR_ROUTER["attribution router<br/>pixel.js + track + convert"]
+        ADMIN_ROUTER["admin router<br/>costs/tokens/whitelabel/CSV"]
+    end
+
+    subgraph WORKERS["Celery Workers + Beat"]
+        LOOP["Weekly Loop<br/>7-step chain"]
+        INGEST["Ingest Worker<br/>crawl + SERP + citation"]
+        ORGANIC_W["Organic Worker<br/>generate + publish"]
+        ADS_W["Ads Worker<br/>allocator + scaffold"]
+        CREATIVE_W["Creative Worker<br/>generate + evolve"]
+        MEASURE_W["Measure Worker<br/>metrics + attribution"]
+    end
+
+    subgraph DATA["Data Layer"]
+        PG[("PostgreSQL 16<br/>17 tables + RLS")]
+        REDIS[("Redis<br/>Celery broker + cache")]
+        S3[("S3 / MinIO<br/>assets + PDFs")]
+    end
+
+    subgraph SHARED["packages/shared"]
+        ADAPTERS["26 Adapters<br/>16 organic + 10 ads"]
+        AI_GW["AI Gateway<br/>tiering + cache + budget"]
+        POLICY["Policy Engine<br/>claims_gate"]
+        CONTRACTS["Contracts<br/>Pydantic v2 models"]
+        LOCALES["Locale Packs<br/>14 regions"]
+    end
+
+    subgraph EXTERNAL["External APIs"]
+        GOOGLE["Google<br/>Search + GSC + GMB + YouTube + Ads"]
+        META["Meta<br/>Instagram + Facebook + Ads"]
+        TIKTOK["TikTok<br/>Organic + Ads"]
+        LINKEDIN["LinkedIn<br/>Organic + Ads"]
+        REGIONAL["Regional<br/>WhatsApp/Telegram/LINE/VK<br/>Reddit/Naver + MS/Snap/Yandex Ads"]
+        AI["AI Providers<br/>Anthropic + OpenAI"]
+    end
+
+    USER --> BROWSER
+    BROWSER --> LANDING
+    BROWSER --> AUTH_PAGES
+    BROWSER --> AUDIT_PAGE
+    BROWSER --> APP
+    APP --> BRAND_DETAIL
+    BRAND_DETAIL --> CAMPAIGNS
+    BRAND_DETAIL --> CHANNELS
+    BRAND_DETAIL --> CONTENT
+    BRAND_DETAIL --> REPORT
+
+    LANDING --> MIDDLEWARE
+    AUTH_PAGES --> MIDDLEWARE
+    AUDIT_PAGE --> MIDDLEWARE
+    APP --> MIDDLEWARE
+    CONNECTIONS --> MIDDLEWARE
+    SETTINGS --> MIDDLEWARE
+
+    MIDDLEWARE --> AUTH_ROUTER
+    MIDDLEWARE --> BRAND_ROUTER
+    MIDDLEWARE --> AUDIT_ROUTER
+    MIDDLEWARE --> CAMPAIGN_ROUTER
+    MIDDLEWARE --> CONN_ROUTER
+    MIDDLEWARE --> REPORT_ROUTER
+    MIDDLEWARE --> ATTR_ROUTER
+    MIDDLEWARE --> ADMIN_ROUTER
+
+    AUDIT_ROUTER --> INGEST
+    CAMPAIGN_ROUTER --> ADS_W
+    CONN_ROUTER --> ORGANIC_W
+    LOOP --> INGEST
+    LOOP --> ORGANIC_W
+    LOOP --> ADS_W
+    LOOP --> CREATIVE_W
+    LOOP --> MEASURE_W
+
+    API --> PG
+    API --> REDIS
+    WORKERS --> PG
+    WORKERS --> REDIS
+    WORKERS --> S3
+
+    API --> SHARED
+    WORKERS --> SHARED
+
+    ADAPTERS --> GOOGLE
+    ADAPTERS --> META
+    ADAPTERS --> TIKTOK
+    ADAPTERS --> LINKEDIN
+    ADAPTERS --> REGIONAL
+    AI_GW --> AI
+
+    PIXEL --> ATTR_ROUTER
+
+    style FRONTEND fill:#FFD400,stroke:#141414,stroke-width:3px
+    style API fill:#F7F7F4,stroke:#141414,stroke-width:3px
+    style WORKERS fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:3px
+    style DATA fill:#fff,stroke:#141414,stroke-width:3px
+    style SHARED fill:#E8E8E4,stroke:#141414,stroke-width:2px
+    style EXTERNAL fill:#FFE8E8,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>2. Frontend Architecture (Next.js 15)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph PUBLIC["Public Routes (no auth)"]
+        ROOT["/ — Landing<br/>Hero + CTA + Billboard & Ink"]
+        LOGIN["/login — Login Form<br/>POST /auth/login → store JWT"]
+        REGISTER["/register — Register Form<br/>POST /auth/register"]
+        AUDIT["/audit — Free Audit Funnel<br/>POST /brands/audit → SSE poll"]
+    end
+
+    subgraph AUTHED["Authenticated Routes (JWT guard)"]
+        LAYOUT["app/layout.tsx<br/>Sidebar + Header<br/>Token check → redirect /login"]
+        DASHBOARD["/app — Brands List<br/>GET /brands → cards"]
+        CONN["/app/connections<br/>OAuth flows per channel"]
+        SETT["/app/settings<br/>Profile + API tokens"]
+    end
+
+    subgraph BRAND["Brand Detail /app/brands/[id]"]
+        BOVER["Overview<br/>VisibilityScore + WorldMap<br/>+ LoopStatus"]
+        BCAMP["Campaigns<br/>CreativeBoard + DiffView<br/>+ AudienceBuilder"]
+        BCHAN["Channels<br/>Connection status per channel"]
+        BCONT["Content<br/>Generated content queue"]
+        BREPT["Report<br/>Latest PDF + weekly history"]
+    end
+
+    subgraph LIB["src/lib/"]
+        APICLIENT["api.ts<br/>fetch wrapper + JWT header"]
+        AUTHLIB["auth.ts<br/>getToken/setToken/clearToken"]
+        QUERY["query.tsx<br/>TanStack Query provider"]
+        SCHEMAS["schemas.ts<br/>TypeScript types"]
+    end
+
+    subgraph UI["src/components/"]
+        VIS["VisibilityScore.tsx<br/>Gauge + breakdown bars"]
+        MAP["WorldMap.tsx<br/>react-simple-maps"]
+        LOOP_S["LoopStatus.tsx<br/>7-step progress timeline"]
+        CREATIVE["CreativeBoard.tsx<br/>Variant cards + approve/reject"]
+        DIFF["DiffView.tsx<br/>Before/after content diff"]
+        AUDIENCE["AudienceBuilder.tsx<br/>Geo + interests + demographics"]
+        SHADCN["shadcn/ui<br/>Button/Input/Card/Table/<br/>Dialog/Badge/Tabs/Skeleton"]
+    end
+
+    subgraph DESIGN["Design System — Billboard & Ink"]
+        TOKENS["Tokens: ink #141414<br/>paper #F7F7F4<br/>yellow #FFD400<br/>blue #1F3DFF"]
+        FONTS["Anton (display)<br/>IBM Plex Sans (body)<br/>IBM Plex Mono (data)"]
+    end
+
+    ROOT --> LOGIN
+    LOGIN --> LAYOUT
+    REGISTER --> LAYOUT
+    AUDIT --> ROOT
+    LAYOUT --> DASHBOARD
+    LAYOUT --> CONN
+    LAYOUT --> SETT
+    DASHBOARD --> BOVER
+    BOVER --> BCAMP
+    BOVER --> BCHAN
+    BOVER --> BCONT
+    BOVER --> BREPT
+
+    DASHBOARD -.-> APICLIENT
+    BCAMP -.-> APICLIENT
+    BOVER -.-> APICLIENT
+
+    APICLIENT --> AUTHLIB
+    DASHBOARD -.-> QUERY
+    BOVER --> VIS
+    BOVER --> MAP
+    BOVER --> LOOP_S
+    BCAMP --> CREATIVE
+    BCAMP --> DIFF
+    BCAMP --> AUDIENCE
+    UI --> SHADCN
+
+    style PUBLIC fill:#FFD400,stroke:#141414,stroke-width:2px
+    style AUTHED fill:#F7F7F4,stroke:#141414,stroke-width:2px
+    style BRAND fill:#E8E8E4,stroke:#141414,stroke-width:2px
+    style DESIGN fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>3. Backend Architecture (FastAPI)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph ENTRY["Entry Point"]
+        MAIN["main.py<br/>create_app() → FastAPI"]
+    end
+
+    subgraph MW["Middleware Stack"]
+        CORS["CORSMiddleware<br/>allow localhost:3000"]
+        TENANT["TenantMiddleware<br/>extract JWT → set app.tenant_id<br/>via set_config() for RLS"]
+    end
+
+    subgraph ROUTERS["9 Routers — 27 Endpoints"]
+        R1["misc.router<br/>GET /health"]
+        R2["auth.router<br/>POST /auth/register<br/>POST /auth/login<br/>POST /auth/refresh<br/>GET /auth/me"]
+        R3["brands.router<br/>GET/POST /brands<br/>GET/PATCH /brands/[id]<br/>GET /brands/[id]/score"]
+        R4["audits.router<br/>POST /brands/audit<br/>GET /audits/[id]<br/>GET /audits/[id]/events (SSE)"]
+        R5["connections.router<br/>GET /connections<br/>GET /connections/[ch]/oauth<br/>GET /connections/[ch]/callback"]
+        R6["campaigns.router<br/>GET/POST /campaigns<br/>POST /campaigns/[id]/pause<br/>POST /campaigns/[id]/resume"]
+        R7["reports.router<br/>GET /reports/brands/[id]/reports<br/>GET /reports/brands/[id]/report/latest"]
+        R8["attribution.router<br/>GET /pixel.js<br/>POST /pixel/track<br/>POST /pixel/convert"]
+        R9["admin.router<br/>GET /admin/costs<br/>POST/GET /admin/api-tokens<br/>POST /admin/whitelabel/config<br/>GET /admin/brands/summary<br/>GET /admin/export/brands.csv"]
+    end
+
+    subgraph DEPS["Dependencies"]
+        CURRENT["current_user()<br/>JWT decode → User"]
+        SESSION["get_session()<br/>async SQLAlchemy session"]
+        ROLE["require_role(*roles)<br/>owner/admin check"]
+    end
+
+    subgraph MODELS["SQLAlchemy Models (17 tables)"]
+        TENANTS["tenants"]
+        USERS["users (RLS)"]
+        BILLING["billing"]
+        BRANDS["brands (RLS)"]
+        CAMPAIGNS["campaigns (RLS)"]
+        CONNECTIONS["connections (RLS)"]
+        CREATIVES["creatives (RLS)"]
+        CONTENT["content_items (RLS)"]
+        ASSETS["assets (RLS)"]
+        AUDIT_JOBS["audit_jobs"]
+        DIAGNOSES["diagnoses (RLS)"]
+        METRICS["metric_events (RLS, partitioned)"]
+        REPORTS["reports (RLS)"]
+        AUDIT_EVENTS["audit_events (RLS)"]
+    end
+
+    subgraph SECURITY["security.py"]
+        BCRYPT["bcrypt hash/verify<br/>(replaced passlib)"]
+        JWT["JWT encode/decode<br/>access + refresh"]
+        AUTH_LOOKUP["auth_lookup() SQL func<br/>SECURITY DEFINER<br/>bypasses RLS for login"]
+    end
+
+    subgraph AUDIT["audit.py"]
+        LOG["log_audit()<br/>INSERT audit_events<br/>every mutation"]
+    end
+
+    MAIN --> CORS
+    CORS --> TENANT
+    TENANT --> R1
+    TENANT --> R2
+    TENANT --> R3
+    TENANT --> R4
+    TENANT --> R5
+    TENANT --> R6
+    TENANT --> R7
+    TENANT --> R8
+    TENANT --> R9
+
+    R2 --> SECURITY
+    R3 --> DEPS
+    R4 --> DEPS
+    R6 --> DEPS
+    R9 --> ROLE
+
+    DEPS --> MODELS
+    R3 --> AUDIT
+    R6 --> AUDIT
+    R9 --> AUDIT
+
+    style ENTRY fill:#FFD400,stroke:#141414,stroke-width:3px
+    style MW fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:2px
+    style ROUTERS fill:#F7F7F4,stroke:#141414,stroke-width:2px
+    style MODELS fill:#fff,stroke:#141414,stroke-width:2px
+    style SECURITY fill:#FFE8E8,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>4. Weekly Autonomous Loop (Celery)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph LR
+    BEAT["Celery Beat<br/>dispatch_due()"] --> |"finds brands<br/>where next_loop_at <= now()"| ENQUEUE
+
+    ENQUEUE["enqueue_weekly_loop<br/>(brand_id)"] --> CHAIN
+
+    subgraph CHAIN["7-Step Celery Chain"]
+        S1["1. measure<br/>Pull metrics from<br/>all connected channels"] --> S2
+        S2["2. diagnose<br/>AI analyzes gaps<br/>+ VisibilityScore"] --> S3
+        S3["3. regenerate<br/>LLM generates content<br/>per channel + locale"] --> S4
+        S4["4. policy_check<br/>claims_gate +<br/>channel-specific rules"] --> S5
+        S5["5. publish<br/>Push to channels<br/>(Reddit → human queue)"] --> S6
+        S6["6. budget_realloc<br/>Softmax realloc<br/>±20% clamp + spend caps"] --> S7
+        S7["7. report<br/>Generate PDF<br/>+ update next_loop_at"]
+    end
+
+    S1 -.-> |"reads"| PG1[("metric_events")]
+    S2 -.-> |"writes"| PG2[("diagnoses")]
+    S3 -.-> |"calls"| AI["AI Gateway"]
+    S4 -.-> |"calls"| POLICY["claims_gate"]
+    S5 -.-> |"calls"| ADAPTERS["Channel Adapters"]
+    S6 -.-> |"reads+writes"| PG3[("campaigns")]
+    S7 -.-> |"writes"| PG4[("reports + S3 PDF")]
+
+    style CHAIN fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:3px
+    style BEAT fill:#FFD400,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>5. Adapter Registry (26 Adapters)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph ORGANIC["16 Organic ChannelAdapters"]
+        direction TB
+        O1["google_search"]
+        O2["gsc — Search Console"]
+        O3["gmb — Business Profile"]
+        O4["youtube"]
+        O5["instagram"]
+        O6["facebook"]
+        O7["tiktok"]
+        O8["linkedin"]
+        O9["pinterest"]
+        O10["x — Twitter"]
+        O11["whatsapp"]
+        O12["telegram"]
+        O13["line"]
+        O14["vk"]
+        O15["reddit — human approval required"]
+        O16["naver — Korean SEO"]
+    end
+
+    subgraph ADS["10 Ad AdNetworkAdapters"]
+        direction TB
+        A1["google_ads"]
+        A2["meta_ads"]
+        A3["tiktok_ads"]
+        A4["linkedin_ads"]
+        A5["pinterest_ads"]
+        A6["x_ads"]
+        A7["microsoft_ads"]
+        A8["snap_ads"]
+        A9["reddit_ads"]
+        A10["yandex_direct"]
+    end
+
+    subgraph BASE["Base Classes"]
+        CH_BASE["ChannelAdapter ABC<br/>auth_url · exchange_code<br/>fetch_profile · generate_schema<br/>policy_gate · publish · metrics"]
+        AD_BASE["AdNetworkAdapter ABC<br/>translate_audience · create_campaign<br/>upload_creative · set_budget_bid<br/>pause · stats · policy_precheck"]
+    end
+
+    subgraph REG["registry.py"]
+        REG_O["register_organic()"]
+        REG_A["register_ads()"]
+        REGISTRY["REGISTRY dict<br/>channel → adapter class"]
+    end
+
+    CH_BASE --> O1 & O2 & O3 & O4 & O5 & O6 & O7 & O8 & O9 & O10 & O11 & O12 & O13 & O14 & O15 & O16
+    AD_BASE --> A1 & A2 & A3 & A4 & A5 & A6 & A7 & A8 & A9 & A10
+
+    O1 -.-> REG_O
+    A1 -.-> REG_A
+    REG_O --> REGISTRY
+    REG_A --> REGISTRY
+
+    style ORGANIC fill:#FFD400,stroke:#141414,stroke-width:2px
+    style ADS fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:2px
+    style BASE fill:#E8E8E4,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>6. AI Gateway & Policy Pipeline</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph CALLERS["Callers"]
+        AUDIT_PIPE["Audit Pipeline<br/>entity extraction + findings"]
+        CONTENT_GEN["Content Generation<br/>prompts per channel"]
+        CREATIVE_GEN["Creative Generation<br/>ad copy + mutations"]
+        DIAGNOSE["Diagnose Step<br/>gap analysis"]
+    end
+
+    subgraph GATEWAY["AI Gateway (packages/shared/ai_gateway/)"]
+        ENTRY_GW["AIGateway.complete()"]
+        TIER["tiering.py<br/>small → Haiku/mini<br/>large → Sonnet/gpt-4o<br/>xlarge → Opus"]
+        CACHE["cache.py<br/>Redis SHA256(prompt) →<br/>skip if hit"]
+        BUDGET["budget.py<br/>per-tenant token budget<br/>fail closed if exceeded"]
+        CLIENT["client.py<br/>Anthropic primary<br/>OpenAI fallback<br/>JSON schema enforcement"]
+    end
+
+    subgraph POLICY["Policy Engine (packages/shared/policy/)"]
+        CLAIMS["claims_gate.py<br/>strip: guaranteed #1<br/>medical/financial claims<br/>engagement-bait"]
+        BASE_P["base.py<br/>PolicyResult{passed,<br/>blocked_reasons, warnings}"]
+    end
+
+    subgraph PROVIDERS["AI Providers"]
+        ANTHROPIC["Anthropic API<br/>Claude Haiku/Sonnet/Opus"]
+        OPENAI["OpenAI API<br/>GPT-4o-mini/4o"]
+    end
+
+    CALLERS --> ENTRY_GW
+    ENTRY_GW --> TIER
+    TIER --> CACHE
+    CACHE --> BUDGET
+    BUDGET --> CLIENT
+    CLIENT --> ANTHROPIC
+    CLIENT -.-> |"fallback"| OPENAI
+
+    CONTENT_GEN --> POLICY
+    CREATIVE_GEN --> POLICY
+    CALLERS --> POLICY
+
+    style GATEWAY fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:3px
+    style POLICY fill:#FFE8E8,stroke:#141414,stroke-width:2px
+    style PROVIDERS fill:#FFD400,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>7. Database Schema (PostgreSQL 16 + RLS)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+erDiagram
+    tenants ||--o{ users : has
+    tenants ||--o| billing : has
+    tenants ||--o{ brands : has
+    tenants ||--o{ audit_events : has
+    brands ||--o{ campaigns : has
+    brands ||--o{ connections : has
+    brands ||--o{ content_items : has
+    brands ||--o{ creatives : has
+    brands ||--o{ assets : has
+    brands ||--o{ diagnoses : has
+    brands ||--o{ reports : has
+    brands ||--o{ metric_events : has
+    campaigns ||--o{ creatives : has
+    campaigns ||--o{ metric_events : has
+    audit_jobs ||--o{ diagnoses : has
+
+    tenants {
+        uuid id PK
+        string name
+        string plan "starter|growth|agency"
+        timestamp created_at
+    }
+    users {
+        uuid id PK
+        uuid tenant_id FK
+        string email UK
+        string role "owner|admin|member"
+        string pw_hash
+        boolean is_active
+    }
+    billing {
+        uuid id PK
+        uuid tenant_id FK
+        string provider "stripe|razorpay"
+        string status
+        bigint ai_tokens_used_month
+        bigint ai_budget_month
+    }
+    brands {
+        uuid id PK
+        uuid tenant_id FK
+        string name
+        string website
+        string category
+        float visibility_score
+        date next_loop_at
+        jsonb brand_graph
+    }
+    campaigns {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        string network
+        string status "draft|active|paused"
+        jsonb audience_spec
+        float daily_budget
+        float daily_cap
+    }
+    connections {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        string channel
+        jsonb tokens
+        string status
+    }
+    creatives {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        uuid campaign_id FK
+        string variant_group
+        string policy_status
+        jsonb payload
+    }
+    content_items {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        string channel
+        string status
+        jsonb payload
+    }
+    metric_events {
+        uuid id PK
+        uuid tenant_id FK
+        string channel
+        string entity_type
+        string entity_id
+        string metric
+        float value
+        timestamp ts
+    }
+    audit_jobs {
+        uuid id PK
+        string input
+        string ip_hash
+        string status
+        float visibility_score
+        jsonb findings
+    }
+    diagnoses {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        uuid audit_job_id FK
+        jsonb result
+    }
+    reports {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        string week_key
+        string s3_key
+        jsonb summary
+    }
+    audit_events {
+        uuid id PK
+        uuid tenant_id FK
+        string actor "user|system|ai"
+        string action
+        string entity_type
+        uuid entity_id
+        jsonb payload
+    }
+    assets {
+        uuid id PK
+        uuid tenant_id FK
+        uuid brand_id FK
+        string type
+        string s3_key
+    }
+</div>
+<div class="legend">
+<strong>RLS</strong> = Row Level Security on all tenant-scoped tables. <code>SET LOCAL app.tenant_id</code> via <code>set_config()</code> in every request. <code>auth_lookup()</code> SECURITY DEFINER function bypasses RLS for login only.
+</div>
+</div>
+
+<h2>8. Attribution & Spend Safety</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph TB
+    subgraph PIXEL["First-Party Attribution Pixel"]
+        SNIPPET["pixel.js<br/>auto-loaded on brand site<br/>captures UTMs + click IDs"]
+        TRACK["POST /pixel/track<br/>stores touchpoints<br/>per session_id"]
+        CONVERT["POST /pixel/convert<br/>position-based 40/20/40<br/>gclid→google_ads<br/>fbclid→meta_ads<br/>ttclid→tiktok_ads"]
+    end
+
+    subgraph SPEND["Spend Safety"]
+        CAP["check_spend_cap()<br/>daily + monthly caps<br/>by plan tier"]
+        IDEM["check_idempotency()<br/>Redis SET NX 24h TTL<br/>prevents duplicate mutations"]
+        DRY["dry-run mode<br/>default ON first 7 days"]
+        WATCH["watchdog<br/>pause if CPA > max<br/>3 consecutive days"]
+    end
+
+    subgraph EVOLUTION["Creative Evolution"]
+        CLASSIFY["classify_variants()<br/>winners: CTR > median + 1σ<br/>losers: CTR < median - 1σ"]
+        RETIRE["retire losers<br/>pause low-CTR variants"]
+        CHILDREN["generate_winner_children()<br/>LLM mutation prompts<br/>3 variations per winner"]
+        LINEAGE["log_lineage()<br/>audit_events<br/>parent → children chain"]
+    end
+
+    SNIPPET --> TRACK
+    TRACK --> CONVERT
+    CONVERT --> |"position-based credit"| REPORT_ATTR["Attribution Report<br/>network-reported vs<br/>pixel-verified CPA"]
+
+    CAP --> |"before every<br/>budget/bid call"| NETWORK["Ad Network API"]
+    IDEM --> NETWORK
+    DRY --> NETWORK
+    WATCH --> |"auto-pause"| NETWORK
+
+    CLASSIFY --> RETIRE
+    CLASSIFY --> CHILDREN
+    CHILDREN --> LINEAGE
+
+    style PIXEL fill:#FFD400,stroke:#141414,stroke-width:2px
+    style SPEND fill:#FFE8E8,stroke:#141414,stroke-width:2px
+    style EVOLUTION fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<h2>9. Request Flow — Audit Funnel (S1)</h2>
+<div class="diagram-card">
+<div class="mermaid">
+sequenceDiagram
+    participant U as User Browser
+    participant API as FastAPI :8000
+    participant DB as PostgreSQL
+    participant W as Celery Worker
+    participant AI as AI Gateway
+    participant SERP as SERP API
+    participant SSE as SSE Endpoint
+
+    U->>API: POST /brands/audit {input: "https://example.com"}
+    API->>DB: INSERT audit_jobs (status=pending)
+    API->>W: enqueue run_audit(job_id, input) [or inline fallback]
+    API-->>U: 202 {id, status: pending}
+
+    par SSE Polling
+        U->>SSE: GET /audits/{id}/events
+        SSE-->>U: event: progress {stage: crawling}
+    end
+
+    W->>API: Crawl URL (httpx + regex HTML)
+    W->>AI: Extract entities (small tier)
+    AI-->>W: {entities, categories, usps}
+    W->>SERP: Sample SERP for brand keywords
+    SERP-->>W: {rankings, competitors}
+    W->>AI: Citation probe (large tier)
+    AI-->>W: {ai_citation_rate, mentions}
+    W->>W: Compute VisibilityScore (weighted)
+    W->>AI: Generate 10 findings (5 free + 5 gated)
+    AI-->>W: {findings[]}
+    W->>DB: UPDATE audit_jobs SET status=completed, visibility_score, findings
+    SSE-->>U: event: complete {score: 17.5, findings: 10}
+
+    U->>API: GET /audits/{id}
+    API->>DB: SELECT audit_jobs WHERE id
+    API-->>U: 200 {status: completed, score: 17.5, findings: [...]}
+</div>
+</div>
+
+<h2>10. Tech Stack Summary</h2>
+<div class="diagram-card">
+<div class="mermaid">
+graph LR
+    subgraph LANG["Languages"]
+        PY["Python 3.14"]
+        TS["TypeScript strict"]
+    end
+
+    subgraph BACK["Backend Stack"]
+        FAST["FastAPI"]
+        SQLA["SQLAlchemy 2 async"]
+        PYD["Pydantic v2"]
+        CELERY["Celery + Beat"]
+        BCRYPT["bcrypt"]
+        HTTPX["httpx"]
+        REPORTLAB["reportlab PDF"]
+    end
+
+    subgraph FRONT["Frontend Stack"]
+        NEXT["Next.js 15 App Router"]
+        TAIL["Tailwind CSS"]
+        SHAD["shadcn/ui"]
+        TANQ["TanStack Query"]
+        RECHARTS["Recharts"]
+        RSM["react-simple-maps"]
+    end
+
+    subgraph INFRA["Infrastructure"]
+        PG16["PostgreSQL 16 + RLS"]
+        REDIS6["Redis 6"]
+        S3MIN["S3 / MinIO"]
+        DOCKER["Docker Compose"]
+        GH["GitHub Actions CI"]
+        TF["Terraform → AWS"]
+    end
+
+    subgraph AI_STACK["AI Stack"]
+        ANTH["Anthropic Claude"]
+        OAI["OpenAI GPT-4o"]
+        GATEWAY["AI Gateway abstraction"]
+    end
+
+    PY --> BACK
+    TS --> FRONT
+    BACK --> INFRA
+    FRONT --> INFRA
+    BACK --> AI_STACK
+
+    style LANG fill:#FFD400,stroke:#141414,stroke-width:2px
+    style BACK fill:#1F3DFF,color:#fff,stroke:#141414,stroke-width:2px
+    style FRONT fill:#F7F7F4,stroke:#141414,stroke-width:2px
+    style INFRA fill:#E8E8E4,stroke:#141414,stroke-width:2px
+    style AI_STACK fill:#FFE8E8,stroke:#141414,stroke-width:2px
+</div>
+</div>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'base',
+    themeVariables: {
+      primaryColor: '#F7F7F4',
+      primaryTextColor: '#141414',
+      primaryBorderColor: '#141414',
+      lineColor: '#141414',
+      secondaryColor: '#FFD400',
+      tertiaryColor: '#fff',
+      fontFamily: 'IBM Plex Sans, sans-serif',
+      fontSize: '14px'
+    },
+    flowchart: { curve: 'basis', padding: 20 },
+    sequence: { actorMargin: 50 }
+  });
+</script>
+
+</body>
+</html>
