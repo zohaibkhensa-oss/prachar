@@ -160,9 +160,10 @@ async def generate_video(req: VideoGenRequest):
         output_path = OUTPUT_DIR / f"{video_id}.mp4"
 
         import imageio
+        import numpy as np
         writer = imageio.get_writer(str(output_path), fps=8, codec="libx264")
         for frame in video_frames:
-            writer.append_data(frame)
+            writer.append_data(np.array(frame))
         writer.close()
 
         return GenResponse(
