@@ -1,9 +1,6 @@
 #!/bin/bash
 # Startup script for RunPod auto-spin-up pods.
-# The pod's dockerArgs clones the repo to /root/prachar, then runs this script.
 # Models are cached in /workspace/hf_cache (persistent volume) so subsequent boots are fast.
-
-set -e
 
 echo "=== PRACHAR AI Gen Service — Starting ==="
 
@@ -14,7 +11,7 @@ SERVER_PY="$REPO_DIR/server.py"
 if [ ! -f "$SERVER_PY" ]; then
     echo "Cloning repo..."
     cd /root
-    git clone --depth 1 https://github.com/zohaibkhensa-oss/prachar.git
+    git clone --depth 1 https://github.com/zohaibkhensa-oss/prachar.git || echo "Clone failed, retrying..."
 fi
 
 # Install dependencies (only needed on first boot, cached after)
