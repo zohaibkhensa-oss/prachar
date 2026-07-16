@@ -7,15 +7,14 @@ set -e
 
 echo "=== PRACHAR AI Gen Service — Starting ==="
 
-# Repo was cloned to /root/prachar by dockerArgs
+# Clone repo if not already present
 REPO_DIR="/root/prachar/apps/ai-gen"
 SERVER_PY="$REPO_DIR/server.py"
 
 if [ ! -f "$SERVER_PY" ]; then
-    echo "ERROR: server.py not found at $SERVER_PY"
-    echo "Contents of /root:"
-    ls -la /root/ 2>/dev/null || true
-    exit 1
+    echo "Cloning repo..."
+    cd /root
+    git clone --depth 1 https://github.com/zohaibkhensa-oss/prachar.git
 fi
 
 # Install dependencies (only needed on first boot, cached after)
