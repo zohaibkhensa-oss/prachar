@@ -48,3 +48,17 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   });
   return handle<T>(res);
 }
+
+export async function apiPostStream(path: string, body?: unknown): Promise<Response> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    let errBody: unknown = null;
+    try { errBody = await res.json(); } catch { errBody = await res.text(); }
+    throw new ApiError(`API ${res.status}`, res.status, errBody);
+  }
+  return res;
+}

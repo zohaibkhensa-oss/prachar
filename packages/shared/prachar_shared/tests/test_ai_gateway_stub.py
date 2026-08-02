@@ -40,6 +40,8 @@ class _FakeBudget(BudgetGuard):
 def _no_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    monkeypatch.setenv("FAL_KEY", "")
     # reset cached settings
     from prachar_shared.config import get_settings
 

@@ -399,9 +399,9 @@ export function VoiceAssistant() {
     setSpeaking(false);
   }, []);
 
-  // ─── Wake word detection ("Hey Bro") ───
+  // ─── Wake word detection ("Hey Prachar") ───
   // Runs a continuous background SpeechRecognition that listens for the wake word.
-  // When "hey bro" is detected, it opens the assistant and starts active listening.
+  // When "hey prachar" is detected, it opens the assistant and starts active listening.
   const startWakeWordDetection = useCallback(() => {
     if (typeof window === "undefined") return;
     if (wakeEnabledRef.current) return; // already running
@@ -426,7 +426,7 @@ export function VoiceAssistant() {
       }
 
       // Check for wake word
-      const wakeWords = ["hey bro", "hey brother", "hay bro", "a bro", "hey broo", "hey pro", "hey browser"];
+      const wakeWords = ["hey prachar", "hey prachar ai", "hay prachar", "a prachar", "hey prachar a i", "hey pracher", "hey prasher"];
       const detected = wakeWords.some((w) => transcript.includes(w));
 
       if (detected && !activeListeningRef.current && !open) {
@@ -442,12 +442,12 @@ export function VoiceAssistant() {
 
         // Acknowledge with voice
         const greetings = [
-          "Yeah bro, I'm here! What do you need?",
+          "Hi! I'm PRACHAR AI. What do you need?",
           "Hey! What's up? Ask me anything.",
-          "Bro, I'm listening. What do you want to know?",
+          "I'm listening. What do you want to know?",
           "Yes! I'm ready. What can I help you with?",
         ];
-        const greeting = greetings[Math.floor(Math.random() * greetings.length)] ?? "Yeah bro, I'm here! What do you need?";
+        const greeting = greetings[Math.floor(Math.random() * greetings.length)] ?? "Hi! I'm PRACHAR AI. What do you need?";
 
         const aiMsg: Message = { role: "assistant", text: greeting, timestamp: Date.now() };
         setMessages((prev) => [...prev, aiMsg]);
@@ -614,7 +614,7 @@ export function VoiceAssistant() {
               className="absolute right-full mr-3 top-1/2 -translate-y-1/2 glass-strong rounded-lg px-3 py-2 whitespace-nowrap pointer-events-none"
             >
               <span className="font-mono text-xs text-text">
-                {wakeActive ? "Say \"Hey Bro\" or click" : "Ask PRACHAR AI"}
+                {wakeActive ? "Say \"Hey Prachar\" or click" : "Ask PRACHAR AI"}
               </span>
             </motion.div>
           </motion.button>
@@ -655,7 +655,7 @@ export function VoiceAssistant() {
                 <div>
                   <div className="font-display text-sm font-semibold text-text">PRACHAR AI</div>
                   <div className="font-mono text-[10px] text-text-muted">
-                    {speaking ? "Speaking..." : listening ? "Listening..." : thinking ? "Thinking..." : wakeActive ? 'Say "Hey Bro"' : "Ready to help"}
+                    {speaking ? "Speaking..." : listening ? "Listening..." : thinking ? "Thinking..." : wakeActive ? 'Say "Hey Prachar"' : "Ready to help"}
                   </div>
                 </div>
               </div>
@@ -840,7 +840,7 @@ export function VoiceAssistant() {
               <div className="flex items-center justify-center gap-1.5 mt-2">
                 <Sparkles className="w-3 h-3 text-accent/40" />
                 <span className="font-mono text-[9px] text-text-muted">
-                  Voice powered · Say "Hey Bro" to summon · Click mic to speak
+                  Voice powered · Say "Hey Prachar" to summon · Click mic to speak
                 </span>
               </div>
             </div>

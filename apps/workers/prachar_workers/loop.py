@@ -8,10 +8,24 @@ from typing import Any
 from celery import chain
 
 from prachar_workers.celery_app import celery_app
+from prachar_workers.db import _settings
 
 logger = logging.getLogger(__name__)
 
 CHANNELS = ("google", "gsc", "gmb", "youtube", "instagram", "facebook", "tiktok", "linkedin", "x", "pinterest")
+
+
+def _shard_queue(brand_id: str) -> str:
+    """Return the shard queue name for a brand.
+
+    Brands are distributed across N shard queues by hash(brand_id) % N so
+    multiple workers can process weekly loops in parallel without overlap.
+    At 10K brands with 8 shards: ~1,250 brands per shard, each shard worker
+    with concurrency=4 processes its brands in ~2.5 hours.
+    """
+    n = _settings().celery_loop_shards
+    idx = hash(str(brand_id)) % n
+    return f"loop-{idx}"
 
 
 def _week_key() -> str:
@@ -101,10 +115,20 @@ def dispatch_due() -> dict[str, Any]:
     except Exception as exc:  # pragma: no cover
         logger.warning("dispatch_due DB read failed: %s", exc)
 
+    # Batch enqueue to avoid Redis spike when dispatching 10K+ brands at once.
+    # Each brand is routed to its shard queue so multiple workers can process
+    # loops in parallel.
+    batch_size = _settings().celery_dispatch_batch_size
     enqueued: list[str] = []
-    for brand_id in due:
-        enqueue_weekly_loop.delay(brand_id)
+    for i, brand_id in enumerate(due):
+        shard = _shard_queue(brand_id)
+        enqueue_weekly_loop.apply_async(
+            args=[brand_id],
+            queue=shard,
+        )
         enqueued.append(brand_id)
+        if (i + 1) % batch_size == 0:
+            logger.info("dispatch_due progress: %d/%d enqueued", i + 1, len(due))
     logger.info("dispatch_due enqueued=%d", len(enqueued))
     return {"enqueued": enqueued, "count": len(enqueued)}
 
@@ -116,6 +140,33 @@ def _run_step(prev: Any, stage: str) -> dict[str, Any]:
     else:
         brand_id = str(prev) if prev is not None else "unknown"
         week = _week_key()
+
+    # ─── Idempotency check ─────────────────────────────────────────────
+    from prachar_workers.reliability import IdempotencyGuard
+
+    guard = IdempotencyGuard()
+    idem_key = guard.make_key("loop_step", brand_id, week, stage)
+    if guard.is_completed(idem_key):
+        logger.info("loop step %s for %s week %s already completed — skipping", stage, brand_id, week)
+        return {
+            "brand_id": brand_id,
+            "week": week,
+            "stage": stage,
+            "status": "skipped",
+            "channels": {},
+            "idempotent_skip": True,
+        }
+
+    if not guard.acquire(idem_key, ttl_seconds=3600):
+        logger.warning("loop step %s for %s week %s already running — skipping", stage, brand_id, week)
+        return {
+            "brand_id": brand_id,
+            "week": week,
+            "stage": stage,
+            "status": "already_running",
+            "channels": {},
+        }
+
     _audit("start", brand_id, stage)
     channels: dict[str, Any] = {}
     for ch in CHANNELS:
@@ -132,6 +183,10 @@ def _run_step(prev: Any, stage: str) -> dict[str, Any]:
         "channels": channels,
     }
     _audit("end", brand_id, stage, {"status": result["status"]})
+
+    # Mark as completed for idempotency
+    guard.complete(idem_key, result)
+
     return result
 
 
@@ -143,7 +198,16 @@ def _run_step(prev: Any, stage: str) -> dict[str, Any]:
     max_retries=3,
 )
 def measure(self, brand_id: Any) -> dict[str, Any]:  # noqa: ANN001
-    return _run_step(brand_id, "measure")
+    result = _run_step(brand_id, "measure")
+    # Fire-and-forget daily performance ingestion (P4.2) alongside the weekly
+    # measure step.  Failures here must not break the weekly chain.
+    try:
+        from prachar_workers.performance import pull_daily_performance
+
+        pull_daily_performance.apply_async()
+    except Exception as exc:  # pragma: no cover
+        logger.warning("performance pull enqueue failed: %s", exc)
+    return result
 
 
 @celery_app.task(
@@ -224,15 +288,20 @@ def report(self, prev: Any) -> dict[str, Any]:  # noqa: ANN001
 
 def run_weekly_loop(brand_id: str) -> Any:
     """Build and return the 7-step Celery chain (does NOT execute it).
-    Call `.apply_async()` on the result to enqueue, or `.apply()` for eager mode."""
+    Call `.apply_async()` on the result to enqueue, or `.apply()` for eager mode.
+
+    The chain is routed to the brand's shard queue so multiple workers can
+    process loops in parallel without overlap.
+    """
+    shard = _shard_queue(brand_id)
     return chain(
-        measure.s(brand_id),
-        diagnose.s(),
-        regenerate.s(),
-        policy_check.s(),
-        publish.s(),
-        budget_realloc.s(),
-        report.s(),
+        measure.s(brand_id).set(queue=shard),
+        diagnose.s().set(queue=shard),
+        regenerate.s().set(queue=shard),
+        policy_check.s().set(queue=shard),
+        publish.s().set(queue=shard),
+        budget_realloc.s().set(queue=shard),
+        report.s().set(queue=shard),
     )
 
 
@@ -243,5 +312,9 @@ def run_weekly_loop(brand_id: str) -> Any:
     max_retries=2,
 )
 def enqueue_weekly_loop(brand_id: str) -> Any:
-    """Celery task that enqueues the 7-step weekly loop chain."""
+    """Celery task that enqueues the 7-step weekly loop chain.
+
+    The chain runs on the brand's shard queue (loop-0..N-1) so multiple
+    workers can process brands in parallel.
+    """
     return run_weekly_loop(brand_id).apply_async()

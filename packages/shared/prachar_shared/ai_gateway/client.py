@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import time
 import uuid
 from typing import Any
 
@@ -12,12 +13,21 @@ from pydantic import BaseModel, ConfigDict, ValidationError, create_model
 from ..config import get_settings
 from .budget import BudgetGuard
 from .cache import Cache, ttl_for
+from .json_utils import extract_json
+from .observability import estimate_cost, log_ai_request, new_request_id
+from .safety import check_output_for_leaks, detect_injection, sanitize_input
 from .tiering import Tier, pick_model
 
 logger = logging.getLogger(__name__)
 
 
 class BudgetExceeded(Exception):
+    pass
+
+
+class ProviderError(Exception):
+    """Raised when a provider call fails after all retries."""
+
     pass
 
 
@@ -29,6 +39,11 @@ class Completion(BaseModel):
     tokens_used: int = 0
     model: str
     cached: bool = False
+    provider: str = ""
+    latency_ms: float = 0.0
+    cost_usd: float = 0.0
+    request_id: str = ""
+    confidence: float = 0.0  # 0.0-1.0, estimated confidence in response quality
 
 
 class AIGateway:
@@ -46,6 +61,19 @@ class AIGateway:
         s = get_settings()
         return not (s.anthropic_api_key.strip() or s.openai_api_key.strip() or s.groq_api_key.strip())
 
+    async def async_complete(
+        self,
+        prompt: str,
+        **kwargs: Any,
+    ) -> Completion:
+        """Async wrapper around complete() — runs the sync LLM call in a thread.
+
+        Use this from async code (FastAPI routes, runtime, tools):
+            completion = await gateway.async_complete(prompt=..., tier=..., ...)
+        """
+        import asyncio
+        return await asyncio.to_thread(self.complete, prompt, **kwargs)
+
     def complete(
         self,
         prompt: str,
@@ -58,7 +86,32 @@ class AIGateway:
         max_tokens: int = 1024,
         temperature: float = 0.2,
         retries: int = 1,
+        user_input: str | None = None,
+        prompt_version: str = "",
+        campaign_id: str = "",
     ) -> Completion:
+        # ─── Safety: check for prompt injection ───────────────────────────
+        if user_input:
+            risk = detect_injection(user_input)
+            if risk.is_dangerous:
+                logger.warning(
+                    "prompt injection blocked: patterns=%s input_preview=%.100s",
+                    risk.detected_patterns,
+                    user_input,
+                )
+                from .safety import BLOCKED_RESPONSE
+
+                return Completion(
+                    text=BLOCKED_RESPONSE,
+                    tokens_used=0,
+                    model="safety-blocked",
+                    provider="safety",
+                    confidence=0.0,
+                    request_id=new_request_id(),
+                )
+
+        request_id = new_request_id()
+        t0 = time.monotonic()
         model = pick_model(tier)
         key = self.cache.key(model, prompt, schema)
 
@@ -68,28 +121,148 @@ class AIGateway:
                 data = json.loads(cached)
                 comp = Completion.model_validate(data)
                 comp.cached = True
+                comp.latency_ms = round((time.monotonic() - t0) * 1000, 2)
+                comp.request_id = request_id
+                # Log cache hit
+                log_ai_request(
+                    request_id=request_id,
+                    tenant_id=str(tenant_id),
+                    task=task,
+                    model=model,
+                    provider="cache",
+                    latency_ms=comp.latency_ms,
+                    tokens_used=comp.tokens_used,
+                    cached=True,
+                    success=True,
+                    prompt_version=prompt_version,
+                    campaign_id=campaign_id,
+                )
                 return comp
             except Exception:
                 logger.debug("cache parse failed, recomputing", exc_info=True)
 
         if not self.budget.check_and_reserve(tenant_id, max_tokens, plan):
+            log_ai_request(
+                request_id=request_id,
+                tenant_id=str(tenant_id),
+                task=task,
+                model=model,
+                provider="none",
+                latency_ms=round((time.monotonic() - t0) * 1000, 2),
+                tokens_used=0,
+                success=False,
+                failure_reason="budget_exceeded",
+                prompt_version=prompt_version,
+                campaign_id=campaign_id,
+            )
             raise BudgetExceeded(f"budget exceeded for tenant {tenant_id} plan={plan}")
 
         if self._stub_mode():
             comp = self._stub_complete(prompt, model, schema, task)
         else:
-            comp = self._provider_complete(
-                prompt=prompt,
-                model=model,
-                schema=schema,
-                max_tokens=max_tokens,
-                temperature=temperature,
-                retries=retries,
-            )
+            try:
+                comp = self._provider_complete(
+                    prompt=prompt,
+                    model=model,
+                    schema=schema,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    retries=retries,
+                )
+            except Exception as exc:
+                latency_ms = round((time.monotonic() - t0) * 1000, 2)
+                log_ai_request(
+                    request_id=request_id,
+                    tenant_id=str(tenant_id),
+                    task=task,
+                    model=model,
+                    provider="failed",
+                    latency_ms=latency_ms,
+                    tokens_used=0,
+                    success=False,
+                    failure_reason=str(exc)[:500],
+                    prompt_version=prompt_version,
+                    campaign_id=campaign_id,
+                )
+                raise
+
+        # ─── Post-processing: JSON extraction & safety checks ─────────────
+        # If schema was requested but json_value is None, try extracting from text
+        if schema is not None and comp.json_value is None and comp.text:
+            extracted = extract_json(comp.text)
+            if extracted is not None and isinstance(extracted, dict):
+                comp.json_value = extracted
+                try:
+                    self._validate_json(schema, extracted)
+                except RuntimeError:
+                    # Schema validation failed on extracted JSON — leave as text
+                    comp.json_value = None
+
+        # Check output for system prompt leaks
+        if user_input and comp.text:
+            if not check_output_for_leaks(comp.text):
+                logger.warning("output leak detected for request %s", request_id)
+                comp.text = "I can only help with PRACHAR platform questions and advertising expertise."
+                comp.confidence = 0.0
+
+        # Estimate confidence based on response quality signals
+        if not comp.confidence:
+            comp.confidence = self._estimate_confidence(comp, schema)
+
+        # Fill in observability fields
+        comp.latency_ms = round((time.monotonic() - t0) * 1000, 2)
+        comp.cost_usd = estimate_cost(comp.model, comp.tokens_used)
+        comp.request_id = request_id
 
         self.budget.record_usage(tenant_id, comp.tokens_used or max_tokens, plan)
         self.cache.set(key, comp.model_dump_json(), ttl_for(task))
+
+        # Log successful request
+        log_ai_request(
+            request_id=request_id,
+            tenant_id=str(tenant_id),
+            task=task,
+            model=comp.model,
+            provider=comp.provider,
+            latency_ms=comp.latency_ms,
+            tokens_used=comp.tokens_used,
+            cost_usd=comp.cost_usd,
+            cached=False,
+            success=True,
+            prompt_version=prompt_version,
+            campaign_id=campaign_id,
+        )
+
         return comp
+
+    @staticmethod
+    def _estimate_confidence(comp: Completion, schema: dict[str, Any] | None) -> float:
+        """Estimate confidence in the response quality (0.0-1.0)."""
+        score = 0.5  # Base confidence
+
+        # Higher confidence if schema was requested and validated
+        if schema is not None and comp.json_value is not None:
+            score += 0.3
+
+        # Lower confidence if response is very short (may be incomplete)
+        if len(comp.text) < 20:
+            score -= 0.2
+
+        # Lower confidence if response contains uncertainty markers
+        uncertainty_markers = ["i don't know", "i'm not sure", "i cannot", "unable to", "i don't have"]
+        text_lower = comp.text.lower()
+        if any(marker in text_lower for marker in uncertainty_markers):
+            score -= 0.1
+
+        # Higher confidence if response is substantive
+        if len(comp.text) > 100:
+            score += 0.1
+
+        # Lower confidence if stub mode
+        if comp.model == "stub":
+            score = 0.1
+
+        return max(0.0, min(1.0, round(score, 2)))
 
     # ----- stub -----
     def _stub_complete(
@@ -110,13 +283,14 @@ class AIGateway:
                 ),
                 tokens_used=64,
                 model="stub",
+                provider="stub",
             )
         digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         text = f"[stub] {digest}"
         json_value: dict[str, Any] | None = None
         if schema is not None:
             json_value = self._stub_json(schema, digest)
-        return Completion(text=text, json_value=json_value, tokens_used=64, model="stub")
+        return Completion(text=text, json_value=json_value, tokens_used=64, model="stub", provider="stub")
 
     @staticmethod
     def _stub_json(schema: dict[str, Any], digest: str) -> dict[str, Any]:
@@ -239,6 +413,7 @@ class AIGateway:
         client = openai_lib.OpenAI(
             api_key=s.groq_api_key,
             base_url="https://api.groq.com/openai/v1",
+            timeout=60.0,  # 60s timeout per request
         )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         if schema is not None:
@@ -253,10 +428,13 @@ class AIGateway:
                 ],
             )
             content = resp.choices[0].message.content or "{}"
-            json_value = json.loads(content)
+            # Use universal JSON extractor (handles markdown fences, prose, etc.)
+            json_value = extract_json(content)
+            if json_value is None or not isinstance(json_value, dict):
+                raise RuntimeError(f"Groq returned non-JSON despite json_object format: {content[:200]}")
             self._validate_json(schema, json_value)
             tokens = resp.usage.total_tokens if resp.usage else 0
-            return Completion(text=content, json_value=json_value, tokens_used=tokens, model=model)
+            return Completion(text=content, json_value=json_value, tokens_used=tokens, model=model, provider="groq")
         resp = client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
@@ -265,7 +443,7 @@ class AIGateway:
         )
         text = resp.choices[0].message.content or ""
         tokens = resp.usage.total_tokens if resp.usage else 0
-        return Completion(text=text, tokens_used=tokens, model=model)
+        return Completion(text=text, tokens_used=tokens, model=model, provider="groq")
 
     def _call_anthropic(
         self,
@@ -278,7 +456,10 @@ class AIGateway:
     ) -> Completion:
         import anthropic
 
-        client = anthropic.Anthropic(api_key=get_settings().anthropic_api_key)
+        client = anthropic.Anthropic(
+            api_key=get_settings().anthropic_api_key,
+            timeout=60.0,
+        )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         if schema is not None:
             return self._anthropic_tool_json(client, model, full_prompt, schema, max_tokens, temperature)
@@ -289,7 +470,12 @@ class AIGateway:
             messages=[{"role": "user", "content": full_prompt}],
         )
         text = "".join(block.text for block in resp.content if hasattr(block, "text"))
-        return Completion(text=text, tokens_used=resp.usage.input_tokens + resp.usage.output_tokens, model=model)
+        return Completion(
+            text=text,
+            tokens_used=resp.usage.input_tokens + resp.usage.output_tokens,
+            model=model,
+            provider="anthropic",
+        )
 
     def _anthropic_tool_json(
         self,
@@ -328,6 +514,7 @@ class AIGateway:
             json_value=json_value,
             tokens_used=resp.usage.input_tokens + resp.usage.output_tokens,
             model=model,
+            provider="anthropic",
         )
 
     def _call_openai(
@@ -341,7 +528,10 @@ class AIGateway:
     ) -> Completion:
         import openai
 
-        client = openai.OpenAI(api_key=get_settings().openai_api_key)
+        client = openai.OpenAI(
+            api_key=get_settings().openai_api_key,
+            timeout=60.0,
+        )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         if schema is not None:
             resp = client.chat.completions.create(
@@ -355,10 +545,13 @@ class AIGateway:
                 ],
             )
             content = resp.choices[0].message.content or "{}"
-            json_value = json.loads(content)
+            # Use universal JSON extractor
+            json_value = extract_json(content)
+            if json_value is None or not isinstance(json_value, dict):
+                raise RuntimeError(f"OpenAI returned non-JSON despite json_object format: {content[:200]}")
             self._validate_json(schema, json_value)
             tokens = resp.usage.total_tokens if resp.usage else 0
-            return Completion(text=content, json_value=json_value, tokens_used=tokens, model=model)
+            return Completion(text=content, json_value=json_value, tokens_used=tokens, model=model, provider="openai")
         resp = client.chat.completions.create(
             model=model,
             max_tokens=max_tokens,
@@ -367,7 +560,7 @@ class AIGateway:
         )
         text = resp.choices[0].message.content or ""
         tokens = resp.usage.total_tokens if resp.usage else 0
-        return Completion(text=text, tokens_used=tokens, model=model)
+        return Completion(text=text, tokens_used=tokens, model=model, provider="openai")
 
     @staticmethod
     def _validate_json(schema: dict[str, Any], value: dict[str, Any]) -> None:

@@ -4,20 +4,45 @@ from .base import Base, TenantScoped, Timestamped, UUIDPK, utcnow
 from .enums import *
 from .tables import (
     Asset,
+    AudienceProfileRecord,
     AuditEvent,
     AuditJob,
     Billing,
     Brand,
+    BusinessMemoryRecord,
+    BusinessProfileRecord,
     Campaign,
+    CampaignPerformance,
+    CampaignPlanRecord,
+    CampaignScoreRecord,
+    CompetitorProfileRecord,
     Connection,
+    ConsensusDecisionRecord,
     ContentItem,
+    CouncilLearningRecord,
+    CouncilSessionRecord,
     Creative,
+    CreativeDirectionRecord,
     Diagnosis,
+    DirectorOpinionRecord,
+    ExecutionPlanRecord,
+    KnowledgeAttributionRecord,
+    KnowledgeChunkRecord,
+    KnowledgeEmbeddingRecord,
+    KnowledgeSourceRecord,
+    LearningReportRecord,
+    MarketingStrategyRecord,
+    MediaPlanRecord,
     MetricEvent,
     Report,
+    ReviewComment,
+    ReviewVersion,
     Tenant,
     User,
 )
+# AI Runtime — WorkspaceTimeline is defined in runtime/timeline.py to keep
+# the runtime package self-contained, but it uses the same Base/metadata.
+from ..runtime.timeline import WorkspaceTimeline
 
 __all__ = [
     "Base",
@@ -39,4 +64,31 @@ __all__ = [
     "Billing",
     "Report",
     "AuditJob",
+    "ReviewComment",
+    "ReviewVersion",
+    # Marketing Intelligence Engine
+    "BusinessMemoryRecord",
+    "BusinessProfileRecord",
+    "AudienceProfileRecord",
+    "CompetitorProfileRecord",
+    "MarketingStrategyRecord",
+    "CreativeDirectionRecord",
+    "MediaPlanRecord",
+    "CampaignPlanRecord",
+    "CampaignPerformance",
+    "ExecutionPlanRecord",
+    "LearningReportRecord",
+    # Agency Council
+    "CouncilSessionRecord",
+    "DirectorOpinionRecord",
+    "ConsensusDecisionRecord",
+    "CampaignScoreRecord",
+    "CouncilLearningRecord",
+    # AI Runtime
+    "WorkspaceTimeline",
+    # Business Knowledge Hub
+    "KnowledgeSourceRecord",
+    "KnowledgeChunkRecord",
+    "KnowledgeEmbeddingRecord",
+    "KnowledgeAttributionRecord",
 ]

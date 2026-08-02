@@ -1,0 +1,30 @@
+# Prachar AI — Terraform variables for production
+# Copy this file to terraform.tfvars and fill in your values.
+
+aws_region     = "ap-south-1"
+project_name   = "prachar"
+environment    = "production"
+domain_name    = "prachar.ai"
+api_domain     = "api.prachar.ai"
+app_domain     = "app.prachar.ai"
+
+# Database
+db_instance_class    = "db.r6g.large"
+db_allocated_storage = 100
+
+# Redis
+redis_node_type    = "cache.r6g.large"
+redis_cluster_size = 2
+
+# ECS
+ecs_api_cpu        = 1024
+ecs_api_memory     = 2048
+api_desired_count  = 2
+worker_desired_count = 2
+worker_cpu         = 512
+worker_memory      = 1024
+
+# ECR images (fill after first build+push)
+ecr_api_image    = ""
+ecr_web_image    = ""
+ecr_worker_image = ""

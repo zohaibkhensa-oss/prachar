@@ -8,8 +8,21 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .db import get_session
-from .models import User
+from .models import Tenant, User
 from .security import decode_token
+
+
+async def get_tenant_plan(session: AsyncSession, user: User) -> str:
+    """Look up the tenant's plan from the DB.
+
+    The User model only stores ``tenant_id`` (no relationship), so callers
+    must query the Tenant row to read the plan. Falls back to "agency"
+    when the tenant row is missing (defensive — should not happen in
+    practice but keeps endpoints working for seeded/test users).
+    """
+    res = await session.execute(select(Tenant).where(Tenant.id == user.tenant_id))
+    tenant = res.scalar_one_or_none()
+    return str(tenant.plan) if tenant is not None else "agency"
 
 
 async def _get_session_dep(request: Request):

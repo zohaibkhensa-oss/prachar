@@ -1,0 +1,165 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  # ─── Build & push images ────────────────────────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      api_image: ${{ steps.build-api.outputs.image }}
+      web_image: ${{ steps.build-web.outputs.image }}
+      worker_image: ${{ steps.build-worker.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push API
+        id: build-api
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          IMAGE="${ECR_REGISTRY}/prachar/api:${{ github.sha }}"
+          docker build -t "$IMAGE" -f Dockerfile.api .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push Web
+        id: build-web
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          IMAGE="${ECR_REGISTRY}/prachar/web:${{ github.sha }}"
+          docker build -t "$IMAGE" -f Dockerfile.web apps/web
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push Worker
+        id: build-worker
+        env:
+          ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          IMAGE="${ECR_REGISTRY}/prachar/worker:${{ github.sha }}"
+          docker build -t "$IMAGE" -f Dockerfile.worker .
+          docker push "$IMAGE"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+  # ─── Deploy to staging (auto on main push) ─────────────────────────────────
+  deploy-staging:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply (staging)
+        run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve \
+            -var="environment=staging" \
+            -var="ecr_api_image=${{ needs.build.outputs.api_image }}" \
+            -var="ecr_web_image=${{ needs.build.outputs.web_image }}" \
+            -var="ecr_worker_image=${{ needs.build.outputs.worker_image }}"
+
+      - name: Run migrations
+        run: |
+          # Migrations run as a one-off ECS task
+          aws ecs run-task \
+            --cluster prachar-staging \
+            --task-definition prachar-migrate \
+            --count 1 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.STAGING_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.STAGING_SG }}]}"
+
+      - name: Wait for deployment to stabilize
+        run: sleep 60
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://staging-api.prachar.ai/health/ready || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS, retrying..."
+            sleep 15
+          done
+          echo "Health check failed after 10 attempts"
+          exit 1
+
+  # ─── Deploy to production (manual, on tag) ─────────────────────────────────
+  deploy-production:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ secrets.AWS_REGION }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      - name: Terraform Apply (production)
+        run: |
+          cd infra/terraform
+          terraform init
+          terraform apply -auto-approve \
+            -var="environment=production" \
+            -var="ecr_api_image=${{ needs.build.outputs.api_image }}" \
+            -var="ecr_web_image=${{ needs.build.outputs.web_image }}" \
+            -var="ecr_worker_image=${{ needs.build.outputs.worker_image }}"
+
+      - name: Run migrations
+        run: |
+          aws ecs run-task \
+            --cluster prachar-production \
+            --task-definition prachar-migrate \
+            --count 1 \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.PROD_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.PROD_SG }}]}"
+
+      - name: Health check
+        run: |
+          for i in $(seq 1 10); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.prachar.ai/health/ready || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Production health check passed"
+              exit 0
+            fi
+            echo "Attempt $i: status=$STATUS, retrying..."
+            sleep 15
+          done
+          echo "Production health check failed"
+          exit 1

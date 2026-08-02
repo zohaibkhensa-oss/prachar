@@ -26,7 +26,14 @@ const VIDEO_TYPES = [
 const PLATFORMS = ["Instagram Reels", "TikTok", "YouTube Shorts", "Facebook Reels", "LinkedIn"];
 const STYLES = ["Cinematic", "Documentary", "Product Demo", "UGC", "Animated", "Slideshow"];
 const VOICES = ["Male US", "Female US", "Male UK", "Female UK", "Male IN", "Female IN"];
-const DURATIONS = ["15s", "30s", "60s", "90s"];
+const DURATIONS = ["5s", "8s", "10s", "15s"];
+
+const QUALITY_TIERS = [
+  { id: "preview" as const, label: "Preview", desc: "Free · low quality", cost: "$0", icon: "👁" },
+  { id: "lite" as const, label: "Standard", desc: "~$0.08/s · 1080p + audio", cost: "$1.20/15s", icon: "✓" },
+  { id: "fast" as const, label: "High", desc: "~$0.12/s · better motion", cost: "$1.80/15s", icon: "✦" },
+  { id: "standard" as const, label: "Premium", desc: "~$0.40/s · best quality", cost: "$6.00/15s", icon: "★" },
+];
 
 const TEMPLATES = [
   { name: "Product Launch", icon: "🚀", uses: 1240 },
@@ -152,7 +159,8 @@ export default function VideoStudioPage() {
   const [selectedPlatform, setSelectedPlatform] = useState("Instagram Reels");
   const [selectedStyle, setSelectedStyle] = useState("Cinematic");
   const [selectedVoice, setSelectedVoice] = useState("Female US");
-  const [duration, setDuration] = useState("30s");
+  const [duration, setDuration] = useState("15s");
+  const [qualityTier, setQualityTier] = useState<"preview" | "lite" | "fast" | "standard">("lite");
   const [music, setMusic] = useState(true);
   const [logoOverlay, setLogoOverlay] = useState(true);
   const [videos, setVideos] = useState(MOCK_VIDEOS);
@@ -274,10 +282,11 @@ export default function VideoStudioPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: `${prompt}, ${selectedStyle} style, high quality, detailed`,
-            model: "ltx",
+            quality: qualityTier,
             duration: duration.replace("s", ""),
-            resolution: "720p",
+            resolution: "1080p",
             video_type: selectedType,
+            with_audio: music,
           }),
           signal: AbortSignal.timeout(300000), // 5 min timeout for video gen
         });
@@ -417,6 +426,28 @@ export default function VideoStudioPage() {
                       )}
                     >
                       {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="label-field block mb-2">Quality</label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {QUALITY_TIERS.map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setQualityTier(t.id)}
+                      className={cn(
+                        "px-2 py-2 rounded-md text-left border transition-all",
+                        qualityTier === t.id ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text",
+                      )}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">{t.icon}</span>
+                        <span className="text-xs font-medium">{t.label}</span>
+                      </div>
+                      <div className="text-[10px] text-text-muted mt-0.5">{t.desc}</div>
                     </button>
                   ))}
                 </div>

@@ -346,7 +346,7 @@ export default function SettingsPage() {
                       <p className="text-sm text-text-secondary">₹49,000/month · Renews Apr 01</p>
                     </div>
                   </div>
-                  <button className="btn-primary">Manage Plan</button>
+                  <a href="/app/pricing" className="btn-primary">View Plans & Upgrade</a>
                 </div>
               </Card>
 

@@ -1,0 +1,290 @@
+[
+  {
+    "path": "/",
+    "name": "landing",
+    "status": "ok",
+    "file": "landing.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Ask PRACHAR AI\nFree Audit\nLogin\nGet Started\nYour AI marketing team\nOne brand upload.\nEvery platform."
+  },
+  {
+    "path": "/login",
+    "name": "login",
+    "status": "ok",
+    "file": "login.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Welcome back\n\nSign in to your AI advertising OS\n\nEMAIL\nPASSWORD\nForgot password?\nSign In\nDEMO ACCESS"
+  },
+  {
+    "path": "/register",
+    "name": "register",
+    "status": "ok",
+    "file": "register.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Create your workspace\n\nStart your AI advertising journey\n\nFULL NAME\nEMAIL\nPASSWORD\nFree 14-day trial"
+  },
+  {
+    "path": "/onboarding",
+    "name": "onboarding",
+    "status": "ok",
+    "file": "onboarding.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Tell me who you are\n\nI'll tailor everything to your goals. Pick one to get started.\n\nBusiness Growth"
+  },
+  {
+    "path": "/app",
+    "name": "dashboard",
+    "status": "ok",
+    "file": "dashboard.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\n✦\nGood evening\nSet your business name\n\nYour marketing team is ready. I can create cam"
+  },
+  {
+    "path": "/app/brands",
+    "name": "brands",
+    "status": "ok",
+    "file": "brands.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nMy Brand\n\n14 businesses · We promote you everywhere\n\nAdd another business\n🍽️\nRestaur"
+  },
+  {
+    "path": "/app/campaigns",
+    "name": "campaigns",
+    "status": "ok",
+    "file": "campaigns.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nCampaigns\n\nLet's create your first campaign\n\nNew campaign\nYour first campaign is one "
+  },
+  {
+    "path": "/app/channels",
+    "name": "channels",
+    "status": "ok",
+    "file": "channels.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nChannels\n\nManage every advertising channel from one command center.\n\nCONNECTED\n0\nNEED"
+  },
+  {
+    "path": "/app/connections",
+    "name": "connections",
+    "status": "ok",
+    "file": "connections.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nCONNECTIONS\n\nConnect your social and advertising accounts to publish content and run "
+  },
+  {
+    "path": "/app/integrations",
+    "name": "integrations",
+    "status": "ok",
+    "file": "integrations.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nIntegration Centre\n\nConnect your marketing tools — 0 active, 0 available\n\nAVAILABLE ("
+  },
+  {
+    "path": "/app/review",
+    "name": "review",
+    "status": "ok",
+    "file": "review.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nReview Queue\n\nCampaigns waiting for your review and approval.\n\nAll campaigns\nSTATUS\nA"
+  },
+  {
+    "path": "/app/reviews",
+    "name": "reviews",
+    "status": "ok",
+    "file": "reviews.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nReview Management\n\nUnified inbox for all your review platforms\n\nAI-POWERED RESPONSES\n"
+  },
+  {
+    "path": "/app/reports",
+    "name": "reports",
+    "status": "ok",
+    "file": "reports.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nREPORTS\n\nPerformance intelligence across all channels and regions.\n\nRestaurant (not s"
+  },
+  {
+    "path": "/app/knowledge",
+    "name": "knowledge",
+    "status": "ok",
+    "file": "knowledge.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nKNOWLEDGE BASE\n\nDocuments and brand info that help the AI understand your business.\n\n"
+  },
+  {
+    "path": "/app/calendar",
+    "name": "calendar",
+    "status": "ok",
+    "file": "calendar.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nContent Calendar\n\nSchedule and visualise your content across all platforms\n\nCOMING IN"
+  },
+  {
+    "path": "/app/settings",
+    "name": "settings",
+    "status": "ok",
+    "file": "settings.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nSETTINGS\n\nManage your account, organization, and preferences.\n\nProfile\nOrganization\nB"
+  },
+  {
+    "path": "/app/analytics",
+    "name": "analytics",
+    "status": "ok",
+    "file": "analytics.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nYour Results\n\nHow Restaurant (not specified) is performing across all channels.\n\nPEOP"
+  },
+  {
+    "path": "/app/performance",
+    "name": "performance",
+    "status": "ok",
+    "file": "performance.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nPerformance Stories\n\nHow each of your campaigns is performing — told as a story, not "
+  },
+  {
+    "path": "/app/creative",
+    "name": "creative",
+    "status": "ok",
+    "file": "creative.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nCreative AI\n\nGenerate ad creatives, headlines, and visua"
+  },
+  {
+    "path": "/app/creative-studio",
+    "name": "creative-studio",
+    "status": "ok",
+    "file": "creative-studio.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nCREATIVE STUDIO\nCreative Studio\n\nGenerate all 10 creative formats — posters, video sc"
+  },
+  {
+    "path": "/app/video",
+    "name": "video",
+    "status": "ok",
+    "file": "video.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nAI Video\n\nGenerate marketing videos from text prompts. P"
+  },
+  {
+    "path": "/app/images",
+    "name": "images",
+    "status": "ok",
+    "file": "images.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nAI Image Studio\n\nGenerate marketing creatives from text "
+  },
+  {
+    "path": "/app/design",
+    "name": "design",
+    "status": "ok",
+    "file": "design.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nDesign AI\n\nCreate marketing designs, logos, and brand vi"
+  },
+  {
+    "path": "/app/audience",
+    "name": "audience",
+    "status": "ok",
+    "file": "audience.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nAudience Builder\n\nDefine and refine your target audience"
+  },
+  {
+    "path": "/app/influencers",
+    "name": "influencers",
+    "status": "ok",
+    "file": "influencers.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nInfluencer Marketing\n\nDiscover, match, and manage influe"
+  },
+  {
+    "path": "/app/advocacy",
+    "name": "advocacy",
+    "status": "ok",
+    "file": "advocacy.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nBrand Advocacy\n\nTurn employees and customers into brand "
+  },
+  {
+    "path": "/app/marketplace",
+    "name": "marketplace",
+    "status": "ok",
+    "file": "marketplace.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nMarketplace\n\nExtend PRACHAR AI with integrations and add"
+  },
+  {
+    "path": "/app/shop",
+    "name": "shop",
+    "status": "ok",
+    "file": "shop.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nE-Commerce\n\nSync products and generate AI content for yo"
+  },
+  {
+    "path": "/app/bio",
+    "name": "bio",
+    "status": "ok",
+    "file": "bio.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nLink in Bio\n\nCreate a beautiful link-in-bio page with AI"
+  },
+  {
+    "path": "/app/listening",
+    "name": "listening",
+    "status": "ok",
+    "file": "listening.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nLABS\n· In active development\nSocial Listening\n\nMonitor mentions, sentiment, and trend"
+  },
+  {
+    "path": "/app/timeline",
+    "name": "timeline",
+    "status": "ok",
+    "file": "timeline.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nWorkspace Timeline\n\nEvery action, every decision, every learning — your marketing his"
+  },
+  {
+    "path": "/app/runtime",
+    "name": "runtime",
+    "status": "ok",
+    "file": "runtime.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nRuntime Certification Dashboard\n\nInternal debug tool. Every session: Decision → Graph"
+  },
+  {
+    "path": "/app/repurpose",
+    "name": "repurpose",
+    "status": "ok",
+    "file": "repurpose.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nCONTENT REPURPOSING\nTurn one video into 11 assets\n\nPaste your YouTube video title and"
+  },
+  {
+    "path": "/app/youtube-plan",
+    "name": "youtube-plan",
+    "status": "ok",
+    "file": "youtube-plan.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nYOUTUBE PLANNING\nPlan your next YouTube video\n\nGive me your video concept. I'll creat"
+  },
+  {
+    "path": "/app/pricing",
+    "name": "pricing",
+    "status": "ok",
+    "file": "pricing.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Search...\n⌘K\nD\nSimple, transparent pricing\n\nOne subscription. Everything included — AI strategy, vid"
+  },
+  {
+    "path": "/audit",
+    "name": "audit",
+    "status": "ok",
+    "file": "audit.png",
+    "title": "PRACHAR AI — Your Autonomous Marketing Team",
+    "preview": "Sign up\nFREE VISIBILITY AUDIT\n\nEnter your website or @handle. We crawl, measure, and report in secon"
+  }
+]

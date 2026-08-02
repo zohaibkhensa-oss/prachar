@@ -1,320 +1,613 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
-import { Metric } from "@/components/ui/metric";
-import { Card3D, Card } from "@/components/ui/card-3d";
-import { AIStatusBlock, AIRecommendation } from "@/components/ui/ai-blocks";
-import { Timeline, ActivityFeed } from "@/components/ui/timeline";
-import { PerformanceRing, Sparkline, ProgressBar } from "@/components/ui/charts";
-import { SectionHeader, EmptyState } from "@/components/ui/empty-state";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import {
-  DollarSign,
+  Sparkles,
+  ArrowRight,
+  ArrowDownRight,
+  ArrowUpRight,
   TrendingUp,
   Eye,
   Target,
-  Zap,
-  Brain,
-  Sparkles,
-  Rocket,
-  AlertTriangle,
-  Trophy,
-  Activity,
-  ArrowRight,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  Minus,
   Plus,
-  Wand2,
-  FileText,
   Megaphone,
+  Zap,
 } from "lucide-react";
-import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useActiveBrand, useCampaignPlans } from "@/lib/hooks";
+import { INDUSTRY_BY_ID } from "@/lib/industries";
+import { Skeleton } from "@/components/ui/skeleton";
+import { CreatorDashboard } from "./creator-dashboard";
+import { DashboardShell } from "@/components/consult/DashboardShell";
+import { unifiedConsultApi, type DomainConfig } from "@/lib/unified-consult";
+import { useQuery } from "@tanstack/react-query";
 
-const SPARK_DATA = [12, 18, 15, 22, 28, 25, 32, 35, 30, 38, 42, 48];
+// Fallback configs if the /consult/nav endpoint is unavailable
+const BUSINESS_FALLBACK: DomainConfig = {
+  domain: "business",
+  label: "Business Growth",
+  emoji: "🏢",
+  nav_sections: [],
+  kpi_cards: [
+    { key: "customers", label: "Customers", icon: "Users", hint: "From your campaigns" },
+    { key: "revenue", label: "Revenue", icon: "TrendingUp", hint: "From your campaigns" },
+    { key: "enquiries", label: "Enquiries", icon: "MessageSquare", hint: "From your campaigns" },
+    { key: "reach", label: "Reach", icon: "Eye", hint: "People who saw your business" },
+  ],
+  dashboard_widgets: [
+    { kind: "kpi_grid", title: "Your business at a glance", props: {} },
+    { kind: "quick_actions", title: "Grow your business", props: {} },
+    { kind: "approvals", title: "Waiting for your approval", props: {} },
+    { kind: "pipeline", title: "Your campaigns", props: {} },
+  ],
+  quick_actions: [
+    {
+      title: "Create My Campaign",
+      description: "We'll build your marketing campaign — tailored for your business. Takes 30 seconds.",
+      href: "/app/brands/{brand_id}/campaigns/new",
+      icon: "Zap",
+      accent: "accent",
+    },
+  ],
+  tools: [],
+};
 
-const TIMELINE_ENTRIES = [
-  { id: "1", title: "Weekly loop completed", description: "Brand: Demo Coffee Co · Score improved 17.5 → 24.3", timestamp: "2m ago", status: "done" as const },
-  { id: "2", title: "AI generating creatives", description: "3 ad variants for Google RSA campaign", timestamp: "5m ago", status: "active" as const },
-  { id: "3", title: "Budget reallocated", description: "Shifted ₹2,000 from Meta → Google (CPA 18% lower)", timestamp: "12m ago", status: "done" as const },
-  { id: "4", title: "New competitor detected", description: "BeanThere Coffee ranking for 'specialty coffee mumbai'", timestamp: "1h ago", status: "pending" as const },
-  { id: "5", title: "YouTube transcript processed", description: "2 videos transcribed → metadata optimized", timestamp: "2h ago", status: "done" as const },
-];
+const CREATOR_FALLBACK: DomainConfig = {
+  domain: "creator",
+  label: "Creator Growth",
+  emoji: "🎨",
+  nav_sections: [],
+  kpi_cards: [
+    { key: "subscribers", label: "Subscribers", icon: "Users", hint: "Connect YouTube to see" },
+    { key: "views", label: "Views (28d)", icon: "Eye", hint: "Connect YouTube to see" },
+    { key: "watch_time", label: "Watch time", icon: "Clock", hint: "Connect YouTube to see" },
+    { key: "retention", label: "Avg. retention", icon: "Target", hint: "Connect YouTube to see" },
+    { key: "ctr", label: "CTR", icon: "TrendingUp", hint: "Connect YouTube to see" },
+    { key: "uploads", label: "Uploads (30d)", icon: "Video", hint: "From your plans" },
+    { key: "revenue", label: "Est. revenue", icon: "DollarSign", hint: "Connect YouTube to see" },
+    { key: "brand_deals", label: "Brand deals", icon: "Handshake", hint: "Track in Brand Deals" },
+  ],
+  dashboard_widgets: [
+    { kind: "kpi_grid", title: "Your channel", props: {} },
+    { kind: "quick_actions", title: "Create content", props: {} },
+    { kind: "approvals", title: "Waiting for your approval", props: {} },
+    { kind: "pipeline", title: "Content pipeline", props: {} },
+  ],
+  quick_actions: [
+    {
+      title: "Repurpose a video",
+      description: "Turn one YouTube video into 11 assets — Shorts, Reels, posts, blog, newsletter.",
+      href: "/app/repurpose",
+      icon: "RefreshCw",
+      accent: "accent",
+    },
+    {
+      title: "Plan a YouTube video",
+      description: "Get titles, thumbnails, hooks, SEO, tags, chapters — everything you need to post.",
+      href: "/app/youtube-plan",
+      icon: "Video",
+      accent: "info",
+    },
+    {
+      title: "Build content campaign",
+      description: "Get a 30-day content plan tailored to your channel and goals.",
+      href: "/app/brands/{brand_id}/campaigns/new",
+      icon: "Calendar",
+      accent: "success",
+    },
+  ],
+  tools: [],
+};
 
-const WINS = [
-  { id: "1", icon: <Trophy className="w-3.5 h-3.5" />, title: "CTR up 23% on Google RSA", meta: "Demo Coffee Co", value: "+23%" },
-  { id: "2", icon: <Target className="w-3.5 h-3.5" />, title: "5 new conversions today", meta: "Meta Ads", value: "5" },
-  { id: "3", icon: <Eye className="w-3.5 h-3.5" />, title: "Organic reach 12.4K", meta: "Instagram", value: "12.4K" },
-  { id: "4", icon: <TrendingUp className="w-3.5 h-3.5" />, title: "Visibility score +6.8 pts", meta: "Demo Coffee Co", value: "+6.8" },
-];
+export default function HomePage() {
+  const router = useRouter();
+  const { brand, brands, isLoading } = useActiveBrand();
+  const { data: plans } = useCampaignPlans(brand?.id ?? null);
+  const [mounted, setMounted] = useState(false);
 
-const RECOMMENDATIONS = [
-  {
-    title: "Increase Google Ads budget by 15%",
-    reasoning: "Google RSA campaign has 18% lower CPA than Meta. Reallocating budget could yield 12 more conversions/week at current efficiency.",
-    action: "Reallocate ₹1,500/day → Google Ads",
-    confidence: 87,
-  },
-  {
-    title: "Publish 2 YouTube videos this week",
-    reasoning: "YouTube channel has 0 uploads in 14 days. Competitors average 3/week. Transcript→metadata engine is ready.",
-    action: "Generate video metadata → Schedule upload",
-    confidence: 92,
-  },
-];
+  useEffect(() => setMounted(true), []);
 
-const QUICK_ACTIONS = [
-  { label: "New Campaign", icon: Megaphone, path: "/app/campaigns", accent: "text-accent" },
-  { label: "Generate Creative", icon: Wand2, path: "/app/creative", accent: "text-info" },
-  { label: "Run Audit", icon: Brain, path: "/app/brands", accent: "text-success" },
-  { label: "View Reports", icon: FileText, path: "/app/reports", accent: "text-warning" },
-];
+  // If user has no brands, redirect to onboarding
+  useEffect(() => {
+    if (!isLoading && brands && brands.length === 0) {
+      router.replace("/onboarding");
+    }
+  }, [isLoading, brands, router]);
 
-export default function MissionControl() {
+  // Fetch the domain config from the backend (driven by the Domain Pack registry)
+  const domain = brand?.customer_type === "creator" ? "creator" : "business";
+  const { data: domainConfig } = useQuery({
+    queryKey: ["domain-config", domain],
+    queryFn: () => unifiedConsultApi.config(domain),
+    enabled: !!brand,
+    staleTime: 5 * 60 * 1000, // 5 min — config rarely changes
+  });
+
+  const industry = brand?.category ? INDUSTRY_BY_ID[brand.category] : null;
+  const activePlans = plans?.filter((p) => p.status === "active" || p.status === "approved") ?? [];
+  const pendingPlans = plans?.filter((p) => p.status === "pending" || p.status === "draft") ?? [];
+  const hasCampaigns = (activePlans.length + pendingPlans.length) > 0;
+
+  // ─── Creator dashboard: use the unified shell with creator config ───
+  if (brand && brand.customer_type === "creator") {
+    const config = domainConfig ?? CREATOR_FALLBACK;
+    return (
+      <DashboardShell
+        brand={brand}
+        plans={plans}
+        config={config}
+      />
+    );
+  }
+
+  // ─── Business dashboard: use the unified shell with business config ───
+  // (The original business dashboard UI is preserved within the shell's widget slots.
+  //  The shell provides greeting, today's action, and approvals; the business-specific
+  //  KPIs and quick actions come from the BusinessPack config.)
+  if (brand && domainConfig) {
+    return (
+      <DashboardShell
+        brand={brand}
+        plans={plans}
+        config={domainConfig}
+      />
+    );
+  }
+
+  // ─── Fallback: original business dashboard (while config loads) ───
   return (
     <div className="space-y-6">
-      {/* ─── Header ─── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-text">Mission Control</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            Your AI advertising operating system · Live
+      {/* ─── Greeting ─── */}
+      <div>
+        <h1 className="font-display text-2xl sm:text-3xl font-semibold text-text">
+          {mounted ? greeting() : "Welcome"}
+          {brand ? `, ${firstName(brand.name)}` : ""}
+        </h1>
+        <p className="text-text-secondary mt-1.5 text-sm">
+          {brand
+            ? `Here's what's happening with ${brand.name} today.`
+            : "Let's get your marketing running."}
+        </p>
+      </div>
+
+      {isLoading ? (
+        <LoadingState />
+      ) : !brand ? (
+        <LoadingState />
+      ) : !hasCampaigns ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <FirstCampaignState brand={brand} industryLabel={industry?.label ?? "your business"} />
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <ActiveDashboard
+            brand={brand}
+            industryLabel={industry?.label ?? "your business"}
+            activeCount={activePlans.length}
+            pendingCount={pendingPlans.length}
+            visibility={brand.visibility_score}
+          />
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// ─── First campaign: positive framing — ONE dominant CTA ───────────────────
+
+
+function FirstCampaignState({ brand, industryLabel }: { brand: { id: string; name: string }; industryLabel: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className="space-y-6"
+    >
+      {/* Hero CTA card */}
+      <div className="glass-strong rounded-2xl p-6 shadow-3d-lg relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl" />
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 mb-5">
+            <Sparkles className="w-3.5 h-3.5 text-accent" />
+            <span className="font-mono text-xs text-accent">Your first campaign is ready to build</span>
+          </div>
+
+          <h2 className="font-display text-xl font-semibold text-text max-w-lg leading-tight">
+            Your first campaign for {brand.name}.
+          </h2>
+          <p className="text-text-secondary mt-3 max-w-md text-sm leading-relaxed">
+            Let's launch your first marketing campaign — tailored for {industryLabel.toLowerCase()}.
+            It takes 30 seconds. You approve everything before it goes live.
+          </p>
+
+          <Link
+            href={`/app/brands/${brand.id}/campaigns/new`}
+            className="btn-primary inline-flex mt-6 group text-base"
+          >
+            <Zap className="w-5 h-5" />
+            Create My Campaign
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+
+          <p className="text-xs text-text-muted mt-4">
+            No credit card needed · You approve before anything goes live
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="badge badge-success">
-            <motion.span
-              animate={{ opacity: [1, 0.3, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="w-1.5 h-1.5 rounded-full bg-success"
-            />
-            All systems operational
-          </span>
-        </div>
       </div>
 
-      {/* ─── AI Status Bar ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <AIStatusBlock
-          status="generating"
-          label="AI Generating Creatives"
-          detail="3 variants for Google RSA · Demo Coffee Co"
-          confidence={87}
-        />
-        <AIStatusBlock
-          status="analyzing"
-          label="AI Analyzing Competitors"
-          detail="Scanning 4 competitors across 6 channels"
-          confidence={74}
-        />
-        <AIStatusBlock
-          status="done"
-          label="Weekly Loop Complete"
-          detail="Score improved 17.5 → 24.3 (+6.8 pts)"
-        />
+      {/* What happens next — 3 simple steps */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { icon: Sparkles, title: "We build your campaign", desc: "AI creates your ads, posts, and strategy — tuned for your business." },
+          { icon: CheckCircle2, title: "You review & approve", desc: "See exactly what will go live. Tweak anything. Approve with one click." },
+          { icon: TrendingUp, title: "We grow your reach", desc: "Your campaign runs across Google, Instagram, and more — automatically." },
+        ].map((step, i) => (
+          <motion.div
+            key={step.title}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 + i * 0.08, duration: 0.4 }}
+            className="glass rounded-xl p-6"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
+                <step.icon className="w-4 h-4 text-accent" />
+              </div>
+              <span className="font-mono text-xs text-text-muted uppercase tracking-wider">Step {i + 1}</span>
+            </div>
+            <h3 className="font-display text-base font-semibold text-text mb-1.5">{step.title}</h3>
+            <p className="text-sm text-text-secondary leading-relaxed">{step.desc}</p>
+          </motion.div>
+        ))}
       </div>
+    </motion.div>
+  );
+}
 
-      {/* ─── Key Metrics ─── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Metric label="Total Spend (30d)" value={45200} format="currency" delta={12.5} deltaLabel="vs last month" icon={<DollarSign className="w-4 h-4" />} accent="accent" />
-        <Metric label="Conversions" value={127} delta={23} deltaLabel="vs last week" icon={<Target className="w-4 h-4" />} accent="success" />
-        <Metric label="Impressions" value={284000} format="compact" delta={8.3} icon={<Eye className="w-4 h-4" />} accent="info" />
-        <Metric label="Avg CPA" value={356} format="currency" delta={-18} deltaLabel="improved" icon={<TrendingUp className="w-4 h-4" />} accent="success" />
-      </div>
+// ─── Active dashboard: has campaigns ───────────────────────────────────────
 
-      {/* ─── Main Grid ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Visibility + Campaign Health */}
-        <div className="space-y-6">
-          <Card3D glow className="flex flex-col items-center">
-            <SectionHeader title="Visibility Score" subtitle="Weighted across all channels" />
-            <PerformanceRing value={24.3} size={140} strokeWidth={10} sublabel="out of 100" accent="#FFD400" />
-            <div className="grid grid-cols-2 gap-3 w-full mt-4">
-              <div className="text-center">
-                <div className="label-field">Organic Rank</div>
-                <div className="font-mono text-sm text-text mt-1">18.2</div>
-                <ProgressBar value={18.2} accent="success" className="mt-1.5" />
-              </div>
-              <div className="text-center">
-                <div className="label-field">AI Citation</div>
-                <div className="font-mono text-sm text-text mt-1">12.0</div>
-                <ProgressBar value={12.0} accent="info" className="mt-1.5" />
-              </div>
-              <div className="text-center">
-                <div className="label-field">Social Reach</div>
-                <div className="font-mono text-sm text-text mt-1">31.5</div>
-                <ProgressBar value={31.5} accent="accent" className="mt-1.5" />
-              </div>
-              <div className="text-center">
-                <div className="label-field">Momentum</div>
-                <div className="font-mono text-sm text-text mt-1">28.0</div>
-                <ProgressBar value={28.0} accent="warning" className="mt-1.5" />
-              </div>
-            </div>
-          </Card3D>
 
-          <Card>
-            <SectionHeader title="Campaign Health" subtitle="Active campaigns across networks" />
-            <div className="space-y-3">
-              {[
-                { name: "Google RSA — Coffee", status: "healthy", roas: 3.2, budget: 500 },
-                { name: "Meta CBO — Retarget", status: "warning", roas: 1.8, budget: 300 },
-                { name: "YouTube — Awareness", status: "healthy", roas: 2.5, budget: 200 },
-              ].map((c) => (
-                <div key={c.name} className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
-                  <div className="flex items-center gap-2">
-                    <span className={cn("w-2 h-2 rounded-full", c.status === "healthy" ? "bg-success" : "bg-warning")} />
-                    <span className="text-sm text-text">{c.name}</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="font-mono text-xs text-text-secondary">ROAS {c.roas}x</span>
-                    <span className="font-mono text-xs text-accent">₹{c.budget}/d</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Center: Live Timeline + Today's Wins */}
-        <div className="space-y-6">
-          <Card>
-            <SectionHeader
-              title="Live Timeline"
-              subtitle="Real-time AI activity"
-              icon={<Activity className="w-4 h-4" />}
-            />
-            <Timeline entries={TIMELINE_ENTRIES} />
-          </Card>
-
-          <Card>
-            <SectionHeader title="Today's Wins" subtitle="AI-identified achievements" icon={<Trophy className="w-4 h-4" />} />
-            <ActivityFeed items={WINS} />
-          </Card>
-        </div>
-
-        {/* Right: AI Recommendations + Quick Actions + Budget */}
-        <div className="space-y-6">
-          <div>
-            <SectionHeader title="AI Recommendations" subtitle="Suggested actions" icon={<Sparkles className="w-4 h-4" />} />
-            <div className="space-y-3">
-              {RECOMMENDATIONS.map((rec, i) => (
-                <AIRecommendation key={i} {...rec} />
-              ))}
-            </div>
-          </div>
-
-          <Card>
-            <SectionHeader title="Quick Actions" />
-            <div className="grid grid-cols-2 gap-2">
-              {QUICK_ACTIONS.map((action) => (
-                <Link
-                  key={action.label}
-                  href={action.path}
-                  className="group flex flex-col items-center gap-2 p-4 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.04] hover:border-white/[0.08] transition-all"
-                >
-                  <action.icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", action.accent)} />
-                  <span className="text-xs text-text-secondary group-hover:text-text transition-colors text-center">
-                    {action.label}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <SectionHeader title="Budget Utilization" subtitle="This month" />
-            <div className="space-y-3">
+function ActiveDashboard({
+  brand,
+  industryLabel,
+  activeCount,
+  pendingCount,
+  visibility,
+}: {
+  brand: { id: string; name: string };
+  industryLabel: string;
+  activeCount: number;
+  pendingCount: number;
+  visibility: number | null;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* What should I do today? */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Dominant CTA — only if there are pending approvals */}
+        {pendingCount > 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-2 glass-strong rounded-2xl p-6 border-l-2 border-l-accent/50"
+          >
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-xs text-text-secondary">AI Tokens</span>
-                  <span className="font-mono text-xs text-text">2,847 / 10,000</span>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-4 h-4 text-accent" />
+                  <span className="font-mono text-xs text-accent uppercase tracking-wider">Needs your attention</span>
                 </div>
-                <ProgressBar value={2847} max={10000} accent="accent" />
+                <h2 className="font-display text-xl font-semibold text-text">
+                  {pendingCount} campaign{pendingCount > 1 ? "s" : ""} waiting for your approval
+                </h2>
+                <p className="text-sm text-text-secondary mt-1.5">
+                  Review and approve to start reaching customers.
+                </p>
               </div>
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-xs text-text-secondary">Ad Spend</span>
-                  <span className="font-mono text-xs text-text">₹45,200 / ₹50,000</span>
-                </div>
-                <ProgressBar value={45200} max={50000} accent="warning" />
-              </div>
-              <div className="pt-2 border-t border-white/[0.04]">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Next reset</span>
-                  <span className="font-mono text-xs text-text-secondary">14 days</span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* ─── Bottom: Alerts + Market Trends ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <SectionHeader title="Alerts & Opportunities" icon={<AlertTriangle className="w-4 h-4" />} />
-          <div className="space-y-2">
-            {[
-              { type: "warning", title: "Meta CPA above target", desc: "CPA ₹420 vs target ₹350. Consider pausing low-performing ad sets." },
-              { type: "info", title: "New keyword opportunity", desc: "'specialty coffee subscription' trending +340% in your geo." },
-              { type: "success", title: "YouTube video ranking #3", desc: "'Best cold brew recipe' hit page 1 for 3 target keywords." },
-            ].map((alert, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className={cn(
-                  "flex items-start gap-3 p-3 rounded-lg border",
-                  alert.type === "warning" && "bg-warning/5 border-warning/10",
-                  alert.type === "info" && "bg-info/5 border-info/10",
-                  alert.type === "success" && "bg-success/5 border-success/10",
-                )}
+              <Link
+                href={`/app/brands/${brand.id}/campaigns`}
+                className="btn-primary shrink-0 group"
               >
-                <div className={cn(
-                  "w-6 h-6 rounded-md flex items-center justify-center shrink-0",
-                  alert.type === "warning" && "bg-warning/10 text-warning",
-                  alert.type === "info" && "bg-info/10 text-info",
-                  alert.type === "success" && "bg-success/10 text-success",
-                )}>
-                  <AlertTriangle className="w-3 h-3" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-text font-medium">{alert.title}</div>
-                  <div className="text-xs text-text-secondary mt-0.5">{alert.desc}</div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <SectionHeader title="Market Trends" subtitle="7-day performance trend" icon={<TrendingUp className="w-4 h-4" />} />
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <span className="font-display text-3xl font-semibold text-text">48.2K</span>
-              <span className="text-xs text-success ml-2 font-mono">+12.3%</span>
+                Review now
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
-            <Sparkline data={SPARK_DATA} width={120} height={40} color="#FFD400" />
-          </div>
-          <div className="space-y-2">
-            {[
-              { label: "Organic Traffic", value: "18.4K", trend: "+8%", color: "success" },
-              { label: "Paid Clicks", value: "12.1K", trend: "+15%", color: "success" },
-              { label: "Social Engagement", value: "9.2K", trend: "+22%", color: "success" },
-              { label: "AI Citations", value: "8.5K", trend: "-3%", color: "danger" },
-            ].map((row) => (
-              <div key={row.label} className="flex items-center justify-between py-2 border-b border-white/[0.03] last:border-0">
-                <span className="text-sm text-text-secondary">{row.label}</span>
-                <div className="flex items-center gap-3">
-                  <span className="font-mono text-sm text-text">{row.value}</span>
-                  <span className={cn("font-mono text-xs", row.color === "success" ? "text-success" : "text-danger")}>
-                    {row.trend}
-                  </span>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="lg:col-span-2 glass-strong rounded-2xl p-6"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <CheckCircle2 className="w-4 h-4 text-success" />
+                  <span className="font-mono text-xs text-success uppercase tracking-wider">All caught up</span>
                 </div>
+                <h2 className="font-display text-xl font-semibold text-text">
+                  Your marketing is running smoothly
+                </h2>
+                <p className="text-sm text-text-secondary mt-1.5">
+                  {activeCount} active campaign{activeCount > 1 ? "s" : ""} promoting {brand.name}.
+                </p>
               </div>
-            ))}
+              <Link
+                href={`/app/brands/${brand.id}/campaigns/new`}
+                className="btn-secondary shrink-0 group"
+              >
+                <Plus className="w-4 h-4" />
+                New campaign
+              </Link>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Visibility score */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="glass rounded-2xl p-6 flex flex-col"
+        >
+          <span className="label-field mb-2">How visible is your business?</span>
+          <div className="flex items-baseline gap-2 mt-1">
+            {visibility != null ? (
+              <>
+                <span className="font-display text-4xl font-semibold text-gradient-accent tabular-nums">
+                  {visibility.toFixed(0)}
+                </span>
+                <span className="text-sm text-text-muted">/ 100</span>
+              </>
+            ) : (
+              <span className="font-display text-2xl text-text-secondary">Coming soon</span>
+            )}
           </div>
-        </Card>
+          <p className="text-xs text-text-muted mt-2 leading-relaxed">
+            Based on your Google ranking, social reach, and customer reviews.
+          </p>
+        </motion.div>
+      </div>
+
+      {/* Quick metrics — business language, not jargon */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MetricCard
+          icon={<Eye className="w-4 h-4" />}
+          label="People reached"
+          value="—"
+          sub="This month"
+          accent="info"
+          context="How many people saw your business across Google, Instagram & more. Connect your channels to start tracking."
+          trend="pending"
+          seeWhyHref="/app/channels"
+        />
+        <MetricCard
+          icon={<Target className="w-4 h-4" />}
+          label="Customer actions"
+          value="—"
+          sub="Clicks, calls, visits"
+          accent="success"
+          context="Clicks on your ads, calls to your business, and website visits from your campaigns. Connect channels to measure."
+          trend="pending"
+          seeWhyHref="/app/channels"
+        />
+        <MetricCard
+          icon={<TrendingUp className="w-4 h-4" />}
+          label="Active campaigns"
+          value={String(activeCount)}
+          sub={industryLabel}
+          accent="accent"
+          context={`${activeCount} campaign${activeCount !== 1 ? "s" : ""} promoting ${brand.name} across your channels right now.`}
+          trend={activeCount > 0 ? "new" : "pending"}
+          seeWhyHref={`/app/brands/${brand.id}/campaigns`}
+        />
+        <MetricCard
+          icon={<Clock className="w-4 h-4" />}
+          label="Awaiting approval"
+          value={String(pendingCount)}
+          sub={pendingCount > 0 ? "Action needed" : "All clear"}
+          accent={pendingCount > 0 ? "warning" : "neutral"}
+          context={
+            pendingCount > 0
+              ? `${pendingCount} campaign${pendingCount > 1 ? "s" : ""} ready to launch — review and approve to start reaching customers.`
+              : "Nothing waiting on you. Your marketing is running smoothly."
+          }
+          trend={pendingCount > 0 ? "up" : "flat"}
+          seeWhyHref={pendingCount > 0 ? `/app/brands/${brand.id}/campaigns` : undefined}
+        />
+      </div>
+
+      {/* What's running + what to improve */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="glass rounded-2xl p-6">
+          <h3 className="font-display text-base font-semibold text-text mb-4">What's running now</h3>
+          <Link
+            href={`/app/brands/${brand.id}/campaigns`}
+            className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] transition-colors group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center">
+                <Megaphone className="w-4 h-4 text-accent" />
+              </div>
+              <div>
+                <div className="text-sm text-text font-medium">{activeCount} active campaigns</div>
+                <div className="text-xs text-text-muted">Across Google, Instagram & more</div>
+              </div>
+            </div>
+            <ArrowRight className="w-4 h-4 text-text-muted group-hover:text-text transition-colors" />
+          </Link>
+        </div>
+
+        <div className="glass rounded-2xl p-6">
+          <h3 className="font-display text-base font-semibold text-text mb-4">What to improve next</h3>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02]">
+              <Sparkles className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-sm text-text-secondary">Add more photos of your work — boosts engagement by ~30%</span>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02]">
+              <Sparkles className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-sm text-text-secondary">Connect your Google Business Profile for local reach</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
+}
+
+// ─── Loading state ──────────────────────────────────────────────────────────
+
+
+function LoadingState() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Loading dashboard">
+      {/* Greeting skeleton — matches the h1 + subtitle layout */}
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-64 rounded-lg" />
+        <Skeleton className="h-4 w-80 rounded-md" />
+      </div>
+
+      {/* Today's action skeleton — matches the glass-strong banner */}
+      <Skeleton className="h-24 rounded-2xl" />
+
+      {/* KPI grid skeleton — 4 cards matching the actual grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="glass rounded-2xl p-4 flex flex-col gap-2">
+            <Skeleton className="h-9 w-9 rounded-lg" />
+            <Skeleton className="h-7 w-20 rounded-md" />
+            <Skeleton className="h-3 w-16 rounded-sm" />
+            <Skeleton className="h-3 w-12 rounded-sm" />
+            <Skeleton className="h-8 w-full rounded-sm mt-1" />
+          </div>
+        ))}
+      </div>
+
+      {/* Quick actions skeleton — 3 cards matching the actions grid */}
+      <div className="space-y-3">
+        <Skeleton className="h-4 w-40 rounded-md" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="glass rounded-2xl p-5 flex flex-col gap-2">
+              <Skeleton className="h-10 w-10 rounded-lg" />
+              <Skeleton className="h-4 w-32 rounded-md" />
+              <Skeleton className="h-3 w-full rounded-sm" />
+              <Skeleton className="h-3 w-24 rounded-sm" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Metric card ────────────────────────────────────────────────────────────
+
+
+type TrendDirection = "up" | "down" | "flat" | "new" | "pending";
+
+function MetricCard({
+  icon,
+  label,
+  value,
+  sub,
+  accent,
+  context,
+  trend,
+  seeWhyHref,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub: string;
+  accent: "info" | "success" | "accent" | "warning" | "neutral";
+  /** One-line context explaining what the number means and why it matters. */
+  context?: string;
+  /** Trend indicator. Defaults to "pending" (connect channels) if omitted. */
+  trend?: TrendDirection;
+  /** "See why" link. If omitted, no link is shown. */
+  seeWhyHref?: string;
+}) {
+  const accentColor: Record<string, string> = {
+    info: "text-info",
+    success: "text-success",
+    accent: "text-accent",
+    warning: "text-warning",
+    neutral: "text-text-secondary",
+  };
+
+  const trendConfig: Record<
+    TrendDirection,
+    { icon: React.ReactNode; className: string; label: string }
+  > = {
+    up: { icon: <ArrowUpRight className="w-3 h-3" />, className: "text-success", label: "up" },
+    down: { icon: <ArrowDownRight className="w-3 h-3" />, className: "text-warning", label: "down" },
+    flat: { icon: <Minus className="w-3 h-3" />, className: "text-text-muted", label: "flat" },
+    new: { icon: <Sparkles className="w-3 h-3" />, className: "text-accent", label: "New" },
+    pending: { icon: null, className: "text-text-muted", label: "Connect channels to see trends" },
+  };
+
+  const trendInfo = trendConfig[trend ?? "pending"];
+  const hasValue = value !== "—" && value !== "";
+
+  return (
+    <div className="glass rounded-xl p-4 flex flex-col">
+      <div className="flex items-center gap-2 mb-2">
+        <span className={cn("shrink-0", accentColor[accent])}>{icon}</span>
+        <span className="label-field">{label}</span>
+      </div>
+      <div className="font-display text-2xl font-semibold text-text tabular-nums">{value}</div>
+      {/* Trend indicator */}
+      <div className={cn("inline-flex items-center gap-0.5 text-xs font-medium mt-1.5", trendInfo.className)}>
+        {trendInfo.icon}
+        {trendInfo.label}
+      </div>
+      {/* Context line — explains what the number means */}
+      <div className="text-xs text-text-secondary mt-1.5 leading-relaxed flex-1">
+        {context ?? sub}
+      </div>
+      {/* "See why" link — only if actionable */}
+      {seeWhyHref && (
+        <Link
+          href={seeWhyHref}
+          className="inline-flex items-center gap-0.5 text-xs text-accent mt-2 hover:underline w-fit"
+        >
+          See why
+          <ArrowRight className="w-3 h-3" />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function firstName(name: string): string {
+  // For businesses, just return the first word (usually the brand name)
+  return name.split(" ")[0] ?? name;
 }

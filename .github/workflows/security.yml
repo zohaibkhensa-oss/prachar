@@ -1,0 +1,79 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1" # Weekly Monday 6am UTC
+
+jobs:
+  # ─── Dependency vulnerability scanning ─────────────────────────────────────
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Audit Python dependencies
+        run: |
+          pip-audit -r requirements.txt --strict 2>&1 || true
+          # Also audit each package
+          for req in packages/shared/pyproject.toml apps/api/pyproject.toml apps/workers/pyproject.toml; do
+            echo "Auditing $req..."
+            pip install -e "$req" 2>/dev/null
+          done
+          pip-audit --strict 2>&1 || true
+
+  # ─── npm audit ──────────────────────────────────────────────────────────────
+  npm-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - name: Install
+        run: cd apps/web && pnpm install --frozen-lockfile
+      - name: Audit
+        run: cd apps/web && pnpm audit --audit-level=high || true
+
+  # ─── Secret scanning ────────────────────────────────────────────────────────
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: .
+          extra_args: --only-verified
+
+  # ─── SBOM generation ────────────────────────────────────────────────────────
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install cyclonedx
+        run: pip install cyclonedx-bom
+      - name: Generate Python SBOM
+        run: |
+          cyclonedx-py requirements -i requirements.txt -o sbom-python.json --format-json || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom-*.json
+          retention-days: 90

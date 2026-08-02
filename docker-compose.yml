@@ -27,6 +27,28 @@ services:
       timeout: 3s
       retries: 10
 
+  # PgBouncer — connection pooler for Postgres. Multiplexes hundreds of app
+  # connections onto ~50 real DB connections. Enable in production by pointing
+  # DATABASE_URL at pgbouncer:6432 instead of postgres:5432, and setting
+  # DB_POOL_SIZE=10 (PgBouncer handles the multiplexing).
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      DB_USER: prachar
+      DB_PASSWORD: prachar
+      DB_HOST: postgres
+      DB_NAME: prachar
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 50
+      MAX_DB_CONNECTIONS: 50
+      SERVER_IDLE_TIMEOUT: 600
+    ports: ["6432:6432"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles: ["production"]  # only starts with `docker compose --profile production up`
+
   minio:
     image: minio/minio:latest
     command: server /data --console-address ":9001"
@@ -54,17 +76,113 @@ services:
     ports: ["3000:3000"]
     command: pnpm --dir apps/web dev
 
+  # ─── Celery workers ──────────────────────────────────────────────────────
+  # Single worker for local dev (consumes all queues). For production at 10K
+  # users, use the scaled worker services below (worker-loop-0..7, worker-ingest,
+  # etc.) via `docker compose --profile production up`.
   worker:
     build: { context: ., dockerfile: apps/workers/Dockerfile }
     env_file: .env
     depends_on: [postgres, redis]
-    command: celery -A apps.workers.celery_app worker -l info
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=4 -Q prachar,dispatch,ingest,organic,ads,measure,creative,loop-0,loop-1,loop-2,loop-3,loop-4,loop-5,loop-6,loop-7
 
   beat:
     build: { context: ., dockerfile: apps/workers/Dockerfile }
     env_file: .env
     depends_on: [postgres, redis]
     command: celery -A apps.workers.celery_app beat -l info
+
+  # ─── Scaled workers (production profile) ──────────────────────────────────
+  # Each service consumes a specific queue with tuned concurrency. Scale
+  # horizontally by `docker compose up --scale worker-loop-0=2` etc.
+  # At 10K brands: 8 shard workers × 4 concurrency = 32 parallel weekly loops
+  # → weekly loop completes in ~5 hours (vs 19h with a single worker).
+  worker-dispatch:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=1 -Q dispatch
+    profiles: ["production"]
+
+  worker-loop-0:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-0
+    profiles: ["production"]
+  worker-loop-1:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-1
+    profiles: ["production"]
+  worker-loop-2:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-2
+    profiles: ["production"]
+  worker-loop-3:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-3
+    profiles: ["production"]
+  worker-loop-4:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-4
+    profiles: ["production"]
+  worker-loop-5:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-5
+    profiles: ["production"]
+  worker-loop-6:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-6
+    profiles: ["production"]
+  worker-loop-7:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_LOOP:-4} -Q loop-7
+    profiles: ["production"]
+
+  worker-ingest:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_INGEST:-2} -Q ingest
+    profiles: ["production"]
+  worker-organic:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_ORGANIC:-4} -Q organic
+    profiles: ["production"]
+  worker-ads:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_ADS:-2} -Q ads
+    profiles: ["production"]
+  worker-measure:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_MEASURE:-2} -Q measure
+    profiles: ["production"]
+  worker-creative:
+    build: { context: ., dockerfile: apps/workers/Dockerfile }
+    env_file: .env
+    depends_on: [postgres, redis]
+    command: celery -A apps.workers.celery_app worker -l info --concurrency=${CELERY_CONCURRENCY_CREATIVE:-2} -Q creative
+    profiles: ["production"]
 
 volumes:
   pgdata:

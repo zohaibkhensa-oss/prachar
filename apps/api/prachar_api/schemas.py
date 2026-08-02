@@ -43,6 +43,23 @@ class RefreshIn(BaseModel):
     refresh_token: str
 
 
+class VerifyEmailIn(BaseModel):
+    token: str
+
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    password: str = Field(min_length=8, max_length=128)
+
+
+class ResendVerificationIn(BaseModel):
+    email: EmailStr
+
+
 # ─── user/tenant ─────────────────────────────────────────────────────────────
 class UserOut(BaseModel):
     model_config = _cfg()
@@ -65,6 +82,7 @@ class BrandIn(BaseModel):
     name: str = Field(min_length=1, max_length=160)
     website: str | None = None
     category: str | None = None
+    customer_type: str = Field("business", pattern="^(business|creator)$")
     locales: list[str] | None = None
     tone: dict[str, Any] | None = None
 
@@ -75,6 +93,7 @@ class BrandOut(BaseModel):
     name: str
     website: str | None
     category: str | None
+    customer_type: str = "business"
     locales: list[str] | None
     tone: dict[str, Any] | None
     visibility_score: float | None

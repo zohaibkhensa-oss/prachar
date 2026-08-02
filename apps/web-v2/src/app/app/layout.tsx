@@ -1,0 +1,146 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { getToken } from "@/lib/auth";
+import { Sidebar } from "@/components/Sidebar";
+import { TopBar } from "@/components/TopBar";
+import { AIDock } from "@/components/AIDock";
+import { OrbPanel } from "@/components/OrbPanel";
+import { ProactiveNotifications } from "@/components/ProactiveNotifications";
+import { CommandPalette } from "@/components/ui/command-palette";
+import { getPracharMessages } from "@/lib/proactive";
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [ready, setReady] = useState(false);
+  const [email, setEmail] = useState("");
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
+  const [orbOpen, setOrbOpen] = useState(false);
+  const [activeBrandId, setActiveBrandId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const token = getToken();
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
+    const onboarded = localStorage.getItem("prachar_onboarded");
+    if (!onboarded) {
+      router.replace("/onboarding");
+      return;
+    }
+    const storedEmail = localStorage.getItem("prachar_email");
+    if (storedEmail) setEmail(storedEmail);
+    // Load active brand ID for the Orb
+    const storedBrandId = localStorage.getItem("prachar_active_brand_id");
+    if (storedBrandId) setActiveBrandId(storedBrandId);
+    setReady(true);
+  }, [router]);
+
+  // Fetch active brand if not in localStorage
+  useEffect(() => {
+    if (!ready || activeBrandId) return;
+    const fetchBrands = async () => {
+      try {
+        const { apiGet } = await import("@/lib/api");
+        const res = await apiGet<{ items: { id: string }[] }>("/brands?limit=1");
+        if (res.items && res.items.length > 0) {
+          const id = res.items[0]?.id;
+          if (id) {
+            setActiveBrandId(id);
+            localStorage.setItem("prachar_active_brand_id", id);
+          }
+        }
+      } catch {
+        // Silent fail — orb will work without brand for general chat
+      }
+    };
+    fetchBrands();
+  }, [ready, activeBrandId]);
+
+  // Fetch proactive notification count
+  useEffect(() => {
+    if (!ready) return;
+    let active = true;
+    const fetchNotifs = async () => {
+      try {
+        const res = await getPracharMessages();
+        if (active && res.messages) {
+          setNotifCount(res.messages.length);
+        }
+      } catch {
+        // Silent fail
+      }
+    };
+    fetchNotifs();
+    const interval = setInterval(fetchNotifs, 30000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [ready]);
+
+  const handleOrbClick = useCallback(() => {
+    setOrbOpen((prev) => !prev);
+  }, []);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          className="w-8 h-8 rounded-full border-2 border-accent/20 border-t-accent"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-bg flex">
+      <CommandPalette />
+      <ProactiveNotifications open={notifOpen} onClose={() => setNotifOpen(false)} />
+
+      {/* Sidebar */}
+      <Sidebar />
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16">
+        <TopBar
+          onSearchClick={() => {
+            const event = new KeyboardEvent("keydown", { key: "k", metaKey: true });
+            document.dispatchEvent(event);
+          }}
+          onNotificationsClick={() => setNotifOpen(true)}
+          notifCount={notifCount}
+          email={email}
+        />
+
+        <main className="flex-1 p-4 lg:p-6">
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            {children}
+          </motion.div>
+        </main>
+      </div>
+
+      {/* Bottom AI Dock */}
+      <AIDock onOrbClick={handleOrbClick} />
+
+      {/* Floating AI Orb Panel — real runtime integration */}
+      <AnimatePresence>
+        {orbOpen && (
+          <OrbPanel brandId={activeBrandId} onClose={() => setOrbOpen(false)} />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

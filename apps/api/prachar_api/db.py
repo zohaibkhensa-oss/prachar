@@ -22,11 +22,23 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         s = get_settings()
+        # Pool sizing: defaults are tuned for production (25 base + 50 overflow
+        # = 75 max connections). For local dev / tests, the defaults are fine.
+        # When using PgBouncer in transaction-pooling mode, set pool_size lower
+        # (e.g. 10) since PgBouncer multiplexes — the app pool just needs to
+        # cover concurrent requests, not concurrent DB sessions.
+        pool_size = s.db_pool_size
+        max_overflow = s.db_max_overflow
+        # pool_recycle prevents "stale connection" errors when the DB or a
+        # proxy (PgBouncer, RDS proxy) drops idle connections after a timeout.
+        # 1800s (30 min) is safe for most managed DBs which default to 1h.
         _engine = create_async_engine(
             s.database_url,
             pool_pre_ping=True,
-            pool_size=10,
-            max_overflow=20,
+            pool_recycle=1800,
+            pool_size=pool_size,
+            max_overflow=max_overflow,
+            pool_timeout=30,  # seconds to wait for a connection before giving up
             future=True,
         )
     return _engine
