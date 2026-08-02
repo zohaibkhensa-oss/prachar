@@ -33,9 +33,9 @@ async def _get_session_dep(request: Request):
 SessionDep = Annotated[AsyncSession, Depends(_get_session_dep)]
 
 
-def _extract_bearer(authorization: str | None) -> str:
+def _extract_bearer(authorization: str | None) -> str | None:
     if not authorization or not authorization.lower().startswith("bearer "):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing bearer token")
+        return None
     return authorization.split(" ", 1)[1].strip()
 
 
@@ -44,7 +44,12 @@ async def current_user(
     session: SessionDep,
     authorization: Annotated[str | None, Header()] = None,
 ) -> User:
+    # Try Authorization header first, then fall back to query param (for SSE/EventSource)
     token = _extract_bearer(authorization)
+    if not token:
+        token = request.query_params.get("token", "")
+    if not token:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing bearer token")
     try:
         payload = decode_token(token, kind="access")
     except ValueError as exc:

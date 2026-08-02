@@ -47,9 +47,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const fetchBrands = async () => {
       try {
         const { apiGet } = await import("@/lib/api");
-        const res = await apiGet<{ items: { id: string }[] }>("/brands?limit=1");
-        if (res.items && res.items.length > 0) {
-          const id = res.items[0]?.id;
+        const res = await apiGet<{ id: string }[] | { items: { id: string }[] }>("/brands?limit=1");
+        // API returns a plain array, but handle both shapes
+        const brands = Array.isArray(res) ? res : res.items;
+        if (brands && brands.length > 0) {
+          const id = brands[0]?.id;
           if (id) {
             setActiveBrandId(id);
             localStorage.setItem("prachar_active_brand_id", id);
@@ -86,6 +88,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const handleOrbClick = useCallback(() => {
     setOrbOpen((prev) => !prev);
+  }, []);
+
+  // Listen for orb open events from dashboard or other pages
+  useEffect(() => {
+    const handler = () => setOrbOpen(true);
+    window.addEventListener("prachar-open-orb", handler);
+    return () => window.removeEventListener("prachar-open-orb", handler);
   }, []);
 
   if (!ready) {

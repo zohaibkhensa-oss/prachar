@@ -21,8 +21,13 @@ class TenantMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next) -> Response:
         auth = request.headers.get("authorization")
         tenant_id: uuid.UUID | None = None
+        token: str | None = None
         if auth and auth.lower().startswith("bearer "):
             token = auth.split(" ", 1)[1].strip()
+        # Fall back to query param (for SSE/EventSource which can't send headers)
+        if not token:
+            token = request.query_params.get("token")
+        if token:
             try:
                 payload = decode_token(token, kind="access")
                 tid = payload.get("tenant_id")

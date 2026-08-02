@@ -157,7 +157,20 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
   // ─── Send message ────────────────────────────────────────────────────────
 
   const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || !brandId) return;
+    if (!text.trim()) return;
+    if (!brandId) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "user", content: text, timestamp: new Date().toISOString() },
+        {
+          role: "ai",
+          content: "I need a brand to work with. Please create a brand first from the Brands page.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      setInput("");
+      return;
+    }
 
     // Add user message
     setMessages((prev) => [

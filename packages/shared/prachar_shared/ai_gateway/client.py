@@ -326,7 +326,7 @@ class AIGateway:
         settings = get_settings()
         primary = settings.ai_default_provider.lower()
         # Build fallback chain: try primary, then any other configured provider
-        all_providers = ["groq", "anthropic", "openai"]
+        all_providers = ["groq", "gemini", "anthropic", "openai"]
         if primary in all_providers:
             all_providers.remove(primary)
         fallback_chain = [primary] + all_providers
@@ -336,6 +336,8 @@ class AIGateway:
         configured = []
         for p in fallback_chain:
             if p == "groq" and s.groq_api_key.strip():
+                configured.append(p)
+            elif p == "gemini" and s.gemini_api_key.strip():
                 configured.append(p)
             elif p == "anthropic" and s.anthropic_api_key.strip():
                 configured.append(p)
@@ -373,6 +375,10 @@ class AIGateway:
         if provider == "groq":
             # The model from pick_model() is already a Groq model name — use it directly
             return model
+        if provider == "gemini":
+            if "8b" in model or "instant" in model or "small" in model:
+                return "gemini-2.0-flash"
+            return "gemini-2.0-flash"
         if provider == "openai":
             if "haiku" in model or "small" in model or "8b" in model or "instant" in model:
                 return "gpt-4o-mini"
@@ -395,6 +401,8 @@ class AIGateway:
             return self._call_anthropic(prompt, model, schema, max_tokens, temperature, feedback)
         if provider == "groq":
             return self._call_groq(prompt, model, schema, max_tokens, temperature, feedback)
+        if provider == "gemini":
+            return self._call_gemini(prompt, model, schema, max_tokens, temperature, feedback)
         return self._call_openai(prompt, model, schema, max_tokens, temperature, feedback)
 
     def _call_groq(
@@ -444,6 +452,55 @@ class AIGateway:
         text = resp.choices[0].message.content or ""
         tokens = resp.usage.total_tokens if resp.usage else 0
         return Completion(text=text, tokens_used=tokens, model=model, provider="groq")
+
+    def _call_gemini(
+        self,
+        prompt: str,
+        model: str,
+        schema: dict[str, Any] | None,
+        max_tokens: int,
+        temperature: float,
+        feedback: str | None,
+    ) -> Completion:
+        """Call Google Gemini API (OpenAI-compatible endpoint)."""
+        import openai as openai_lib
+
+        s = get_settings()
+        client = openai_lib.OpenAI(
+            api_key=s.gemini_api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            timeout=60.0,
+        )
+        full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
+        if schema is not None:
+            resp = client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": f"Return JSON matching this schema: {json.dumps(schema)}"},
+                    {"role": "user", "content": full_prompt},
+                ],
+            )
+            content = resp.choices[0].message.content or "{}"
+            json_value = extract_json(content)
+            if json_value is None or not isinstance(json_value, dict):
+                raise RuntimeError(f"Gemini returned non-JSON despite json_object format: {content[:200]}")
+            self._validate_json(schema, json_value)
+            tokens = resp.usage.total_tokens if resp.usage else 0
+            return Completion(text=content, json_value=json_value, tokens_used=tokens, model=model, provider="gemini")
+        resp = client.chat.completions.create(
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            messages=[{"role": "user", "content": full_prompt}],
+        )
+        text = resp.choices[0].message.content or ""
+        if not text.strip():
+            raise RuntimeError("Gemini returned empty content")
+        tokens = resp.usage.total_tokens if resp.usage else 0
+        return Completion(text=text, tokens_used=tokens, model=model, provider="gemini")
 
     def _call_anthropic(
         self,

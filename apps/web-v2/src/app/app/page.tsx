@@ -85,11 +85,35 @@ export default function DashboardPage() {
         transition={{ duration: 0.4 }}
         className="flex flex-col items-center text-center pt-6 pb-8"
       >
-        <AIOrb state="idle" size={110} showWaves />
+        <motion.button
+          onClick={() => {
+            const event = new CustomEvent("prachar-open-orb");
+            window.dispatchEvent(event);
+          }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="relative cursor-pointer"
+          aria-label="Chat with PRACHAR AI"
+        >
+          <AIOrb state="idle" size={110} showWaves />
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            animate={{
+              boxShadow: [
+                "0 0 0 0px rgba(255,140,66,0.3)",
+                "0 0 0 12px rgba(255,140,66,0)",
+              ],
+            }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+          />
+        </motion.button>
 
         <h1 className="mt-6 font-display text-2xl lg:text-3xl font-bold">
           {displayGreeting}
         </h1>
+        <p className="mt-1 text-xs text-accent/70 font-medium tracking-wide">
+          ↑ Tap the orb to chat
+        </p>
 
         {brandNameIsPlaceholder && (
           <motion.button
