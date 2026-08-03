@@ -137,6 +137,7 @@ class CampaignOut(BaseModel):
     status: CampaignStatus
     dry_run: bool
     guardrails: dict[str, Any] | None
+    created_at: datetime | None = None
 
 
 # ─── visibility score ────────────────────────────────────────────────────────
