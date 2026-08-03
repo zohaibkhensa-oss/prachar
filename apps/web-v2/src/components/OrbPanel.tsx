@@ -15,7 +15,6 @@ import {
 import {
   isSpeechRecognitionAvailable,
   isSpeechSynthesisAvailable,
-  containsWakeWord,
   speak,
   stopSpeaking,
 } from "@/lib/voice";
@@ -53,6 +52,19 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasGreeted = useRef(false);
+
+  // ─── Greet on open — the orb speaks first ────────────────────────────────
+  useEffect(() => {
+    if (hasGreeted.current) return;
+    hasGreeted.current = true;
+    const greeting = "Hi! I'm your AI marketing partner. What are we building today?";
+    setMessages([{ role: "ai", content: greeting, timestamp: new Date().toISOString() }]);
+    if (isSpeechSynthesisAvailable()) {
+      setOrbState("speaking");
+      speak(greeting, () => setOrbState("idle"));
+    }
+  }, []);
 
   // ─── Derive orb state from latest event ──────────────────────────────────
 
@@ -63,24 +75,26 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     const newState = (latest.orb_state as OrbState) || orbStateFromEvent(latest.type);
     setOrbState(newState);
 
-    // Handle completion — add AI message
+    // Handle completion — add AI message + SPEAK
     if (latest.type === "runtime.session.completed" && latest.data?.response) {
       const response = latest.data.response;
       const isClarifying = latest.data?.clarifying === true;
+      const replyText = response.reply || "Done!";
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: response.reply || "Done!",
+          content: replyText,
           timestamp: latest.timestamp,
           suggestions: response.suggested_actions || [],
           isClarifying,
         },
       ]);
 
-      // TTS if voice mode
-      if (isSpeechSynthesisAvailable() && session.status !== "idle") {
-        speak(response.reply || "Done!", () => {
+      // Always speak the response — this is a conversation orb
+      if (isSpeechSynthesisAvailable()) {
+        setOrbState("speaking");
+        speak(replyText, () => {
           setOrbState("idle");
         });
       } else {
@@ -208,13 +222,12 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setInput(transcript);
-
-      // Check for wake word
-      if (containsWakeWord(transcript)) {
-        const cleaned = transcript.replace(/hey prachar ai?/i, "").trim();
-        if (cleaned) {
+      // Auto-send when recognition finalizes — no wake word needed
+      if (event.results[0][0].isFinal) {
+        const text = transcript.trim();
+        if (text) {
           recognition.stop();
-          sendMessage(cleaned);
+          sendMessage(text);
         }
       }
     };
