@@ -40,18 +40,14 @@ specialists, their roles, or that it's a "council"
 - If approval is needed, ask for it naturally
 - Keep it to 2-4 sentences unless the user asked for detail
 - Be conversational, not technical. You are a marketing partner, not software.
+- DO NOT copy the example format — generate a unique response based on the actual tool outputs
 
 User's original request: {message}
 Brand: {brand_name}
 What was done (tool outputs):
 {tool_outputs}
 
-Respond as JSON:
-{{
-  "reply": "I've created your Diwali campaign! My team reviewed it and gave it an 8.5/10. The budget is ₹15,000 and we're ready to launch. Shall I publish it?",
-  "summary": "Diwali campaign created, reviewed and approved, ready to publish",
-  "suggested_actions": ["Publish the campaign", "Show me the creatives", "Adjust the budget"]
-}}
+Respond as JSON with keys "reply", "summary", and "suggested_actions".
 """
 
 
@@ -81,8 +77,20 @@ class ResponseComposer:
         """
         brand_name = ctx.brand.name if ctx.brand else "your brand"
 
+        # For conversation mode, the chat.respond tool already generated
+        # a natural response — pass it through directly, no re-composition needed.
+        outputs = execution.all_outputs()
+        if "chat.respond" in outputs:
+            chat_result = outputs["chat.respond"]
+            if isinstance(chat_result, dict) and chat_result.get("reply"):
+                return {
+                    "reply": chat_result["reply"],
+                    "summary": chat_result.get("summary", ""),
+                    "suggested_actions": chat_result.get("suggested_actions", []),
+                }
+
         # Format tool outputs for the prompt (truncate large outputs)
-        tool_outputs = self._format_outputs(execution.all_outputs())
+        tool_outputs = self._format_outputs(outputs)
 
         prompt = COMPOSER_PROMPT.format(
             message=message,
