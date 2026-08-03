@@ -118,6 +118,8 @@ class Settings(BaseSettings):
     kakao_rest_api_key: str = ""
     vk_client_id: str = ""
     vk_client_secret: str = ""
+    naver_client_id: str = ""
+    naver_client_secret: str = ""
 
     # ads networks
     google_ads_developer_token: str = ""
