@@ -59,7 +59,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     if (hasGreeted.current) return;
     hasGreeted.current = true;
     const greeting = "Hi! I'm your AI marketing partner. What are we building today?";
-    setMessages([{ role: "ai", content: greeting, timestamp: new Date().toISOString() }]);
+    setMessages([{ role: "ai", content: greeting, timestamp: new Date().toISOString(), suggestions: [] }]);
     if (isSpeechSynthesisAvailable()) {
       setOrbState("speaking");
       speak(greeting, () => setOrbState("idle"));
@@ -392,7 +392,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
                   ))}
                 </div>
               )}
-              {msg.suggestions && msg.suggestions.length > 0 && (
+              {Array.isArray(msg.suggestions) && msg.suggestions.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {msg.suggestions.map((s, j) => (
                     <button
