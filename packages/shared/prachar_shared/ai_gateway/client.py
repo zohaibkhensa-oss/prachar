@@ -383,7 +383,10 @@ class AIGateway:
             if "haiku" in model or "small" in model or "8b" in model or "instant" in model:
                 return "gpt-4o-mini"
             return "gpt-4o"
-        # anthropic — use as-is
+        if provider == "anthropic":
+            if "8b" in model or "instant" in model or "small" in model or "haiku" in model:
+                return "claude-3-5-haiku-20241022"
+            return "claude-3-5-sonnet-20241022"
         return model
 
     def _call_provider(
@@ -421,7 +424,8 @@ class AIGateway:
         client = openai_lib.OpenAI(
             api_key=s.groq_api_key,
             base_url="https://api.groq.com/openai/v1",
-            timeout=60.0,  # 60s timeout per request
+            timeout=30.0,
+            max_retries=1,  # Don't retry 429s internally — let fallback chain handle it
         )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         if schema is not None:
@@ -469,7 +473,8 @@ class AIGateway:
         client = openai_lib.OpenAI(
             api_key=s.gemini_api_key,
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            timeout=60.0,
+            timeout=30.0,
+            max_retries=1,
         )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         if schema is not None:
