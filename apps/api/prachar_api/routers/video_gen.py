@@ -385,7 +385,13 @@ async def _call_gemini_veo(
         raise HTTPException(status_code=500, detail="Gemini Veo returned no videos")
 
     video = videos[0]
-    video_uri = getattr(video, "uri", "") or ""
+    # SDK v1.29+: video.video.uri (not video.uri)
+    video_obj = getattr(video, "video", None)
+    video_uri = ""
+    if video_obj:
+        video_uri = getattr(video_obj, "uri", "") or ""
+    if not video_uri:
+        video_uri = getattr(video, "uri", "") or ""
     if not video_uri:
         raise HTTPException(status_code=500, detail="Gemini Veo returned empty video URI")
 
@@ -421,26 +427,10 @@ async def _call_gemini_veo(
 def _download_gemini_video(client, video) -> bytes:
     """Download video bytes from Gemini via the SDK.
 
-    Uses a temp file (the SDK requires a filename), then reads it into memory
-    and immediately deletes it. Without the os.remove, every video generation
-    leaks a ~50MB file on disk → disk fills up → Postgres crashes.
+    SDK v1.29+ returns bytes directly from files.download().
     """
-    import os
-    import tempfile
-    tmp_path = None
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
-            tmp_path = tmp.name
-            client.files.download(file=video, filename=tmp_path)
-        with open(tmp_path, "rb") as f:
-            return f.read()
-    finally:
-        # Always clean up the temp file, even on error
-        if tmp_path and os.path.exists(tmp_path):
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                log.warning("Could not delete temp file: %s", tmp_path)
+    file_ref = getattr(video, "video", None) or video
+    return client.files.download(file=file_ref)
 
 
 async def _store_video_bytes(data: bytes, filename: str) -> str:

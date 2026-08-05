@@ -376,9 +376,8 @@ class AIGateway:
             # The model from pick_model() is already a Groq model name — use it directly
             return model
         if provider == "gemini":
-            if "8b" in model or "instant" in model or "small" in model:
-                return "gemini-2.0-flash"
-            return "gemini-2.0-flash"
+            # Models are already Gemini names from .env — use as-is
+            return model
         if provider == "openai":
             if "haiku" in model or "small" in model or "8b" in model or "instant" in model:
                 return "gpt-4o-mini"
