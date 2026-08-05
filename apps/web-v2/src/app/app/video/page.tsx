@@ -256,7 +256,7 @@ export default function VideoStudioPage() {
         const data = await apiPost<{ video_url?: string; status?: string; detail?: string }>("/video/generate", {
           prompt: `${prompt}, ${selectedStyle} style, high quality, detailed`,
           quality: qualityTier,
-          duration: Number(duration.replace("s", "")),
+          duration: String(duration.replace("s", "")),
           resolution: "1080p",
           video_type: selectedType,
           with_audio: music,

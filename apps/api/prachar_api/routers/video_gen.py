@@ -73,7 +73,7 @@ GEMINI_ASPECT_RATIOS = {
 class VideoGenRequest(BaseModel):
     prompt: str
     quality: str = "lite"  # preview | lite | fast | standard
-    duration: str = "5"    # seconds (Gemini Veo supports 5-15s)
+    duration: str | int = "5"  # seconds (Gemini Veo supports 4-8s)
     resolution: str = "1080p"
     aspect_ratio: str = "16:9"
     video_type: str = "landscape"
@@ -173,7 +173,8 @@ async def generate_video(
 
     quality = _normalize_quality(req)
     enhanced_prompt = req.prompt.strip()
-    duration_sec = int(req.duration.replace("s", "")) if req.duration.endswith("s") else int(req.duration)
+    duration_raw = str(req.duration).replace("s", "")
+    duration_sec = int(duration_raw)
     # Gemini Veo Lite supports 4-8s; clamp to valid range
     duration_sec = max(4, min(8, duration_sec))
 
