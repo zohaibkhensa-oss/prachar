@@ -245,8 +245,8 @@ export default function VideoStudioPage() {
         setVideos(prev => prev.map(v => v.id === newId ? { ...v, script, scriptStatus: "done", scenes: sceneCount } : v));
       } catch (e) {
         const errMsg = e instanceof ApiError
-          ? `Failed to generate script: ${e.message}`
-          : "Network error reaching AI service.";
+          ? `Script generation failed (${e.status}). The AI service may be rate-limited. Try again in a moment.`
+          : "AI service is rate-limited. Please try again in a moment.";
         setVideos(prev => prev.map(v => v.id === newId ? { ...v, script: errMsg, scriptStatus: "error" } : v));
       }
     })();

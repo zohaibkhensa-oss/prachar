@@ -24,7 +24,7 @@ from pydantic import BaseModel
 from ..deps import CurrentUser, SessionDep
 from prachar_shared.config import get_settings
 
-router = APIRouter(prefix="/api/video", tags=["video-gen"])
+router = APIRouter(prefix="/video", tags=["video-gen"])
 log = logging.getLogger(__name__)
 
 # ─── Gemini Veo model IDs (per tier) ───────────────────────────────────────
@@ -233,7 +233,12 @@ async def generate_video(
         }.get(quality, "ltx")
         req_copy = req.model_copy()
         req_copy.model = fal_model
-        return await _call_fal_video(fal_key, req_copy, enhanced_prompt, aspect)
+        try:
+            return await _call_fal_video(fal_key, req_copy, enhanced_prompt, aspect)
+        except HTTPException as e:
+            log.error("fal.ai failed: %s", str(e.detail)[:200])
+        except Exception as e:
+            log.error("fal.ai failed: %s: %s", type(e).__name__, str(e)[:200])
 
     # --- Last resort: Modal preview ---
     modal_url = _get_modal_video_url()
