@@ -253,7 +253,7 @@ export default function VideoStudioPage() {
 
     const videoPromise = (async () => {
       try {
-        const data = await apiPost<{ video_url?: string; status?: string; detail?: string }>("/api/video/generate", {
+        const data = await apiPost<{ video_url?: string; status?: string; detail?: string }>("/video/generate", {
           prompt: `${prompt}, ${selectedStyle} style, high quality, detailed`,
           quality: qualityTier,
           duration: Number(duration.replace("s", "")),

@@ -174,8 +174,8 @@ async def generate_video(
     quality = _normalize_quality(req)
     enhanced_prompt = req.prompt.strip()
     duration_sec = int(req.duration.replace("s", "")) if req.duration.endswith("s") else int(req.duration)
-    # Gemini Veo supports 5-15s; clamp to range
-    duration_sec = max(5, min(15, duration_sec))
+    # Gemini Veo Lite supports 4-8s; clamp to valid range
+    duration_sec = max(4, min(8, duration_sec))
 
     # --- Enforce plan-based quality tier cap ---
     plan_key = await get_tenant_plan(session, user)
