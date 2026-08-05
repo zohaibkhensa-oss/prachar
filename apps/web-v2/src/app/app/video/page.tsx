@@ -656,7 +656,21 @@ export default function VideoStudioPage() {
                         )}
 
                         <div className="flex gap-1.5">
-                          <button className="btn-secondary text-xs px-2 py-1 flex-1"><Download className="w-3 h-3" /></button>
+                          <button
+                            onClick={() => {
+                              if (!vd.videoUrl) return;
+                              const a = document.createElement("a");
+                              a.href = vd.videoUrl;
+                              a.download = `prachar-video-${vd.id}.mp4`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                            }}
+                            disabled={!vd.videoUrl}
+                            className="btn-secondary text-xs px-2 py-1 flex-1 disabled:opacity-30"
+                          >
+                            <Download className="w-3 h-3" />
+                          </button>
                           <button className="btn-secondary text-xs px-2 py-1 flex-1" disabled={isGenerating}>Publish</button>
                           <button className="btn-secondary text-xs px-2 py-1"><RefreshCw className="w-3 h-3" /></button>
                         </div>
