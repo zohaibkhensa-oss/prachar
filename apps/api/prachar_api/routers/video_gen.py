@@ -191,17 +191,23 @@ async def generate_video(
             )
             quality = max_tier
 
-    # --- Preview tier: Modal.com self-hosted (free) ---
+    # --- Preview tier: use Gemini Veo Lite if available (better quality),
+    #     fall back to Modal.com only if Gemini is not configured ---
     if quality == "preview":
-        modal_url = _get_modal_video_url()
-        if modal_url:
-            try:
-                log.info("Using Modal.com GPU for preview video (free tier)")
-                return await _call_modal_video(modal_url, enhanced_prompt, req)
-            except Exception as e:
-                log.error("Modal preview failed: %s: %s", type(e).__name__, str(e)[:300])
-        # Fall through to Gemini if Modal unavailable
-        quality = "lite"
+        gemini_key = _get_gemini_api_key()
+        if gemini_key:
+            # Upgrade preview → lite for Veo (paid key gives much better quality)
+            log.info("Upgrading preview → lite (Gemini Veo available)")
+            quality = "lite"
+        else:
+            modal_url = _get_modal_video_url()
+            if modal_url:
+                try:
+                    log.info("Using Modal.com GPU for preview video (free tier)")
+                    return await _call_modal_video(modal_url, enhanced_prompt, req)
+                except Exception as e:
+                    log.error("Modal preview failed: %s: %s", type(e).__name__, str(e)[:300])
+            quality = "lite"
 
     # --- Gemini Veo (primary for lite/fast/standard) ---
     gemini_key = _get_gemini_api_key()
