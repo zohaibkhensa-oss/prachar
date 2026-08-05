@@ -453,38 +453,54 @@ async def _store_video_bytes(data: bytes, filename: str) -> str:
     return f"data:video/mp4;base64,{b64}"
 
 
-# ─── Gemini Imagen implementation ───────────────────────────────────────────
+# ─── Gemini Image generation (generate_content with image models) ───────────
 
 async def _call_gemini_imagen(api_key: str, prompt: str, width: int, height: int) -> ImageGenResponse:
-    """Call Gemini Imagen 3 for image generation."""
+    """Generate an image using Gemini's image-capable models.
+
+    Uses generate_content with response_modalities=['IMAGE','TEXT'] since the
+    dedicated generate_images API is deprecated and Imagen models are no longer
+    available to new users. Gemini 2.5 Flash Image is the primary model.
+    """
     from google import genai
     from google.genai import types as gtypes
-    import asyncio
+    import asyncio, base64, time
 
     client = genai.Client(api_key=api_key)
-    # Imagen 3 via generate_images
-    response = client.models.generate_images(
-        model="imagen-3.0-generate-002",
-        prompt=prompt,
-        config=gtypes.GenerateImagesConfig(
-            number_of_images=1,
-            aspect_ratio=_aspect_ratio_from_dims(width, height),
-        ),
+    aspect = _aspect_ratio_from_dims(width, height)
+    # Enhance prompt with aspect ratio guidance
+    full_prompt = f"{prompt}. Aspect ratio: {aspect}. High quality, professional."
+
+    start = time.time()
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model="gemini-2.5-flash-image",
+        contents=full_prompt,
+        config=gtypes.GenerateContentConfig(response_modalities=["IMAGE", "TEXT"]),
     )
 
-    if not response.generated_images:
-        raise RuntimeError("Gemini Imagen returned no images")
+    if not response.candidates:
+        raise RuntimeError("Gemini image model returned no candidates")
 
-    img = response.generated_images[0]
-    img_bytes = img.image.image_bytes if hasattr(img, "image") else img.image_bytes
+    parts = response.candidates[0].content.parts
+    img_bytes = None
+    for p in parts:
+        inline = getattr(p, "inline_data", None)
+        if inline and inline.data:
+            img_bytes = inline.data
+            break
+
     if not img_bytes:
-        raise RuntimeError("Gemini Imagen returned empty image bytes")
+        raise RuntimeError("Gemini image model returned no image data")
 
-    import base64
     b64 = base64.b64encode(img_bytes).decode("ascii")
     url = f"data:image/png;base64,{b64}"
 
-    return ImageGenResponse(image_url=url, model="gemini-imagen-3", generation_time=0.0)
+    return ImageGenResponse(
+        image_url=url,
+        model="gemini-2.5-flash-image",
+        generation_time=time.time() - start,
+    )
 
 
 def _aspect_ratio_from_dims(width: int, height: int) -> str:

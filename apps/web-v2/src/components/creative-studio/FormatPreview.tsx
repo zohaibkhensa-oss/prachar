@@ -19,8 +19,9 @@
  */
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { RefreshCw, Loader2, Pencil } from "lucide-react";
+import { RefreshCw, Loader2, Pencil, ImageIcon, Video, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiPost } from "@/lib/api";
 
 export interface FormatPreviewProps {
   formatId: string;
@@ -33,6 +34,132 @@ export interface FormatPreviewProps {
   /** Called when the user edits a field inline. `path` is a dot-path into the
    *  data object (e.g. "headline" or "scenes.0.visual"). */
   onEditField?: (path: string, value: unknown) => void;
+}
+
+// ─── Media generation (image + video) ──────────────────────────────────────
+
+interface MediaState {
+  url: string;
+  loading: boolean;
+  error: string | null;
+}
+
+/** Button + preview for generating an image from a visual brief via Gemini. */
+function GenerateImageButton({
+  prompt,
+  label = "Generate Image",
+  aspect = "1:1",
+}: {
+  prompt: string;
+  label?: string;
+  aspect?: string;
+}) {
+  const [state, setState] = useState<MediaState>({ url: "", loading: false, error: null });
+
+  async function generate() {
+    if (!prompt.trim() || state.loading) return;
+    setState({ url: "", loading: true, error: null });
+    try {
+      const dims = aspect === "9:16" ? { width: 720, height: 1280 }
+        : aspect === "16:9" ? { width: 1280, height: 720 }
+        : aspect === "4:5" ? { width: 1024, height: 1280 }
+        : { width: 1024, height: 1024 };
+      const data = await apiPost<{ image_url?: string }>("/video/generate-image", {
+        prompt: `${prompt}, professional marketing creative, high quality`,
+        ...dims,
+      });
+      if (data.image_url) {
+        setState({ url: data.image_url, loading: false, error: null });
+      } else {
+        setState({ url: "", loading: false, error: "No image returned" });
+      }
+    } catch (e) {
+      setState({ url: "", loading: false, error: e instanceof Error ? e.message : "Generation failed" });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={generate}
+        disabled={state.loading || !prompt.trim()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-all disabled:opacity-40"
+      >
+        {state.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
+        {state.loading ? "Generating..." : label}
+      </button>
+      {state.error && <p className="text-xs text-danger">{state.error}</p>}
+      {state.url && (
+        <div className="relative rounded-lg overflow-hidden border border-white/10">
+          <img src={state.url} alt="Generated creative" className="w-full" />
+          <a
+            href={state.url}
+            download="creative.png"
+            className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80 transition-all"
+          >
+            <Download className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Button + preview for generating a video via Gemini Veo. */
+function GenerateVideoButton({
+  prompt,
+  label = "Generate Video",
+}: {
+  prompt: string;
+  label?: string;
+}) {
+  const [state, setState] = useState<MediaState>({ url: "", loading: false, error: null });
+
+  async function generate() {
+    if (!prompt.trim() || state.loading) return;
+    setState({ url: "", loading: true, error: null });
+    try {
+      const data = await apiPost<{ video_url?: string }>("/video/generate", {
+        prompt: `${prompt}, cinematic, high quality, professional`,
+        quality: "lite",
+        duration: "6",
+        video_type: "reel",
+      });
+      if (data.video_url) {
+        setState({ url: data.video_url, loading: false, error: null });
+      } else {
+        setState({ url: "", loading: false, error: "No video returned" });
+      }
+    } catch (e) {
+      setState({ url: "", loading: false, error: e instanceof Error ? e.message : "Generation failed" });
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <button
+        onClick={generate}
+        disabled={state.loading || !prompt.trim()}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-accent/10 border border-accent/30 text-accent hover:bg-accent/20 transition-all disabled:opacity-40"
+      >
+        {state.loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Video className="w-3 h-3" />}
+        {state.loading ? "Generating video (30-60s)..." : label}
+      </button>
+      {state.error && <p className="text-xs text-danger">{state.error}</p>}
+      {state.url && (
+        <div className="relative rounded-lg overflow-hidden border border-white/10">
+          <video src={state.url} controls className="w-full max-h-96" />
+          <a
+            href={state.url}
+            download="creative.mp4"
+            className="absolute top-2 right-2 p-1.5 rounded-lg bg-black/60 text-white hover:bg-black/80 transition-all"
+          >
+            <Download className="w-3 h-3" />
+          </a>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Regenerate context ───────────────────────────────────────────────────
@@ -383,12 +510,14 @@ function PosterPreview({ data }: { data: Record<string, unknown> }) {
       <Field label="Visual brief" value={str(data.visual_brief)} fieldName="visual_brief" />
       <Chips label="Colour palette" items={strList(data.color_palette)} fieldName="color_palette" />
       <Field label="Layout hint" value={str(data.layout_hint)} fieldName="layout_hint" />
+      <GenerateImageButton prompt={str(data.visual_brief)} label="Generate Poster Image" aspect="1:1" />
     </div>
   );
 }
 
 function VideoScriptPreview({ data }: { data: Record<string, unknown> }) {
   const scenes = Array.isArray(data.scenes) ? (data.scenes as Record<string, unknown>[]) : [];
+  const allVisuals = scenes.map(s => str(s.visual)).join(". ");
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-3 text-xs text-text-secondary">
@@ -415,6 +544,7 @@ function VideoScriptPreview({ data }: { data: Record<string, unknown> }) {
           </div>
         ))}
       </div>
+      <GenerateVideoButton prompt={allVisuals} label="Generate Video from Script" />
     </div>
   );
 }
@@ -439,6 +569,9 @@ function CarouselPreview({ data }: { data: Record<string, unknown> }) {
             </div>
             <div className="mt-2">
               <Field label="Visual brief" value={str(slide.visual_brief)} path={`slides.${i}.visual_brief`} />
+            </div>
+            <div className="mt-2">
+              <GenerateImageButton prompt={str(slide.visual_brief)} label={`Generate Slide ${i + 1} Image`} aspect="1:1" />
             </div>
           </div>
         ))}
@@ -468,6 +601,9 @@ function StoryPreview({ data }: { data: Record<string, unknown> }) {
                 <Field label="Sticker" value={str(frame.sticker)} path={`frames.${i}.sticker`} />
               </div>
             ) : null}
+            <div className="mt-2">
+              <GenerateImageButton prompt={str(frame.visual_brief)} label={`Generate Frame ${i + 1}`} aspect="9:16" />
+            </div>
           </div>
         ))}
       </div>

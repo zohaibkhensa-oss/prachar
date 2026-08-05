@@ -68,7 +68,7 @@ export default function ImageStudioPage() {
     // Generate real AI images via the backend image generation API
     const count = Math.min(variations, 4);
     const imagePromises = Array.from({ length: count }, (_, i) =>
-      apiPost<{ image_url?: string; url?: string }>("/api/video/generate-image", {
+      apiPost<{ image_url?: string; url?: string }>("/video/generate-image", {
         prompt: fullPrompt,
         width: ratio === "9:16" ? 720 : 1024,
         height: ratio === "9:16" ? 1280 : 1024,
@@ -229,7 +229,21 @@ export default function ImageStudioPage() {
                         <span className="text-[10px] text-text-muted">{img.style} · {img.quality}</span>
                       </div>
                       <div className="flex gap-1">
-                        <button className="btn-secondary text-xs px-2 py-1 flex-1"><Download className="w-3 h-3" /></button>
+                        <button
+                          onClick={() => {
+                            if (!img.imageUrl) return;
+                            const a = document.createElement("a");
+                            a.href = img.imageUrl;
+                            a.download = `prachar-image-${img.id}.png`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                          }}
+                          disabled={!img.imageUrl}
+                          className="btn-secondary text-xs px-2 py-1 flex-1 disabled:opacity-30"
+                        >
+                          <Download className="w-3 h-3" />
+                        </button>
                         <button className="btn-secondary text-xs px-2 py-1 flex-1">Use in Ad</button>
                         <button className="btn-secondary text-xs px-2 py-1"><Edit3 className="w-3 h-3" /></button>
                       </div>
