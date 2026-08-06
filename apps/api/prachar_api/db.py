@@ -32,6 +32,15 @@ def get_engine() -> AsyncEngine:
         # pool_recycle prevents "stale connection" errors when the DB or a
         # proxy (PgBouncer, RDS proxy) drops idle connections after a timeout.
         # 1800s (30 min) is safe for most managed DBs which default to 1h.
+        # SSL: required for managed Postgres (Supabase, RDS). asyncpg needs
+        # ssl=required in connect_args; local dev doesn't need it.
+        connect_args: dict = {}
+        if "supabase" in s.database_url or "render" in s.database_url or "rds" in s.database_url:
+            import ssl as _ssl
+            ctx = _ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = _ssl.CERT_NONE
+            connect_args["ssl"] = ctx
         _engine = create_async_engine(
             s.database_url,
             pool_pre_ping=True,
@@ -39,6 +48,7 @@ def get_engine() -> AsyncEngine:
             pool_size=pool_size,
             max_overflow=max_overflow,
             pool_timeout=30,  # seconds to wait for a connection before giving up
+            connect_args=connect_args,
             future=True,
         )
     return _engine
