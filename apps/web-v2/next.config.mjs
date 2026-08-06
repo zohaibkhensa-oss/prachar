@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const apiUrl = process.env.API_URL || "http://localhost:8000";
+
 const nextConfig = {
   reactStrictMode: true,
   typedRoutes: false,
@@ -11,7 +13,7 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:8000/:path*",
+        destination: `${apiUrl}/:path*`,
       },
     ];
   },

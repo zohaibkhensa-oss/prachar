@@ -1,0 +1,65 @@
+# Render Blueprint — free staging deployment
+# https://render.com/docs/blueprint-spec
+# Set these in Render dashboard or via env groups:
+#   DATABASE_URL  — from Supabase (postgresql+asyncpg://...)
+#   REDIS_URL     — from Upstash (rediss://...)
+#   JWT_SECRET, JWT_REFRESH_SECRET, TOKEN_ENC_KEY — generate with openssl rand -hex 32
+#   GROQ_API_KEY  — from https://console.groq.com
+#   FAL_KEY       — from https://fal.ai (for video generation)
+#   GEMINI_API_KEY — from https://ai.google.dev (optional, fallback)
+
+services:
+  # ─── API (FastAPI) ──────────────────────────────────────────────
+  - type: web
+    name: prachar-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONPATH
+        value: /app/packages/shared:/app/apps/api:/app/apps/workers:/app
+      - key: APP_ENV
+        value: staging
+      - key: DATABASE_URL
+        sync: false  # set manually in dashboard
+      - key: REDIS_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: TOKEN_ENC_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: FAL_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_DEFAULT_PROVIDER
+        value: groq
+      - key: EMAIL_FROM
+        value: noreply@prachar.app
+      - key: EMAIL_FROM_NAME
+        value: PRACHAR
+
+  # ─── Web (Next.js) ──────────────────────────────────────────────
+  - type: web
+    name: prachar-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./apps/web-v2/Dockerfile
+    dockerContext: ./apps/web-v2
+    envVars:
+      - key: API_URL
+        fromService:
+          type: web
+          name: prachar-api
+          property: hosturl
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: prachar-api
+          property: hosturl

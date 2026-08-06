@@ -1,0 +1,12 @@
+.git
+.venv
+node_modules
+**/__pycache__
+**/*.pyc
+**/.next
+apps/web
+apps/web-v2/node_modules
+apps/web-v2/.next
+*.egg-info
+.pytest_cache
+.ruff_cache
