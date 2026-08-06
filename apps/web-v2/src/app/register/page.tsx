@@ -143,7 +143,7 @@ export default function RegisterPage() {
 
           <div className="mt-6 text-center">
             <span className="text-sm text-text-secondary">Have an account? </span>
-            <Link href="/login" className="text-accent hover:underline text-sm font-medium">
+            <Link href="/login" className="text-accent hover:underline text-sm font-medium inline-block py-1 min-h-[36px]">
               Sign in →
             </Link>
           </div>

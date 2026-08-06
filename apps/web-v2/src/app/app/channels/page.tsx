@@ -247,13 +247,13 @@ export default function ChannelsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-none">
         {FILTERS.map((f) => (
           <button
             key={f.id}
             onClick={() => setFilter(f.id)}
             className={cn(
-              "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all",
+              "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-medium transition-all whitespace-nowrap",
               filter === f.id
                 ? "bg-accent text-bg"
                 : "bg-white/[0.04] text-text-secondary hover:text-text",
@@ -398,7 +398,7 @@ export default function ChannelsPage() {
                         onClick={() => handleConnect(c.id)}
                         disabled={connectingChannel === c.id}
                         className={cn(
-                          "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition",
+                          "inline-flex items-center gap-2 px-3 py-2 min-h-[36px] rounded-lg text-xs font-medium transition",
                           connectingChannel === c.id
                             ? "bg-white/[0.04] text-text-muted cursor-wait"
                             : "bg-white/[0.06] text-text hover:bg-accent hover:text-bg",

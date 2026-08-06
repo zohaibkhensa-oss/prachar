@@ -144,7 +144,7 @@ export default function PricingPage() {
           <button
             onClick={() => setCurrency("INR")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+              "px-3 py-2 min-h-[36px] rounded-md text-xs font-medium transition-all",
               currency === "INR" ? "bg-accent/15 text-accent" : "text-text-secondary hover:text-text",
             )}
           >
@@ -153,7 +153,7 @@ export default function PricingPage() {
           <button
             onClick={() => setCurrency("USD")}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-medium transition-all",
+              "px-3 py-2 min-h-[36px] rounded-md text-xs font-medium transition-all",
               currency === "USD" ? "bg-accent/15 text-accent" : "text-text-secondary hover:text-text",
             )}
           >

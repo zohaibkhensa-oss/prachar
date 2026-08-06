@@ -418,11 +418,11 @@ export default function CalendarPage() {
       {/* Channel filter */}
       {connectedChannels.length > 0 && (
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <Filter className="w-4 h-4 text-text-muted" />
+          <Filter className="w-4 h-4 text-text-muted shrink-0" />
           <button
             onClick={() => setSelectedChannel(null)}
             className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition",
+              "px-3 py-2 min-h-[36px] rounded-full text-xs font-medium transition whitespace-nowrap",
               !selectedChannel ? "bg-accent text-bg" : "bg-white/[0.04] text-text-secondary hover:text-text"
             )}
           >
@@ -435,7 +435,7 @@ export default function CalendarPage() {
                 key={ch}
                 onClick={() => setSelectedChannel(selectedChannel === ch ? null : ch)}
                 className={cn(
-                  "px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5",
+                  "px-3 py-2 min-h-[36px] rounded-full text-xs font-medium transition flex items-center gap-1.5 whitespace-nowrap",
                   selectedChannel === ch ? "text-bg" : "bg-white/[0.04] text-text-secondary hover:text-text"
                 )}
                 style={selectedChannel === ch ? { backgroundColor: meta.color } : {}}
@@ -462,19 +462,19 @@ export default function CalendarPage() {
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={goToday} className="px-3 py-1.5 rounded-lg bg-white/[0.04] text-text-secondary hover:text-text text-xs font-medium transition">
+          <button onClick={goToday} className="px-3 py-2 min-h-[36px] rounded-lg bg-white/[0.04] text-text-secondary hover:text-text text-xs font-medium transition">
             Today
           </button>
           <div className="flex bg-white/[0.04] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("month")}
-              className={cn("px-3 py-1 rounded-md text-xs font-medium transition", viewMode === "month" ? "bg-accent text-bg" : "text-text-secondary")}
+              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "month" ? "bg-accent text-bg" : "text-text-secondary")}
             >
               Month
             </button>
             <button
               onClick={() => setViewMode("week")}
-              className={cn("px-3 py-1 rounded-md text-xs font-medium transition", viewMode === "week" ? "bg-accent text-bg" : "text-text-secondary")}
+              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "week" ? "bg-accent text-bg" : "text-text-secondary")}
             >
               Week
             </button>
@@ -631,7 +631,7 @@ export default function CalendarPage() {
                 ))}
               </div>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[9px] text-text-muted">
+            <div className="mt-2 flex items-center justify-between text-[10px] sm:text-xs text-text-muted">
               <span>Less optimal</span>
               <div className="flex gap-0.5">
                 {[0.2, 0.4, 0.6, 0.8, 1.0].map((s) => (
@@ -656,7 +656,7 @@ export default function CalendarPage() {
               <button
                 onClick={generateAIPlan}
                 disabled={generatingPlan}
-                className="text-xs text-accent hover:text-accent/80 transition"
+                className="text-xs text-accent hover:text-accent/80 transition min-h-[36px] py-1.5"
               >
                 {generatingPlan ? "Generating..." : aiPlan ? "Refresh" : "Generate"}
               </button>
@@ -687,7 +687,7 @@ export default function CalendarPage() {
                 <button
                   onClick={generateAIPlan}
                   disabled={generatingPlan}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition"
                 >
                   {generatingPlan ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
                   Generate Plan

@@ -150,13 +150,13 @@ export default function ReportsPage() {
             </div>
           )}
           {/* Time range */}
-          <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04]">
+          <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.04] overflow-x-auto scrollbar-none">
             {TIME_RANGES.map((t) => (
               <button
                 key={t}
                 onClick={() => setRange(t)}
                 className={cn(
-                  "px-3 py-1.5 rounded-md font-mono text-xs transition-all",
+                  "px-3 py-2 min-h-[36px] rounded-md font-mono text-xs transition-all whitespace-nowrap",
                   t === range
                     ? "bg-accent text-bg font-medium"
                     : "text-text-secondary hover:text-text",

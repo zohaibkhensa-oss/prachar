@@ -121,7 +121,7 @@ export default function DashboardPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
             onClick={() => router.push("/app/brands")}
-            className="mt-2 inline-flex items-center gap-1.5 text-xs text-accent/80 hover:text-accent transition-colors"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs text-accent/80 hover:text-accent transition-colors min-h-[36px] py-1.5"
           >
             <Sparkles className="w-3 h-3" />
             Set your business name
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                 key={i}
                 onClick={() => href && router.push(href)}
                 disabled={!href}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                className={`px-4 py-2.5 min-h-[40px] rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all ${
                   i === 0
                     ? "bg-gradient-to-br from-accent to-orange-500 text-bg"
                     : "bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:text-text"
@@ -191,7 +191,7 @@ export default function DashboardPage() {
                 key={s}
                 onClick={() => href && router.push(href)}
                 disabled={!href}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3 py-2 min-h-[36px] rounded-full bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary transition-all ${
                   href ? "hover:bg-white/[0.06] hover:text-text cursor-pointer" : "opacity-50 cursor-default"
                 }`}
               >

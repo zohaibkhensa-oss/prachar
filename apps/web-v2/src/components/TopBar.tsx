@@ -32,7 +32,7 @@ export function TopBar({ onSearchClick, onNotificationsClick, onMenuClick, notif
         {/* Search */}
         <button
           onClick={onSearchClick}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-muted hover:text-text hover:border-white/[0.1] transition-all min-w-0"
+          className="flex items-center gap-2 px-3 py-2 min-h-[40px] rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-muted hover:text-text hover:border-white/[0.1] transition-all min-w-0"
         >
           <Search className="w-3.5 h-3.5 shrink-0" />
           <span className="text-xs font-mono truncate">Search...</span>
@@ -45,7 +45,7 @@ export function TopBar({ onSearchClick, onNotificationsClick, onMenuClick, notif
         {/* Notifications */}
         <button
           onClick={onNotificationsClick}
-          className="relative text-text-secondary hover:text-text transition-colors"
+          className="relative text-text-secondary hover:text-text transition-colors min-w-[40px] min-h-[40px] flex items-center justify-center"
           title="Notifications"
         >
           <motion.div

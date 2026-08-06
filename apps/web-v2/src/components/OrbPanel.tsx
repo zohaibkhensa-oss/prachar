@@ -321,7 +321,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
           )}
           <button
             onClick={onClose}
-            className="text-text-muted hover:text-text p-1"
+            className="text-text-muted hover:text-text p-2 min-w-[40px] min-h-[40px] flex items-center justify-center"
           >
             ✕
           </button>

@@ -94,7 +94,7 @@ export default function LoginPage() {
             </div>
 
             <div className="text-right">
-              <Link href="/auth/forgot-password" className="text-xs text-text-secondary hover:text-accent transition-colors">
+              <Link href="/auth/forgot-password" className="text-xs text-text-secondary hover:text-accent transition-colors inline-block py-1.5 min-h-[36px]">
                 Forgot password?
               </Link>
             </div>
@@ -142,7 +142,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <span className="text-sm text-text-secondary">No account? </span>
-            <Link href="/register" className="text-accent hover:underline text-sm font-medium">
+            <Link href="/register" className="text-accent hover:underline text-sm font-medium inline-block py-1 min-h-[36px]">
               Create one →
             </Link>
           </div>

@@ -108,7 +108,7 @@ export function ProactiveNotifications({ open, onClose }: ProactiveNotifications
               </div>
               <button
                 onClick={onClose}
-                className="text-text-muted hover:text-text transition-colors p-1"
+                className="text-text-muted hover:text-text transition-colors p-2 min-w-[40px] min-h-[40px] flex items-center justify-center"
               >
                 <X className="w-4 h-4" />
               </button>

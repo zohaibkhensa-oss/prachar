@@ -50,10 +50,10 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 glass-strong border-b border-white/[0.04]">
         <div className="container flex items-center justify-between py-3">
           <Link href="/"><Logo size="sm" /></Link>
-          <div className="flex items-center gap-6">
-            <Link href="/audit" className="text-sm text-text-secondary hover:text-text transition-colors">Free Audit</Link>
-            <Link href="/login" className="text-sm text-text-secondary hover:text-text transition-colors">Login</Link>
-            <Link href="/register" className="btn-primary text-sm">Get Started <ArrowRight className="w-3.5 h-3.5" /></Link>
+          <div className="flex items-center gap-3 sm:gap-6">
+            <Link href="/audit" className="text-sm text-text-secondary hover:text-text transition-colors min-h-[40px] flex items-center">Free Audit</Link>
+            <Link href="/login" className="text-sm text-text-secondary hover:text-text transition-colors min-h-[40px] flex items-center">Login</Link>
+            <Link href="/register" className="btn-primary text-sm min-h-[40px] flex items-center">Get Started <ArrowRight className="w-3.5 h-3.5" /></Link>
           </div>
         </div>
       </nav>
@@ -283,10 +283,10 @@ export default function LandingPage() {
             <Logo size="sm" />
             <span className="font-mono text-xs text-text-muted">AI-DRIVEN GLOBAL AD AGENCY</span>
           </div>
-          <div className="flex items-center gap-6">
-            <Link href="/audit" className="text-xs text-text-muted hover:text-text transition-colors">Free Audit</Link>
-            <Link href="/login" className="text-xs text-text-muted hover:text-text transition-colors">Login</Link>
-            <Link href="/register" className="text-xs text-text-muted hover:text-text transition-colors">Register</Link>
+          <div className="flex items-center gap-4 sm:gap-6">
+            <Link href="/audit" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Free Audit</Link>
+            <Link href="/login" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Login</Link>
+            <Link href="/register" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Register</Link>
           </div>
         </div>
       </footer>

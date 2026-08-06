@@ -312,13 +312,13 @@ export default function VideoStudioPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 p-1 rounded-lg bg-bg-surface w-fit">
+      <div className="flex gap-1 p-1 rounded-lg bg-bg-surface w-fit max-w-full overflow-x-auto scrollbar-none">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              "px-4 py-2 rounded-md text-sm font-medium transition-all",
+              "px-3 sm:px-4 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap",
               tab === t ? "bg-accent/10 text-accent" : "text-text-secondary hover:text-text",
             )}
           >
@@ -353,7 +353,7 @@ export default function VideoStudioPage() {
                       key={v.id}
                       onClick={() => setSelectedType(v.id)}
                       className={cn(
-                        "px-2 py-1.5 rounded-md text-xs border transition-all",
+                        "px-2 py-2 min-h-[36px] rounded-md text-xs border transition-all",
                         selectedType === v.id ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text",
                       )}
                     >
@@ -378,7 +378,7 @@ export default function VideoStudioPage() {
                       key={s}
                       onClick={() => setSelectedStyle(s)}
                       className={cn(
-                        "px-2.5 py-1 rounded-full text-xs border transition-all",
+                        "px-2.5 py-2 min-h-[32px] rounded-full text-xs border transition-all",
                         selectedStyle === s ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text",
                       )}
                     >
@@ -403,7 +403,7 @@ export default function VideoStudioPage() {
                       key={d}
                       onClick={() => setDuration(d)}
                       className={cn(
-                        "px-2 py-1.5 rounded-md text-xs border transition-all",
+                        "px-2 py-2 min-h-[36px] rounded-md text-xs border transition-all",
                         duration === d ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary",
                       )}
                     >

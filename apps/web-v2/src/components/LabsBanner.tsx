@@ -58,7 +58,7 @@ export function LabsBanner({
           <button
             onClick={() => setNotified(true)}
             disabled={notified}
-            className="mt-3 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-60"
+            className="mt-3 inline-flex items-center gap-1.5 text-xs text-accent hover:text-accent/80 transition-colors disabled:opacity-60 min-h-[36px] py-1.5"
           >
             <Bell className="w-3.5 h-3.5" />
             {notified ? "We'll notify you when it's ready" : "Notify me when available"}

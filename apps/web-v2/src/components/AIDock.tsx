@@ -112,7 +112,7 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
                 </p>
                 <button
                   onClick={dismissHint}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-bg-surface border border-white/10 text-text-muted hover:text-text text-[10px] flex items-center justify-center"
+                  className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-bg-surface border border-white/10 text-text-muted hover:text-text text-xs flex items-center justify-center"
                 >
                   ✕
                 </button>
