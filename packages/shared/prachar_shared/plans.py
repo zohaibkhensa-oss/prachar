@@ -199,8 +199,8 @@ def _build_plans() -> dict[str, PlanSpec]:
         price_usd=agency_price_usd,
         popular=False,
         brands_limit=5,
-        videos_per_month=-1,  # unlimited
-        images_per_month=-1,
+        videos_per_month=50,
+        images_per_month=500,
         platforms_limit=-1,
         weekly_loop=True,
         google_ads=True,
@@ -214,8 +214,8 @@ def _build_plans() -> dict[str, PlanSpec]:
         icon="Crown",
         deliverables=[
             PlanDeliverable("Brands", "5 brands"),
-            PlanDeliverable("AI videos", "Unlimited (Premium quality)"),
-            PlanDeliverable("AI images", "Unlimited"),
+            PlanDeliverable("AI videos", "50 per month (Premium quality)"),
+            PlanDeliverable("AI images", "500 per month"),
             PlanDeliverable("Platforms", "All platforms (organic + ads)"),
             PlanDeliverable("Weekly loop", "Auto post every week"),
             PlanDeliverable("Campaign Brain", "Full AI strategy engine"),
