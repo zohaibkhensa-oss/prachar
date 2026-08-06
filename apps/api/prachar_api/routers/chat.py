@@ -655,7 +655,7 @@ async def chat(
             confidence=0.0,
         )
     except Exception as e:
-        # LLM call failed (bad API key, network error, etc.)
+        # LLM call failed — NEVER leak provider error messages to the user
         import logging
         logging.error("Chat LLM error: %s: %s", type(e).__name__, str(e)[:500])
         err_msg = str(e).lower()
@@ -671,6 +671,7 @@ async def chat(
                 model="error",
                 confidence=0.0,
             )
+        # Generic error — never expose provider billing/error details to users
         return ChatResponse(
             reply=(
                 "Sorry, I couldn't reach my AI brain right now. "
