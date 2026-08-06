@@ -312,7 +312,16 @@ def upgrade() -> None:
     op.execute("REVOKE UPDATE, DELETE ON audit_events FROM PUBLIC")
 
     # app.tenant_id setting (RLS enforces isolation; setting is open).
-    op.execute("ALTER DATABASE prachar SET app.tenant_id = ''")
+    # Set default app.tenant_id for RLS (skip on managed DBs like Supabase where ALTER DATABASE is restricted)
+    op.execute("""
+        DO $$ BEGIN
+            EXECUTE 'ALTER DATABASE ' || current_database() || ' SET app.tenant_id = ''''';
+        EXCEPTION WHEN insufficient_privilege THEN
+            -- Managed Postgres (Supabase, RDS) may not allow ALTER DATABASE;
+            -- the app sets app.tenant_id per-session via SET LOCAL anyway.
+            RAISE NOTICE 'Skipping ALTER DATABASE app.tenant_id (insufficient privilege)';
+        END $$;
+    """)
 
     # ─── auth_lookup: SECURITY DEFINER function for login (bypasses RLS) ─────
     op.execute(
@@ -325,7 +334,14 @@ def upgrade() -> None:
         $$;
         """
     )
-    op.execute("GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar")
+    # Grant to prachar role if it exists (local dev), else grant to postgres (Supabase)
+    op.execute("""
+        DO $$ BEGIN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+        EXCEPTION WHEN undefined_object THEN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO postgres;
+        END $$;
+    """)
 
 
 def downgrade() -> None:

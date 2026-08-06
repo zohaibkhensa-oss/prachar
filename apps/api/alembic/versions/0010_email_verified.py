@@ -34,7 +34,11 @@ def upgrade() -> None:
         LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE email = p_email LIMIT 1;
         $$;
-        GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+        DO $$ BEGIN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+        EXCEPTION WHEN undefined_object THEN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO postgres;
+        END $$;
     """)
     # Add auth_lookup_by_id for token-based flows (verify email, reset password)
     op.execute("""
@@ -43,7 +47,11 @@ def upgrade() -> None:
         LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE id::text = p_uid LIMIT 1;
         $$;
-        GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO prachar;
+        DO $$ BEGIN
+            GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO prachar;
+        EXCEPTION WHEN undefined_object THEN
+            GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO postgres;
+        END $$;
     """)
 
 
@@ -56,6 +64,10 @@ def downgrade() -> None:
         LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active FROM users WHERE email = p_email LIMIT 1;
         $$;
-        GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+        DO $$ BEGIN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+        EXCEPTION WHEN undefined_object THEN
+            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO postgres;
+        END $$;
     """)
     op.drop_column("users", "email_verified")
