@@ -53,8 +53,5 @@ services:
     dockerfilePath: ./apps/web-v2/Dockerfile
     dockerContext: ./apps/web-v2
     envVars:
-      - key: API_HOST
-        fromService:
-          type: web
-          name: prachar-api
-          property: host
+      - key: NEXT_PUBLIC_API_BASE
+        value: https://prachar-api.onrender.com
