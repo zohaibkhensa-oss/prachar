@@ -34,6 +34,8 @@ def get_engine() -> AsyncEngine:
         # 1800s (30 min) is safe for most managed DBs which default to 1h.
         # SSL: required for managed Postgres (Supabase, RDS). asyncpg needs
         # ssl=required in connect_args; local dev doesn't need it.
+        # PgBouncer (Supabase pooler on port 6543): needs statement_cache_size=0
+        # because transaction-mode pooling doesn't support prepared statements.
         connect_args: dict = {}
         if "supabase" in s.database_url or "render" in s.database_url or "rds" in s.database_url:
             import ssl as _ssl
@@ -41,6 +43,10 @@ def get_engine() -> AsyncEngine:
             ctx.check_hostname = False
             ctx.verify_mode = _ssl.CERT_NONE
             connect_args["ssl"] = ctx
+            # Supabase pooler uses PgBouncer — disable prepared statements
+            if "pooler" in s.database_url or ":6543" in s.database_url:
+                connect_args["statement_cache_size"] = 0
+                connect_args["prepared_statement_cache_size"] = 0
         _engine = create_async_engine(
             s.database_url,
             pool_pre_ping=True,
