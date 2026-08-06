@@ -170,3 +170,124 @@ def verification_success_html() -> str:
       <a href="/" style="display: inline-block; margin-top: 24px; background: #6366f1; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Go to PRACHAR</a>
     </div>
     """
+
+
+def invoice_email_html(invoice_number: str, plan_name: str, total_inr: int, user_name: str = "") -> str:
+    name = user_name or "there"
+    return f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">PRACHAR</h1>
+        <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Your AI marketing agency</p>
+      </div>
+      <h2 style="color: #111827; font-size: 22px;">Payment Receipt</h2>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+        Hi {name},<br><br>
+        Thank you for your payment! Your subscription has been activated successfully.
+      </p>
+      <div style="background: #f9fafb; border-radius: 12px; padding: 24px; margin: 24px 0;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 15px;">
+          <tr>
+            <td style="color: #6b7280; padding: 8px 0;">Invoice Number</td>
+            <td style="color: #111827; font-weight: 600; text-align: right; padding: 8px 0;">{invoice_number}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; padding: 8px 0;">Plan</td>
+            <td style="color: #111827; font-weight: 600; text-align: right; padding: 8px 0;">{plan_name}</td>
+          </tr>
+          <tr>
+            <td style="color: #6b7280; padding: 8px 0;">Amount (incl. GST 18%)</td>
+            <td style="color: #111827; font-weight: 600; text-align: right; padding: 8px 0;">Rs. {total_inr:,}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="color: #374151; font-size: 16px; line-height: 1.6;">
+        Your GST-compliant invoice is attached to this email as a PDF. You can also download it anytime from your <a href="https://app.prachar.app/app/settings" style="color: #6366f1;">Settings &rarr; Billing</a> page.
+      </p>
+      <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+      <p style="color: #9ca3af; font-size: 12px;">
+        © 2026 PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India<br>
+        This is an automated email. Please do not reply.
+      </p>
+    </div>
+    """
+
+
+async def send_invoice_email(
+    to_email: str,
+    invoice_number: str,
+    plan_name: str,
+    total_inr: int,
+    pdf_bytes: bytes,
+    user_name: str = "",
+) -> bool:
+    """Send an invoice email with PDF attachment.
+
+    Uses Resend (with attachment) or SMTP (with MIME attachment).
+    Falls back to dev mode (logs to console) if no email provider configured.
+    """
+    s = get_settings()
+    from_addr = s.email_from
+    from_name = s.email_from_name
+    subject = f"Payment Receipt — {invoice_number}"
+    html = invoice_email_html(invoice_number, plan_name, total_inr, user_name)
+
+    # Option 1: Resend (supports attachments)
+    if s.resend_api_key:
+        try:
+            import resend
+            resend.api_key = s.resend_api_key
+            import asyncio
+            params: dict = {
+                "from": f"{from_name} <{from_addr}>" if from_name else from_addr,
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+                "attachments": [{
+                    "filename": f"{invoice_number}.pdf",
+                    "content": list(pdf_bytes),
+                }],
+            }
+            await asyncio.to_thread(resend.Emails.send, params)
+            log.info("Invoice email sent via Resend to %s: %s", to_email, invoice_number)
+            return True
+        except Exception as e:
+            log.error("Resend invoice send failed: %s: %s", type(e).__name__, str(e)[:200])
+
+    # Option 2: SMTP (with MIME attachment)
+    if s.smtp_host:
+        try:
+            import aiosmtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.application import MIMEApplication
+
+            message = MIMEMultipart("mixed")
+            message["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
+            message["To"] = to_email
+            message["Subject"] = subject
+
+            # HTML body
+            message.attach(MIMEText(html, "html"))
+
+            # PDF attachment
+            attachment = MIMEApplication(pdf_bytes, _subtype="pdf")
+            attachment.add_header("Content-Disposition", "attachment", filename=f"{invoice_number}.pdf")
+            message.attach(attachment)
+
+            await aiosmtplib.send(
+                message,
+                hostname=s.smtp_host,
+                port=s.smtp_port,
+                username=s.smtp_user or None,
+                password=s.smtp_password or None,
+                start_tls=True,
+            )
+            log.info("Invoice email sent via SMTP to %s: %s", to_email, invoice_number)
+            return True
+        except Exception as e:
+            log.error("SMTP invoice send failed: %s: %s", type(e).__name__, str(e)[:200])
+
+    # Option 3: Dev mode — log
+    log.info("📧 [DEV EMAIL] Invoice %s to %s (PDF: %d bytes, not sent)", invoice_number, to_email, len(pdf_bytes))
+    return False

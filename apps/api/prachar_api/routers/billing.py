@@ -380,12 +380,30 @@ async def _handle_stripe_event(event: Any, session: SessionDep) -> dict:
         plan_key = data.get("metadata", {}).get("plan", "starter")
         if tenant_id:
             await _update_billing(session, uuid.UUID(tenant_id), BillingProvider.stripe, sub_id, BillingStatus.active, plan_key)
+            # Email invoice to user
+            await _email_invoice_after_payment(session, uuid.UUID(tenant_id), plan_key)
         return {"status": "ok", "action": "subscription_activated"}
 
     elif etype == "customer.subscription.deleted":
         sub_id = data.get("id")
         await _cancel_billing_by_sub(session, sub_id)
         return {"status": "ok", "action": "subscription_canceled"}
+
+    elif etype == "invoice.payment_succeeded":
+        # Recurring payment succeeded — email the invoice
+        sub_id = data.get("subscription")
+        tenant_id = data.get("customer", {}).get("id") if isinstance(data.get("customer"), dict) else None
+        # Try to find tenant from subscription metadata
+        plan_key = data.get("metadata", {}).get("plan", "starter")
+        # Look up billing by sub_id to find tenant
+        if not tenant_id:
+            billing_res = await session.execute(select(Billing).where(Billing.sub_id == sub_id))
+            billing = billing_res.scalar_one_or_none()
+            if billing:
+                tenant_id = str(billing.tenant_id)
+        if tenant_id:
+            await _email_invoice_after_payment(session, uuid.UUID(tenant_id), plan_key)
+        return {"status": "ok", "action": "invoice_emailed"}
 
     elif etype == "invoice.payment_failed":
         sub_id = data.get("subscription")
@@ -437,6 +455,8 @@ async def razorpay_webhook(
         plan_key = notes.get("plan", "starter")
         if tenant_id:
             await _update_billing(session, uuid.UUID(tenant_id), BillingProvider.razorpay, sub_id, BillingStatus.active, plan_key)
+            # Email invoice to user
+            await _email_invoice_after_payment(session, uuid.UUID(tenant_id), plan_key)
         return {"status": "ok", "action": "subscription_activated"}
 
     elif event == "subscription.cancelled":
@@ -445,13 +465,16 @@ async def razorpay_webhook(
         return {"status": "ok", "action": "subscription_canceled"}
 
     elif event == "subscription.charged":
-        # Successful recurring payment — ensure active
+        # Successful recurring payment — ensure active + email invoice
         sub = payload_data.get("subscription", {}).get("entity", {})
         sub_id = sub.get("id")
         notes = sub.get("notes", {})
         tenant_id = notes.get("tenant_id")
+        plan_key = notes.get("plan", "starter")
         if tenant_id:
-            await _update_billing(session, uuid.UUID(tenant_id), BillingProvider.razorpay, sub_id, BillingStatus.active, notes.get("plan", "starter"))
+            await _update_billing(session, uuid.UUID(tenant_id), BillingProvider.razorpay, sub_id, BillingStatus.active, plan_key)
+            # Email invoice to user
+            await _email_invoice_after_payment(session, uuid.UUID(tenant_id), plan_key)
         return {"status": "ok", "action": "payment_succeeded"}
 
     elif event == "payment.failed":
@@ -648,7 +671,220 @@ async def list_invoices(
     return InvoicesResponse(invoices=[invoice])
 
 
-# ─── PDF Invoice Download ────────────────────────────────────────────────────
+# ─── PDF Invoice Generation ──────────────────────────────────────────────────
+
+def _generate_invoice_pdf(
+    invoice_number: str,
+    tenant_name: str,
+    tenant_id_short: str,
+    plan_key: str,
+    base_amount: int,
+    gst_amount: int,
+    total: int,
+    status_text: str,
+    now: Any | None = None,
+) -> bytes:
+    """Generate a GST-compliant PDF invoice and return the bytes.
+
+    Reusable: called from both the download endpoint and the webhook handlers
+    (for emailing invoices after payment).
+    """
+    import io
+    import datetime
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfgen import canvas as rl_canvas
+
+    if now is None:
+        now = datetime.datetime.now(datetime.UTC)
+
+    buf = io.BytesIO()
+    c = rl_canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+
+    # Colors
+    primary = HexColor("#1a1a2e")
+    accent = HexColor("#6c5ce7")
+    light_gray = HexColor("#f0f0f5")
+    dark_gray = HexColor("#333333")
+
+    # ─── Header bar ───
+    c.setFillColor(primary)
+    c.rect(0, height - 35 * mm, width, 35 * mm, fill=1, stroke=0)
+
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 24)
+    c.drawString(20 * mm, height - 18 * mm, "PRACHAR")
+    c.setFont("Helvetica", 9)
+    c.drawString(20 * mm, height - 24 * mm, "AI-Driven Advertising Platform")
+    c.drawString(20 * mm, height - 29 * mm, "hello@prachar.app | www.prachar.app")
+
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(width - 20 * mm, height - 18 * mm, "TAX INVOICE")
+    c.setFont("Helvetica", 9)
+    c.drawRightString(width - 20 * mm, height - 24 * mm, f"#{invoice_number}")
+    c.drawRightString(width - 20 * mm, height - 29 * mm, now.strftime("%d %b %Y"))
+
+    # ─── Bill To section ───
+    y = height - 50 * mm
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(20 * mm, y, "BILL TO")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.setFillColor(HexColor("#555555"))
+    c.drawString(20 * mm, y, tenant_name)
+    y -= 5 * mm
+    c.drawString(20 * mm, y, f"Tenant ID: {tenant_id_short}")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, "India")
+
+    # ─── From section (right) ───
+    y_from = height - 50 * mm
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(width - 20 * mm, y_from, "FROM")
+    y_from -= 6 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#555555"))
+    c.drawRightString(width - 20 * mm, y_from, "PRACHAR AI Technologies")
+    y_from -= 5 * mm
+    c.drawRightString(width - 20 * mm, y_from, "GSTIN: 29ABCDE1234F1Z5")
+    y_from -= 5 * mm
+    c.drawRightString(width - 20 * mm, y_from, "Bengaluru, Karnataka, India")
+
+    # ─── Invoice items table ───
+    y = height - 75 * mm
+    c.setFillColor(light_gray)
+    c.rect(20 * mm, y - 5 * mm, width - 40 * mm, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(22 * mm, y - 2 * mm, "DESCRIPTION")
+    c.drawString(110 * mm, y - 2 * mm, "QTY")
+    c.drawString(130 * mm, y - 2 * mm, "RATE")
+    c.drawRightString(width - 22 * mm, y - 2 * mm, "AMOUNT")
+
+    y -= 15 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#333333"))
+    plan_label = f"PRACHAR {plan_key.upper()} — Monthly Subscription"
+    c.drawString(22 * mm, y, plan_label)
+    c.drawString(110 * mm, y, "1")
+    c.drawString(130 * mm, y, f"Rs. {base_amount:,}")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
+
+    y -= 10 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#666666"))
+    c.drawString(110 * mm, y, "Subtotal")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
+
+    y -= 6 * mm
+    c.drawString(110 * mm, y, "GST (18%)")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {gst_amount:,}")
+
+    y -= 10 * mm
+    c.setFillColor(accent)
+    c.rect(108 * mm, y - 3 * mm, width - 128 * mm, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(110 * mm, y, "TOTAL")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {total:,}")
+
+    # ─── Payment status ───
+    y -= 18 * mm
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(20 * mm, y, "Payment Status:")
+    status_color = HexColor("#00b894") if status_text == "active" else HexColor("#fdcb6e")
+    c.setFillColor(status_color)
+    c.drawString(55 * mm, y, status_text.upper())
+
+    # ─── Footer ───
+    y = 30 * mm
+    c.setFillColor(light_gray)
+    c.rect(0, 0, width, 25 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#888888"))
+    c.setFont("Helvetica", 8)
+    c.drawString(20 * mm, y, "This is a computer-generated invoice and does not require a signature.")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, f"Invoice #{invoice_number} | Generated on {now.strftime('%d %b %Y at %H:%M UTC')}")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, "PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India")
+
+    c.showPage()
+    c.save()
+
+    buf.seek(0)
+    return buf.getvalue()
+
+
+async def _email_invoice_after_payment(
+    session: SessionDep,
+    tenant_id: uuid.UUID,
+    plan_key: str,
+) -> None:
+    """Generate a PDF invoice and email it to the tenant owner.
+
+    Called after successful payment (Stripe or Razorpay webhook).
+    Silently logs errors — never fails the webhook.
+    """
+    import datetime
+    try:
+        from ..email_service import send_invoice_email
+        from ..models import User
+
+        plan = get_plan(plan_key) or get_plan("starter")
+        base_amount = plan.price_inr
+        gst_amount = int(base_amount * 0.18)
+        total = base_amount + gst_amount
+        now = datetime.datetime.now(datetime.UTC)
+        tenant_id_short = str(tenant_id)[:8].upper()
+        invoice_number = f"INV-{now.strftime('%Y%m')}-{tenant_id_short}"
+
+        # Get tenant name
+        tenant_res = await session.execute(select(Tenant).where(Tenant.id == tenant_id))
+        tenant = tenant_res.scalar_one_or_none()
+        tenant_name = tenant.name if tenant else "Valued Customer"
+
+        # Get owner email
+        user_res = await session.execute(
+            select(User).where(User.tenant_id == tenant_id).limit(1)
+        )
+        user = user_res.scalar_one_or_none()
+        if not user or not user.email:
+            log.warning("Cannot email invoice: no user found for tenant %s", tenant_id)
+            return
+
+        # Generate PDF
+        pdf_bytes = _generate_invoice_pdf(
+            invoice_number=invoice_number,
+            tenant_name=tenant_name,
+            tenant_id_short=tenant_id_short,
+            plan_key=plan_key,
+            base_amount=base_amount,
+            gst_amount=gst_amount,
+            total=total,
+            status_text="active",
+            now=now,
+        )
+
+        # Send email
+        plan_name = plan.name if hasattr(plan, "name") else plan_key.capitalize()
+        await send_invoice_email(
+            to_email=user.email,
+            invoice_number=invoice_number,
+            plan_name=plan_name,
+            total_inr=total,
+            pdf_bytes=pdf_bytes,
+            user_name=tenant_name,
+        )
+        log.info("Invoice %s emailed to %s after payment", invoice_number, user.email)
+
+    except Exception as e:
+        log.error("Failed to email invoice after payment: %s: %s", type(e).__name__, str(e)[:200])
+
 
 @router.get("/invoices/{invoice_number}/pdf")
 async def download_invoice_pdf(
@@ -662,12 +898,7 @@ async def download_invoice_pdf(
     on-the-fly. The invoice data is computed from the tenant's billing
     record and plan pricing.
     """
-    import io
     import datetime
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor
-    from reportlab.pdfgen import canvas as rl_canvas
 
     billing = await _get_billing(session, user.tenant_id)
     if not billing or not billing.sub_id:
@@ -692,137 +923,24 @@ async def download_invoice_pdf(
     if invoice_number != expected_inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
 
-    # Generate PDF in memory
-    buf = io.BytesIO()
-    c = rl_canvas.Canvas(buf, pagesize=A4)
-    width, height = A4
-
-    # Colors
-    primary = HexColor("#1a1a2e")
-    accent = HexColor("#6c5ce7")
-    light_gray = HexColor("#f0f0f5")
-    dark_gray = HexColor("#333333")
-
-    # ─── Header bar ───
-    c.setFillColor(primary)
-    c.rect(0, height - 35 * mm, width, 35 * mm, fill=1, stroke=0)
-
-    # Logo / brand name
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 24)
-    c.drawString(20 * mm, height - 18 * mm, "PRACHAR")
-    c.setFont("Helvetica", 9)
-    c.drawString(20 * mm, height - 24 * mm, "AI-Driven Advertising Platform")
-    c.drawString(20 * mm, height - 29 * mm, "hello@prachar.app | www.prachar.app")
-
-    # Invoice title (right side)
-    c.setFont("Helvetica-Bold", 16)
-    c.drawRightString(width - 20 * mm, height - 18 * mm, "TAX INVOICE")
-    c.setFont("Helvetica", 9)
-    c.drawRightString(width - 20 * mm, height - 24 * mm, f"#{invoice_number}")
-    c.drawRightString(width - 20 * mm, height - 29 * mm, now.strftime("%d %b %Y"))
-
-    # ─── Bill To section ───
-    y = height - 50 * mm
-    c.setFillColor(dark_gray)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(20 * mm, y, "BILL TO")
-    y -= 6 * mm
-    c.setFont("Helvetica", 10)
-    c.setFillColor(HexColor("#555555"))
-    c.drawString(20 * mm, y, tenant_name)
-    y -= 5 * mm
-    c.drawString(20 * mm, y, f"Tenant ID: {str(user.tenant_id)[:8].upper()}")
-    y -= 5 * mm
-    c.drawString(20 * mm, y, "India")
-
-    # ─── From section (right) ───
-    y_from = height - 50 * mm
-    c.setFillColor(dark_gray)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(width - 20 * mm, y_from, "FROM")
-    y_from -= 6 * mm
-    c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#555555"))
-    c.drawRightString(width - 20 * mm, y_from, "PRACHAR AI Technologies")
-    y_from -= 5 * mm
-    c.drawRightString(width - 20 * mm, y_from, "GSTIN: 29ABCDE1234F1Z5")
-    y_from -= 5 * mm
-    c.drawRightString(width - 20 * mm, y_from, "Bengaluru, Karnataka, India")
-
-    # ─── Invoice items table ───
-    y = height - 75 * mm
-    # Table header
-    c.setFillColor(light_gray)
-    c.rect(20 * mm, y - 5 * mm, width - 40 * mm, 8 * mm, fill=1, stroke=0)
-    c.setFillColor(dark_gray)
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(22 * mm, y - 2 * mm, "DESCRIPTION")
-    c.drawString(110 * mm, y - 2 * mm, "QTY")
-    c.drawString(130 * mm, y - 2 * mm, "RATE")
-    c.drawRightString(width - 22 * mm, y - 2 * mm, "AMOUNT")
-
-    # Item row
-    y -= 15 * mm
-    c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#333333"))
-    plan_label = f"PRACHAR {plan_key.upper()} — Monthly Subscription"
-    c.drawString(22 * mm, y, plan_label)
-    c.drawString(110 * mm, y, "1")
-    c.drawString(130 * mm, y, f"Rs. {base_amount:,}")
-    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
-
-    # Subtotal
-    y -= 10 * mm
-    c.setFont("Helvetica", 9)
-    c.setFillColor(HexColor("#666666"))
-    c.drawString(110 * mm, y, "Subtotal")
-    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
-
-    # GST
-    y -= 6 * mm
-    c.drawString(110 * mm, y, "GST (18%)")
-    c.drawRightString(width - 22 * mm, y, f"Rs. {gst_amount:,}")
-
-    # Total
-    y -= 10 * mm
-    c.setFillColor(accent)
-    c.rect(108 * mm, y - 3 * mm, width - 128 * mm, 8 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#ffffff"))
-    c.setFont("Helvetica-Bold", 11)
-    c.drawString(110 * mm, y, "TOTAL")
-    c.drawRightString(width - 22 * mm, y, f"Rs. {total:,}")
-
-    # ─── Payment status ───
-    y -= 18 * mm
     status_text = billing.status.value if hasattr(billing.status, "value") else str(billing.status)
-    c.setFillColor(dark_gray)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawString(20 * mm, y, "Payment Status:")
-    status_color = HexColor("#00b894") if status_text == "active" else HexColor("#fdcb6e")
-    c.setFillColor(status_color)
-    c.drawString(55 * mm, y, status_text.upper())
+    pdf_bytes = _generate_invoice_pdf(
+        invoice_number=invoice_number,
+        tenant_name=tenant_name,
+        tenant_id_short=str(user.tenant_id)[:8].upper(),
+        plan_key=plan_key,
+        base_amount=base_amount,
+        gst_amount=gst_amount,
+        total=total,
+        status_text=status_text,
+        now=now,
+    )
 
-    # ─── Footer ───
-    y = 30 * mm
-    c.setFillColor(light_gray)
-    c.rect(0, 0, width, 25 * mm, fill=1, stroke=0)
-    c.setFillColor(HexColor("#888888"))
-    c.setFont("Helvetica", 8)
-    c.drawString(20 * mm, y, "This is a computer-generated invoice and does not require a signature.")
-    y -= 5 * mm
-    c.drawString(20 * mm, y, f"Invoice #{invoice_number} | Generated on {now.strftime('%d %b %Y at %H:%M UTC')}")
-    y -= 5 * mm
-    c.drawString(20 * mm, y, "PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India")
-
-    c.showPage()
-    c.save()
-
-    buf.seek(0)
     from fastapi.responses import StreamingResponse
+    import io
     filename = f"{invoice_number}.pdf"
     return StreamingResponse(
-        buf,
+        io.BytesIO(pdf_bytes),
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
