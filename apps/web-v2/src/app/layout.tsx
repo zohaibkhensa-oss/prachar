@@ -42,6 +42,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}>
       <body className="font-body bg-bg text-text antialiased min-h-screen">
+        {/* Google Identity Services */}
+        <script src="https://accounts.google.com/gsi/client" async defer />
+        {/* Apple Sign-In JS */}
+        <script src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js" async defer />
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

@@ -25,6 +25,7 @@ from ..schemas import (
     RegisterIn,
     ResendVerificationIn,
     ResetPasswordIn,
+    SocialLoginIn,
     TokenOut,
     UserOut,
     VerifyEmailIn,
@@ -359,3 +360,175 @@ async def reset_password(body: ResetPasswordIn, request: Request, session: Sessi
     )
     await session.commit()
     return {"status": "ok", "message": "Password reset successfully. You can now log in with your new password."}
+
+
+# ─── Social Login (Google, Apple) ──────────────────────────────────────────────
+
+async def _verify_google_token(token: str) -> dict:
+    """Verify a Google ID token using Google's tokeninfo endpoint."""
+    import httpx
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": token},
+        )
+        if resp.status_code != 200:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid Google token")
+        data = resp.json()
+    # Verify audience matches our client ID (if configured)
+    s = get_settings()
+    expected_aud = s.google_sign_in_client_id
+    if expected_aud and data.get("aud") != expected_aud:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "token audience mismatch")
+    if data.get("email_verified") != "true":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "email not verified by Google")
+    return {
+        "email": data["email"],
+        "provider_id": data["sub"],
+        "full_name": data.get("name", ""),
+        "avatar_url": data.get("picture", ""),
+    }
+
+
+async def _verify_apple_token(token: str, full_name: str | None = None) -> dict:
+    """Verify an Apple Sign-In identity token (JWT) using Apple's public keys."""
+    import httpx
+    from jose import jwt as _jwt, JWTError
+
+    # Fetch Apple's public keys
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get("https://appleid.apple.com/auth/keys")
+        if resp.status_code != 200:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "failed to fetch Apple keys")
+        keys = resp.json()["keys"]
+
+    s = get_settings()
+    expected_aud = s.apple_sign_in_client_id
+    expected_iss = "https://appleid.apple.com"
+
+    # Try each key until one works
+    for key in keys:
+        try:
+            from jose.utils import base64url_decode
+            import json
+
+            # Construct JWK
+            public_key = _jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key))
+            payload = _jwt.decode(
+                token,
+                public_key,
+                algorithms=["RS256"],
+                audience=expected_aud,
+                issuer=expected_iss,
+            )
+            return {
+                "email": payload.get("email", ""),
+                "provider_id": payload.get("sub", ""),
+                "full_name": full_name or "",
+                "avatar_url": "",
+            }
+        except (JWTError, Exception):
+            continue
+
+    raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid Apple token")
+
+
+@router.post("/social", response_model=TokenOut)
+async def social_login(body: SocialLoginIn, request: Request, session: SessionDep) -> TokenOut:
+    """Login or register via social provider (Google/Apple).
+
+    Frontend obtains an ID token from Google Identity Services or Apple Sign-In,
+    then sends it here. We verify the token with the provider, find or create
+    the user, and return our JWT tokens.
+    """
+    s = get_settings()
+    check_rate_limit(request, "social_login", s.rate_limit_login_per_min, 60)
+
+    # Verify the token with the provider
+    if body.provider == "google":
+        info = await _verify_google_token(body.token)
+    elif body.provider == "apple":
+        info = await _verify_apple_token(body.token, body.full_name)
+    else:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "unsupported provider")
+
+    if not info["email"]:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "no email returned from provider")
+
+    # Check if user already exists (by provider_id first, then email)
+    res = await session.execute(
+        text("SELECT id, tenant_id, role, is_active FROM users WHERE provider = :p AND provider_id = :pid"),
+        {"p": body.provider, "pid": info["provider_id"]},
+    )
+    row = res.fetchone()
+
+    if row is None:
+        # Check by email (might be an existing email/password user)
+        res = await session.execute(
+            text("SELECT id, tenant_id, role, is_active FROM auth_lookup(:email)"),
+            {"email": info["email"]},
+        )
+        row = res.fetchone()
+        if row is not None:
+            # Link social account to existing user
+            await session.execute(
+                text("UPDATE users SET provider = :p, provider_id = :pid, email_verified = true WHERE id = :uid"),
+                {"p": body.provider, "pid": info["provider_id"], "uid": str(row[0])},
+            )
+        else:
+            # Create new user + tenant
+            tenant = Tenant(name=info["full_name"] or info["email"].split("@")[0], plan=Plan.starter)
+            session.add(tenant)
+            await session.flush()
+            await session.execute(
+                text("SELECT set_config('app.tenant_id', :tid, true)"),
+                {"tid": str(tenant.id)},
+            )
+            user = User(
+                tenant_id=tenant.id,
+                email=info["email"],
+                role=Role.owner,
+                pw_hash=None,
+                email_verified=True,
+                provider=body.provider,
+                provider_id=info["provider_id"],
+                full_name=info["full_name"] or None,
+                avatar_url=info["avatar_url"] or None,
+            )
+            session.add(user)
+            billing = Billing(tenant_id=tenant.id, provider="stripe", ai_budget_month=_budget_for_plan(Plan.starter))
+            session.add(billing)
+            try:
+                await session.flush()
+            except IntegrityError as exc:
+                raise HTTPException(status.HTTP_409_CONFLICT, "email already registered") from exc
+            await log_audit(
+                session, tenant_id=tenant.id, actor=Actor.user, action=f"social_register_{body.provider}",
+                entity_type="user", entity_id=user.id, payload={"email": user.email},
+            )
+            await session.commit()
+            return TokenOut(**_tokens(user))
+
+    if not row[3]:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "user inactive")
+
+    tenant_id = row[1]
+    await session.execute(
+        text("SELECT set_config('app.tenant_id', :tid, true)"),
+        {"tid": str(tenant_id)},
+    )
+
+    class _U:
+        pass
+
+    _U.id = row[0]
+    _U.tenant_id = tenant_id
+    _U.role = row[2]
+    _U.email = info["email"]
+
+    await log_audit(
+        session, tenant_id=tenant_id, actor=Actor.user, action=f"social_login_{body.provider}",
+        entity_type="user", entity_id=row[0],
+    )
+    await session.commit()
+    return TokenOut(**_tokens(_U()))

@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { apiPost, ApiError } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
+import { SocialSignIn } from "@/components/SocialSignIn";
 import { Mail, Lock, User, ArrowRight, CheckCircle2 } from "lucide-react";
 
 export default function RegisterPage() {
@@ -58,6 +59,9 @@ export default function RegisterPage() {
             <h1 className="font-display text-2xl font-semibold text-text">Create your workspace</h1>
             <p className="text-sm text-text-secondary mt-1">Start your AI advertising journey</p>
           </div>
+
+          {/* Social Sign-In */}
+          <SocialSignIn mode="register" onError={setError} />
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div>

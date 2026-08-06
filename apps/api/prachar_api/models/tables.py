@@ -67,9 +67,13 @@ class User(Base, UUIDPK, Timestamped):
     )
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
     role: Mapped[Role] = mapped_column(String(16), default=Role.owner, nullable=False)
-    pw_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    pw_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     email_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    provider: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    provider_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    full_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    avatar_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
 
 
 class Brand(Base, UUIDPK, TenantScoped, Timestamped):

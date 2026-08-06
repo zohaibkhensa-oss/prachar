@@ -60,6 +60,13 @@ class ResendVerificationIn(BaseModel):
     email: EmailStr
 
 
+class SocialLoginIn(BaseModel):
+    provider: str = Field(pattern="^(google|apple)$")
+    token: str = Field(min_length=10)
+    full_name: str | None = None
+    avatar_url: str | None = None
+
+
 # ─── user/tenant ─────────────────────────────────────────────────────────────
 class UserOut(BaseModel):
     model_config = _cfg()

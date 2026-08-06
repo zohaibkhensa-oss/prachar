@@ -94,6 +94,10 @@ class Settings(BaseSettings):
     # organic channel creds
     google_client_id: str = ""
     google_client_secret: str = ""
+
+    # social login (Google Sign-In, Apple Sign-In)
+    google_sign_in_client_id: str = ""
+    apple_sign_in_client_id: str = ""
     gsc_client_id: str = ""
     gsc_client_secret: str = ""
     youtube_client_id: str = ""

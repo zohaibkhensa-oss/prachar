@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { apiPost, ApiError } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 import { Logo } from "@/components/Logo";
+import { SocialSignIn } from "@/components/SocialSignIn";
 import { Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
@@ -60,6 +61,9 @@ export default function LoginPage() {
             <h1 className="font-display text-2xl font-semibold text-text">Welcome back</h1>
             <p className="text-sm text-text-secondary mt-1">Sign in to your AI advertising OS</p>
           </div>
+
+          {/* Social Sign-In */}
+          <SocialSignIn mode="login" onError={setError} />
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
