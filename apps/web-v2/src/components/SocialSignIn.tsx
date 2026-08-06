@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, ApiError } from "@/lib/api";
 import { setToken } from "@/lib/auth";
@@ -26,6 +26,12 @@ function AppleIcon({ className }: { className?: string }) {
   );
 }
 
+interface SocialConfig {
+  google_client_id: string;
+  apple_client_id: string;
+  apple_redirect_uri: string;
+}
+
 interface SocialSignInProps {
   mode: "login" | "register";
   onError?: (msg: string) => void;
@@ -34,31 +40,29 @@ interface SocialSignInProps {
 export function SocialSignIn({ mode, onError }: SocialSignInProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [config, setConfig] = useState<SocialConfig | null>(null);
 
-  // Load Google client ID from public env (exposed via next.config)
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
-  const appleClientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID || "";
-  const appleRedirectUri = process.env.NEXT_PUBLIC_APPLE_REDIRECT_URI || "";
-
+  // Fetch social login config from the API at runtime (no build-time args needed)
   useEffect(() => {
-    // Configure Apple Sign-In JS once loaded
-    const initApple = () => {
-      if (typeof window === "undefined" || !window.AppleID) return;
-      if (!appleClientId) return;
-      window.AppleID.auth.init({
-        clientId: appleClientId,
-        scope: "name email",
-        redirectURI: appleRedirectUri || window.location.origin + "/auth/apple/callback",
-        usePopup: true,
-      });
-    };
-    // Try immediately, then retry after a delay (script may still be loading)
-    initApple();
-    const timer = setTimeout(initApple, 2000);
-    return () => clearTimeout(timer);
-  }, [appleClientId, appleRedirectUri]);
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
+    fetch(`${apiBase}/config/social`)
+      .then((r) => r.json())
+      .then((data: SocialConfig) => {
+        setConfig(data);
+        // Initialise Apple Sign-In JS once we have the client ID
+        if (data.apple_client_id && typeof window !== "undefined" && window.AppleID) {
+          window.AppleID.auth.init({
+            clientId: data.apple_client_id,
+            scope: "name email",
+            redirectURI: data.apple_redirect_uri || window.location.origin + "/auth/apple/callback",
+            usePopup: true,
+          });
+        }
+      })
+      .catch(() => {/* config fetch failed — social buttons will show "not configured" */});
+  }, []);
 
-  const handleGoogleSuccess = async (response: { credential: string }) => {
+  const handleGoogleSuccess = useCallback(async (response: { credential: string }) => {
     setLoading("google");
     try {
       const data = await apiPost<{ access_token: string; refresh_token: string; user: { id: string; email: string } }>("/auth/social", {
@@ -77,19 +81,19 @@ export function SocialSignIn({ mode, onError }: SocialSignInProps) {
     } finally {
       setLoading(null);
     }
-  };
+  }, [router, onError]);
 
   const handleGoogleClick = () => {
     if (typeof window === "undefined" || !window.google) {
-      onError?.("Google sign-in is not available. Please refresh the page.");
+      onError?.("Google sign-in is loading. Please wait a moment and try again.");
       return;
     }
-    if (!googleClientId) {
-      onError?.("Google sign-in is not configured.");
+    if (!config?.google_client_id) {
+      onError?.("Google sign-in is not configured yet.");
       return;
     }
     window.google.accounts.id.initialize({
-      client_id: googleClientId,
+      client_id: config.google_client_id,
       callback: handleGoogleSuccess,
     });
     window.google.accounts.id.prompt();
@@ -97,11 +101,11 @@ export function SocialSignIn({ mode, onError }: SocialSignInProps) {
 
   const handleAppleClick = async () => {
     if (typeof window === "undefined" || !window.AppleID) {
-      onError?.("Apple sign-in is not available. Please refresh the page.");
+      onError?.("Apple sign-in is loading. Please wait a moment and try again.");
       return;
     }
-    if (!appleClientId) {
-      onError?.("Apple sign-in is not configured.");
+    if (!config?.apple_client_id) {
+      onError?.("Apple sign-in is not configured yet.");
       return;
     }
     setLoading("apple");

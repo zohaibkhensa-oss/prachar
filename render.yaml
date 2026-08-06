@@ -63,10 +63,3 @@ services:
     dockerBuildArgs:
       - key: NEXT_PUBLIC_API_BASE
         value: https://prachar-api.onrender.com
-      # Social login — must be build args (NEXT_PUBLIC_ baked in at build time)
-      - key: NEXT_PUBLIC_GOOGLE_CLIENT_ID
-        sync: false  # set in dashboard — same as GOOGLE_SIGN_IN_CLIENT_ID
-      - key: NEXT_PUBLIC_APPLE_CLIENT_ID
-        sync: false  # set in dashboard — same as APPLE_SIGN_IN_CLIENT_ID
-      - key: NEXT_PUBLIC_APPLE_REDIRECT_URI
-        value: https://prachar-web.onrender.com/auth/apple/callback

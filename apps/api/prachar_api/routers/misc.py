@@ -172,3 +172,21 @@ async def metrics() -> Response:
         content="\n".join(lines),
         media_type="text/plain; version=0.0.4; charset=utf-8",
     )
+
+
+# ─── Public config (social login client IDs) ──────────────────────────────────
+
+@router.get("/config/social")
+async def social_config() -> dict:
+    """Public endpoint returning social login client IDs.
+
+    These are public values (embedded in the browser anyway via Google/Apple
+    SDK), so it's safe to expose. The frontend fetches this at runtime to
+    initialise the Google/Apple SDKs — avoids needing build-time args.
+    """
+    s = get_settings()
+    return {
+        "google_client_id": s.google_sign_in_client_id,
+        "apple_client_id": s.apple_sign_in_client_id,
+        "apple_redirect_uri": "",
+    }

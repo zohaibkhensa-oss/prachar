@@ -15,17 +15,11 @@ RUN pnpm install --no-frozen-lockfile
 # Copy source
 COPY . .
 
-# Build — pass NEXT_PUBLIC_ vars as build args so they're baked into the bundle
+# Build — NEXT_PUBLIC_API_BASE is baked in at build time.
+# Social login client IDs are fetched at runtime from /api/config/social,
+# so no build args needed for Google/Apple.
 ARG NEXT_PUBLIC_API_BASE
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
-ARG NEXT_PUBLIC_APPLE_CLIENT_ID
-ARG NEXT_PUBLIC_APPLE_REDIRECT_URI
-
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
-ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
-ENV NEXT_PUBLIC_APPLE_CLIENT_ID=$NEXT_PUBLIC_APPLE_CLIENT_ID
-ENV NEXT_PUBLIC_APPLE_REDIRECT_URI=$NEXT_PUBLIC_APPLE_REDIRECT_URI
-
 RUN pnpm build
 
 EXPOSE 3002
