@@ -37,9 +37,9 @@ const STATS = [
 ];
 
 const TIERS = [
-  { name: "Starter", price: "₹499", period: "/mo", features: ["1 brand", "3 channels", "Weekly loop", "Visibility Score"], cta: "Start free" },
-  { name: "Growth", price: "₹2,999", period: "/mo", features: ["5 brands", "All channels", "Paid + organic", "Audit + reports"], cta: "Start free", featured: true },
-  { name: "Agency", price: "₹9,999", period: "/mo", features: ["Unlimited brands", "Multi-tenant", "API access", "White-label"], cta: "Contact us" },
+  { name: "Starter", price: "₹999", period: "/mo", features: ["1 brand", "2 videos/mo", "10 images/mo", "Weekly loop"], cta: "Start free" },
+  { name: "Growth", price: "₹2,999", period: "/mo", features: ["1 brand", "8 videos/mo", "40 images/mo", "Google + Meta Ads"], cta: "Start free", featured: true },
+  { name: "Agency", price: "₹9,999", period: "/mo", features: ["5 brands", "50 videos/mo", "500 images/mo", "API + White-label"], cta: "Contact us" },
 ];
 
 export default function LandingPage() {
