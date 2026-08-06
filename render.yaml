@@ -60,6 +60,3 @@ services:
     envVars:
       - key: NEXT_PUBLIC_API_BASE
         value: https://prachar-api.onrender.com
-    dockerBuildArgs:
-      - key: NEXT_PUBLIC_API_BASE
-        value: https://prachar-api.onrender.com
