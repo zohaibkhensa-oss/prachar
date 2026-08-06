@@ -15,7 +15,9 @@ RUN pnpm install --no-frozen-lockfile
 # Copy source
 COPY . .
 
-# Build
+# Build — pass API URL as build arg so NEXT_PUBLIC_ var is baked in
+ARG NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 RUN pnpm build
 
 EXPOSE 3002
