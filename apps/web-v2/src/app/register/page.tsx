@@ -60,9 +60,6 @@ export default function RegisterPage() {
             <p className="text-sm text-text-secondary mt-1">Start your AI advertising journey</p>
           </div>
 
-          {/* Social Sign-In */}
-          <SocialSignIn mode="register" onError={setError} />
-
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <label className="label-field block mb-2">Full Name</label>
@@ -144,6 +141,11 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          {/* Social Sign-In — below form (standard app pattern) */}
+          <div className="mt-6">
+            <SocialSignIn mode="register" placement="below" onError={setError} />
+          </div>
 
           <div className="mt-6 text-center">
             <span className="text-sm text-text-secondary">Have an account? </span>

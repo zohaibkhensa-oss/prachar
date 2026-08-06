@@ -62,9 +62,6 @@ export default function LoginPage() {
             <p className="text-sm text-text-secondary mt-1">Sign in to your AI advertising OS</p>
           </div>
 
-          {/* Social Sign-In */}
-          <SocialSignIn mode="login" onError={setError} />
-
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
               <label className="label-field block mb-2">Email</label>
@@ -132,6 +129,11 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {/* Social Sign-In — below email form (standard app pattern) */}
+          <div className="mt-6">
+            <SocialSignIn mode="login" placement="below" onError={setError} />
+          </div>
 
           {/* Demo credentials hint */}
           <div className="mt-6 p-3 rounded-lg bg-accent/5 border border-accent/10">

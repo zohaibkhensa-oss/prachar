@@ -35,9 +35,12 @@ interface SocialConfig {
 interface SocialSignInProps {
   mode: "login" | "register";
   onError?: (msg: string) => void;
+  /** "above" = social first, then email form (default).
+   *  "below" = email form first, then social (standard app pattern). */
+  placement?: "above" | "below";
 }
 
-export function SocialSignIn({ mode, onError }: SocialSignInProps) {
+export function SocialSignIn({ mode, onError, placement = "above" }: SocialSignInProps) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [config, setConfig] = useState<SocialConfig | null>(null);
@@ -181,7 +184,9 @@ export function SocialSignIn({ mode, onError }: SocialSignInProps) {
           <div className="w-full border-t border-white/[0.06]" />
         </div>
         <div className="relative flex justify-center text-xs">
-          <span className="bg-bg-surface px-3 text-text-muted uppercase tracking-wider">or {mode} with email</span>
+          <span className="bg-bg-surface px-3 text-text-muted uppercase tracking-wider">
+            {placement === "below" ? `or ${mode} with` : `or ${mode} with email`}
+          </span>
         </div>
       </div>
     </div>
