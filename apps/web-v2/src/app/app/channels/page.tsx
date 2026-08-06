@@ -175,8 +175,9 @@ export default function ChannelsPage() {
 
   // Build the channel list from real connections + available (not-connected) channels
   const channels: Channel[] = (() => {
-    if (!connections) return [];
-    const connectedList: Channel[] = connections.map((conn) => {
+    // Treat null (loading/error) as empty — still show available channels
+    const connList = connections ?? [];
+    const connectedList: Channel[] = connList.map((conn) => {
       const meta = CHANNEL_MAP[conn.channel];
       const status = mapStatus(conn.status);
       return {
@@ -196,7 +197,7 @@ export default function ChannelsPage() {
               : "Syncing normally",
       };
     });
-    const connectedIds = new Set(connections.map((c) => c.channel));
+    const connectedIds = new Set(connList.map((c) => c.channel));
     const availableList: Channel[] = SUPPORTED_CHANNELS.filter(
       (s) => !connectedIds.has(s.id),
     ).map((s) => ({
