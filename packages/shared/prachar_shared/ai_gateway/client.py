@@ -370,22 +370,53 @@ class AIGateway:
 
     @staticmethod
     def _pick_model_for_provider(provider: str, model: str) -> str:
-        """Map a logical model to the correct model name for each provider."""
+        """Map a logical model to the correct model name for each provider.
+        
+        Handles cross-provider fallback: when the primary provider fails and we
+        fall back to another, the model name from the primary may not exist on
+        the fallback provider. We detect this and map to the correct model.
+        """
         s = get_settings()
+        
+        # Detect if the model name belongs to a different provider and remap
+        is_gemini_model = "gemini" in model
+        is_groq_model = "llama" in model or "mixtral" in model or "gemma" in model
+        is_anthropic_model = "claude" in model
+        is_openai_model = "gpt" in model
+        
         if provider == "groq":
-            # The model from pick_model() is already a Groq model name — use it directly
-            return model
+            # If model is already a Groq model, use it directly
+            if is_groq_model:
+                return model
+            # Map non-Groq models to Groq equivalents
+            if "pro" in model or "large" in model or "sonnet" in model or "gpt-4o" == model:
+                return s.ai_large_model if "llama" in s.ai_large_model else "llama-3.3-70b-versatile"
+            # Small/default models
+            return s.ai_small_model if "llama" in s.ai_small_model else "llama-3.1-8b-instant"
+            
         if provider == "gemini":
-            # Models are already Gemini names from .env — use as-is
-            return model
+            # If model is already a Gemini model, use it directly
+            if is_gemini_model:
+                return model
+            # Map non-Gemini models to Gemini equivalents
+            if "70b" in model or "large" in model or "sonnet" in model or "gpt-4o" == model:
+                return s.ai_large_model if "gemini" in s.ai_large_model else "gemini-pro-latest"
+            return s.ai_small_model if "gemini" in s.ai_small_model else "gemini-flash-latest"
+            
         if provider == "openai":
-            if "haiku" in model or "small" in model or "8b" in model or "instant" in model:
-                return "gpt-4o-mini"
-            return "gpt-4o"
+            if is_openai_model:
+                return model
+            if "70b" in model or "large" in model or "pro" in model or "sonnet" in model:
+                return "gpt-4o"
+            return "gpt-4o-mini"
+            
         if provider == "anthropic":
-            if "8b" in model or "instant" in model or "small" in model or "haiku" in model:
-                return "claude-3-5-haiku-20241022"
-            return "claude-3-5-sonnet-20241022"
+            if is_anthropic_model:
+                return model
+            if "70b" in model or "large" in model or "pro" in model:
+                return "claude-3-5-sonnet-20241022"
+            return "claude-3-5-haiku-20241022"
+            
         return model
 
     def _call_provider(
