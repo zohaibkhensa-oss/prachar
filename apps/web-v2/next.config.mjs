@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
-const apiUrl = process.env.API_URL || "http://localhost:8000";
+// Support both API_URL (full URL) and API_HOST (Render service linking)
+const apiUrl = process.env.API_URL || (process.env.API_HOST ? `https://${process.env.API_HOST}` : "http://localhost:8000");
 
 const nextConfig = {
   reactStrictMode: true,

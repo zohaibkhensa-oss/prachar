@@ -53,13 +53,8 @@ services:
     dockerfilePath: ./apps/web-v2/Dockerfile
     dockerContext: ./apps/web-v2
     envVars:
-      - key: API_URL
+      - key: API_HOST
         fromService:
           type: web
           name: prachar-api
-          property: hosturl
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: prachar-api
-          property: hosturl
+          property: host
