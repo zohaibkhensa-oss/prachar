@@ -26,6 +26,10 @@ out/
 .env
 .env.local
 .env.*.local
+.env.bak
+.env.backup
+.env.production
+.env.staging
 *.pem
 *.key
 
