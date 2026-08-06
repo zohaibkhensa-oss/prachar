@@ -17,6 +17,7 @@ import {
   isSpeechSynthesisAvailable,
   speak,
   stopSpeaking,
+  unlockSpeechSynthesis,
 } from "@/lib/voice";
 import { ArtefactRenderer, type Artefact } from "./ArtefactRenderer";
 
@@ -65,6 +66,26 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
       speak(greeting, () => setOrbState("idle"));
     }
   }, []);
+
+  // ─── Watch for invoke errors (POST /runtime/invoke failed) ───────────────
+  useEffect(() => {
+    if (session.status === "error" && session.error) {
+      setMessages((prev) => {
+        // Avoid duplicate error messages
+        const last = prev[prev.length - 1];
+        if (last?.role === "ai" && last.content?.includes("couldn't connect")) return prev;
+        return [
+          ...prev,
+          {
+            role: "ai",
+            content: "I couldn't connect to my AI brain right now. Please try again in a moment.",
+            timestamp: new Date().toISOString(),
+          },
+        ];
+      });
+      setOrbState("idle");
+    }
+  }, [session.status, session.error]);
 
   // ─── Derive orb state from latest event ──────────────────────────────────
 
@@ -172,6 +193,8 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
 
   const sendMessage = useCallback(async (text: string) => {
     if (!text.trim()) return;
+    // Unlock speech synthesis on iOS Safari (requires user gesture)
+    unlockSpeechSynthesis();
     if (!brandId) {
       setMessages((prev) => [
         ...prev,
@@ -196,7 +219,19 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     setOrbState("understanding");
 
     // Invoke runtime
-    await session.invoke(text, brandId, "text");
+    try {
+      await session.invoke(text, brandId, "text");
+    } catch (err: any) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          content: "I couldn't connect to my AI brain right now. Please try again in a moment.",
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+      setOrbState("idle");
+    }
   }, [brandId, session]);
 
   // ─── Voice input ─────────────────────────────────────────────────────────

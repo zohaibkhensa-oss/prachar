@@ -49,27 +49,105 @@ export function containsWakeWord(transcript: string): boolean {
   return WAKE_WORDS.some((word) => lower.includes(word));
 }
 
+// ─── iOS Safari speech synthesis fixes ───────────────────────────────────────
+// 1. Voices load asynchronously — cache them when the voiceschanged event fires
+// 2. iOS requires a "warm-up" utterance triggered by a user gesture to unlock
+//    speech synthesis. Subsequent calls from non-gesture contexts then work.
+// 3. iOS Safari has a bug where speechSynthesis.speak() silently fails if
+//    called without a prior user interaction.
+
+let _cachedVoices: SpeechSynthesisVoice[] = [];
+let _iOSUnlocked = false;
+
+function refreshVoices() {
+  if (!isSpeechSynthesisAvailable()) return;
+  _cachedVoices = window.speechSynthesis.getVoices();
+}
+
+// Load voices immediately and on voiceschanged event
+if (typeof window !== "undefined" && "speechSynthesis" in window) {
+  refreshVoices();
+  window.speechSynthesis.addEventListener("voiceschanged", refreshVoices);
+  // Some browsers fire voiceschanged late — poll a few times
+  setTimeout(refreshVoices, 500);
+  setTimeout(refreshVoices, 2000);
+}
+
+/**
+ * Unlock speech synthesis on iOS Safari.
+ * Call this from a user gesture (tap/click) to enable TTS for subsequent
+ * non-gesture calls (e.g., from SSE callbacks).
+ */
+export function unlockSpeechSynthesis(): void {
+  if (!isSpeechSynthesisAvailable()) return;
+  if (_iOSUnlocked) return;
+
+  // iOS Safari workaround: speak a near-silent utterance to unlock the API
+  const u = new SpeechSynthesisUtterance("");
+  u.volume = 0;
+  u.rate = 1;
+  window.speechSynthesis.speak(u);
+  _iOSUnlocked = true;
+}
+
 /**
  * Speak text using Web Speech Synthesis.
+ * Handles iOS Safari quirks (async voice loading, autoplay restrictions).
  */
 export function speak(text: string, onEnd?: () => void): void {
   if (!isSpeechSynthesisAvailable()) {
     onEnd?.();
     return;
   }
+
+  // Cancel any pending speech
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.05;
-  utterance.pitch = 1.0;
-  utterance.volume = 0.85;
 
-  // Prefer a natural-sounding voice
-  const voices = window.speechSynthesis.getVoices();
-  const preferred = voices.find((v) => ["Samantha", "Google US English", "Daniel"].includes(v.name));
-  if (preferred) utterance.voice = preferred;
+  // Small delay after cancel — iOS Safari needs this
+  setTimeout(() => {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    utterance.pitch = 1.0;
+    utterance.volume = 0.85;
 
-  utterance.onend = () => onEnd?.();
-  window.speechSynthesis.speak(utterance);
+    // Use cached voices (getVoices() can return [] on iOS before voiceschanged)
+    const voices = _cachedVoices.length > 0 ? _cachedVoices : window.speechSynthesis.getVoices();
+    const preferred = voices.find((v) =>
+      ["Samantha", "Google US English", "Daniel", "Karen", "Moira", "Tessa"].includes(v.name)
+    );
+    if (preferred) utterance.voice = preferred;
+
+    // iOS Safari sometimes doesn't fire onend — add a fallback timeout
+    let ended = false;
+    const safeEnd = () => {
+      if (ended) return;
+      ended = true;
+      onEnd?.();
+    };
+    utterance.onend = safeEnd;
+    utterance.onerror = safeEnd;
+
+    // Fallback: if onend doesn't fire within 30s, call it anyway
+    const fallbackTimer = setTimeout(safeEnd, 30000);
+
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      clearTimeout(fallbackTimer);
+      safeEnd();
+    }
+
+    // Clear fallback timer when utterance ends
+    const origOnEnd = utterance.onend;
+    utterance.onend = (e) => {
+      clearTimeout(fallbackTimer);
+      if (origOnEnd) origOnEnd.call(utterance, e);
+    };
+    utterance.onerror = (e) => {
+      clearTimeout(fallbackTimer);
+      safeEnd();
+    };
+  }, 50);
 }
 
 /**

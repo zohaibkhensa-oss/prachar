@@ -76,8 +76,34 @@ async def invoke(
     Returns a session_id and stream_url for SSE subscription.
     """
     runtime = get_runtime()
-    response = await runtime.invoke(session=session, user=user, request=request)
-    return response
+    try:
+        response = await runtime.invoke(session=session, user=user, request=request)
+        return response
+    except Exception as exc:
+        log.exception("Runtime invoke failed: %s", exc)
+        # Return a graceful error session instead of 500 — the Orb will
+        # show the error message rather than hanging silently.
+        import secrets as _secrets
+        from ..runtime.events import EventBus, make_event, EventPhase, OrbState
+        session_id = _secrets.token_hex(12)
+        bus = EventBus(session_id=session_id)
+        await bus.publish(make_event(
+            session_id=session_id,
+            type="runtime.session.error",
+            phase=EventPhase.FAILED.value,
+            orb_state=OrbState.ERROR.value,
+            data={
+                "error": "AI brain is unavailable right now. Please try again in a moment.",
+                "detail": str(exc)[:300],
+            },
+        ))
+        await bus.close()
+        return InvokeResponse(
+            session_id=session_id,
+            decision_id=_secrets.token_hex(8),
+            stream_url=f"/runtime/stream?session_id={session_id}",
+            decision={},
+        )
 
 
 # ─── GET /runtime/stream ────────────────────────────────────────────────────

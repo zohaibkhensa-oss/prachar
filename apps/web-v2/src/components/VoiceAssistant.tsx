@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { X, Send, Mic, Volume2, Sparkles, Brain, Zap } from "lucide-react";
+import { speak as sharedSpeak, stopSpeaking, unlockSpeechSynthesis, isSpeechSynthesisAvailable } from "@/lib/voice";
 
 // ─── PRACHAR Knowledge Base ─────────────────────────────────────────────────
 
@@ -220,25 +221,11 @@ export function VoiceAssistant() {
     return () => clearInterval(interval);
   }, []);
 
-  // ─── Speak function ───
+  // ─── Speak function (uses shared voice.ts with iOS Safari fixes) ───
   const speak = useCallback((text: string) => {
-    if (!synthRef.current) return;
-    synthRef.current.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
-    utterance.volume = 0.85;
-
-    // Try to pick a good voice
-    const voices = synthRef.current.getVoices();
-    const preferred = voices.find((v) => v.name.includes("Samantha") || v.name.includes("Google US English") || v.name.includes("Daniel"));
-    if (preferred) utterance.voice = preferred;
-
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
-
-    synthRef.current.speak(utterance);
+    if (!isSpeechSynthesisAvailable()) return;
+    setSpeaking(true);
+    sharedSpeak(text, () => setSpeaking(false));
   }, []);
 
   // ─── Process query (LLM-powered with local fallback) ───
@@ -339,8 +326,11 @@ export function VoiceAssistant() {
   const startListening = useCallback(() => {
     if (typeof window === "undefined") return;
 
+    // Unlock speech synthesis on iOS Safari (this is a user gesture)
+    unlockSpeechSynthesis();
+
     // Stop any speaking
-    synthRef.current?.cancel();
+    stopSpeaking();
     setSpeaking(false);
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
