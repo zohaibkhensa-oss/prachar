@@ -78,6 +78,8 @@ class VideoGenRequest(BaseModel):
     aspect_ratio: str = "16:9"
     video_type: str = "landscape"
     with_audio: bool = True
+    # Image-to-video: base64-encoded image to use as the first frame
+    image_base64: str = ""
     # Legacy field kept for backward compatibility with old clients
     model: str = ""
 
@@ -221,6 +223,7 @@ async def generate_video(
                 duration_sec=duration_sec,
                 aspect_ratio=GEMINI_ASPECT_RATIOS.get(req.video_type, req.aspect_ratio),
                 with_audio=req.with_audio,
+                image_base64=req.image_base64,
             )
         except HTTPException:
             raise
@@ -343,15 +346,17 @@ async def _call_gemini_veo(
     duration_sec: int,
     aspect_ratio: str,
     with_audio: bool,
+    image_base64: str = "",
 ) -> VideoGenResponse:
     """Call Gemini Veo 3.1 via the google-genai SDK for video generation.
 
+    Supports both text-to-video and image-to-video (when image_base64 is provided).
     Uses the long-running operation pattern: start generation, poll until done,
     fetch the resulting video URI, then download and return a streamable URL.
     """
     from google import genai
     from google.genai import types as gtypes
-    import asyncio
+    import asyncio, base64
 
     model_id = VEO_MODELS[quality]
     client = genai.Client(api_key=api_key)
@@ -363,14 +368,21 @@ async def _call_gemini_veo(
         duration_seconds=duration_sec,
     )
 
-    log.info("Gemini Veo: model=%s prompt=%r dur=%ds aspect=%s", model_id, prompt[:80], duration_sec, aspect_ratio)
+    # Build image object for image-to-video if provided
+    image_obj = None
+    if image_base64:
+        img_bytes = base64.b64decode(image_base64)
+        image_obj = gtypes.Image(image_bytes=img_bytes, mime_type="image/png")
+        log.info("Gemini Veo: model=%s prompt=%r dur=%ds aspect=%s IMAGE=%dKB",
+                 model_id, prompt[:80], duration_sec, aspect_ratio, len(img_bytes)//1024)
+    else:
+        log.info("Gemini Veo: model=%s prompt=%r dur=%ds aspect=%s", model_id, prompt[:80], duration_sec, aspect_ratio)
 
     # Start the long-running operation
-    operation = client.models.generate_videos(
-        model=model_id,
-        prompt=prompt,
-        config=config,
-    )
+    kwargs: dict[str, Any] = dict(model=model_id, prompt=prompt, config=config)
+    if image_obj:
+        kwargs["image"] = image_obj
+    operation = client.models.generate_videos(**kwargs)
 
     # Poll until the operation completes (Veo takes 60-180s typically)
     max_wait = 600  # 10 min hard cap
