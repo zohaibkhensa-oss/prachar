@@ -205,13 +205,7 @@ export default function DashboardPage() {
 
       {/* ═══ KPI row ═══ */}
       <div
-        className={`grid gap-3 mb-6 ${
-          performance.kpis.length === 3
-            ? "grid-cols-3"
-            : performance.kpis.length === 2
-              ? "grid-cols-2"
-              : "grid-cols-2 lg:grid-cols-4"
-        }`}
+        className={`grid gap-3 mb-6 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`}
       >
         {performance.kpis.map((kpi, i) => (
           <motion.div

@@ -63,9 +63,9 @@ const BUSINESS_NAV: NavSection[] = [
 
 /**
  * Sidebar — collapsible, collapsed by default (60px).
- * Expandable to 240px. All v1 nav items preserved.
+ * Expandable to 240px. On mobile, slides in as a drawer.
  */
-export function Sidebar() {
+export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(true);
@@ -76,22 +76,22 @@ export function Sidebar() {
     if (stored) setEmail(stored);
   }, []);
 
+  // Close mobile drawer on route change
+  useEffect(() => {
+    if (onMobileClose) onMobileClose();
+  }, [pathname, onMobileClose]);
+
   const handleLogout = () => {
     clearToken();
     router.push("/login");
   };
 
-  return (
-    <aside
-      className={cn(
-        "fixed lg:sticky top-0 z-40 h-screen bg-bg-surface border-r border-white/[0.04] flex flex-col transition-all duration-300 ease-out-quart",
-        collapsed ? "w-[60px]" : "w-[240px]",
-      )}
-    >
+  const sidebarContent = (
+    <>
       {/* Logo + collapse toggle */}
       <div className="flex items-center justify-between p-3 border-b border-white/[0.04] h-14">
         {collapsed ? (
-          <Link href="/app" className="mx-auto">
+          <Link href="/app" className="mx-auto lg:mx-0">
             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
               <Zap className="w-4 h-4 text-accent" />
             </div>
@@ -109,6 +109,13 @@ export function Sidebar() {
           className="hidden lg:flex text-text-muted hover:text-text transition-colors p-1"
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+        {/* Mobile close button */}
+        <button
+          onClick={onMobileClose}
+          className="lg:hidden text-text-muted hover:text-text transition-colors p-1"
+        >
+          <ChevronLeft className="w-5 h-5" />
         </button>
       </div>
 
@@ -225,6 +232,44 @@ export function Sidebar() {
           {!collapsed && <span>Logout</span>}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside
+        className={cn(
+          "hidden lg:flex fixed lg:sticky top-0 z-40 h-screen bg-bg-surface border-r border-white/[0.04] flex-col transition-all duration-300 ease-out-quart",
+          collapsed ? "w-[60px]" : "w-[240px]",
+        )}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onMobileClose}
+              className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.aside
+              initial={{ x: -280 }}
+              animate={{ x: 0 }}
+              exit={{ x: -280 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="lg:hidden fixed top-0 left-0 z-50 h-screen w-[260px] bg-bg-surface border-r border-white/[0.06] flex flex-col"
+            >
+              {sidebarContent}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

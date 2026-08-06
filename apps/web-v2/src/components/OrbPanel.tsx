@@ -296,8 +296,8 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 20, scale: 0.95 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fixed bottom-20 right-4 lg:right-6 z-50 w-[440px] max-w-[calc(100vw-2rem)] glass-strong rounded-2xl border border-white/[0.08] overflow-hidden flex flex-col"
-      style={{ maxHeight: "70vh" }}
+      className="fixed inset-x-0 bottom-16 lg:inset-x-auto lg:bottom-20 lg:right-4 lg:right-6 z-50 w-full lg:w-[440px] lg:max-w-[calc(100vw-2rem)] glass-strong rounded-t-2xl lg:rounded-2xl border border-white/[0.08] overflow-hidden flex flex-col"
+      style={{ maxHeight: "85vh" }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">

@@ -131,7 +131,7 @@ export default function PricingPage() {
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="text-center space-y-3">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-text">
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text">
           Simple, transparent pricing
         </h1>
         <p className="text-text-secondary text-lg max-w-2xl mx-auto">

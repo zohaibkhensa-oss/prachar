@@ -105,7 +105,7 @@ export default function BrandWorkspacePage() {
           <span className="label-field mb-3">How visible is your business?</span>
           {brand.visibility_score != null ? (
             <>
-              <div className="font-display text-5xl font-semibold text-gradient-accent tabular-nums">
+              <div className="font-display text-4xl sm:text-5xl font-semibold text-gradient-accent tabular-nums">
                 {brand.visibility_score.toFixed(0)}
               </div>
               <div className="text-sm text-text-muted mt-1">out of 100</div>

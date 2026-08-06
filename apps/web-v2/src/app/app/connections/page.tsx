@@ -112,11 +112,11 @@ export default function ConnectionsPage() {
   const connectedCount = connections?.filter((c) => c.status === "connected" || c.status === "active").length ?? 0;
 
   return (
-    <div className="p-8 max-w-[1600px] mx-auto animate-fade-in pb-32">
+    <div className="p-4 lg:p-8 max-w-[1600px] mx-auto animate-fade-in pb-32">
       {/* Header */}
       <div className="flex flex-col gap-4 mb-8 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="font-display uppercase text-4xl tracking-wide text-text mb-1">
+          <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide text-text mb-1">
             Connections
           </h1>
           <p className="text-sm text-text-secondary">

@@ -620,7 +620,7 @@ export default function VideoStudioPage() {
                             <span className="badge badge-danger text-[9px]">Error</span>
                           ) : null}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 mb-3 text-center">
+                        <div className="grid grid-cols-3 gap-1 sm:gap-2 mb-3 text-center">
                           <div><div className="font-mono text-xs text-text">{v.views}</div><div className="text-[9px] text-text-muted">views</div></div>
                           <div><div className="font-mono text-xs text-text">{v.ctr}</div><div className="text-[9px] text-text-muted">CTR</div></div>
                           <div><div className="font-mono text-xs text-text">{isGenerating ? "..." : scenes.length || v.scenes}</div><div className="text-[9px] text-text-muted">scenes</div></div>

@@ -28,7 +28,7 @@ export default function ChannelsPage({
     <div>
       <BrandNav brandId={id} active="Channels" />
       <div className="p-8">
-        <h1 className="font-display uppercase text-4xl tracking-wide mb-8">Channels</h1>
+        <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide mb-8">Channels</h1>
         {isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[0, 1, 2].map((i) => (

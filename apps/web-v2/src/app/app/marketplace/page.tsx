@@ -6,7 +6,7 @@ import { ComingSoon } from "@/components/ui/coming-soon";
 
 export default function MarketplacePage() {
   return (
-    <div className="p-8 max-w-[1600px] mx-auto animate-fade-in space-y-6">
+    <div className="p-4 lg:p-8 max-w-[1600px] mx-auto animate-fade-in space-y-6">
       <LabsBanner
         title="Marketplace"
         description="Extend PRACHAR AI with integrations and add-ons."
@@ -15,7 +15,7 @@ export default function MarketplacePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 mb-2 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="font-display uppercase text-4xl tracking-wide text-text mb-1">
+          <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide text-text mb-1">
             Marketplace
           </h1>
           <p className="text-sm text-text-secondary">

@@ -270,9 +270,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto animate-fade-in pb-32">
-      <div className="mb-8">
-        <h1 className="font-display uppercase text-4xl tracking-wide text-text mb-1">Settings</h1>
+    <div className="p-4 lg:p-8 max-w-[1400px] mx-auto animate-fade-in pb-32">
+      <div className="mb-6 lg:mb-8">
+        <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide text-text mb-1">Settings</h1>
         <p className="text-sm text-text-secondary">Manage your account, organization, and preferences.</p>
       </div>
 

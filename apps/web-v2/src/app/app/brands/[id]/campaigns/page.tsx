@@ -44,7 +44,7 @@ export default function CampaignsPage({
       <BrandNav brandId={id} active="Campaigns" />
       <div className="p-8">
         <div className="flex items-center justify-between mb-8">
-          <h1 className="font-display uppercase text-4xl tracking-wide">Campaigns</h1>
+          <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide">Campaigns</h1>
           <Link href={`/app/brands/${id}/campaigns/new`} className="btn-yellow text-sm">
             + New campaign
           </Link>

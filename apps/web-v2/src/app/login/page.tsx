@@ -55,7 +55,7 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="glass-strong rounded-2xl p-8 shadow-3d-lg">
+        <div className="glass-strong rounded-2xl p-6 sm:p-8 shadow-3d-lg">
           <div className="mb-6">
             <h1 className="font-display text-2xl font-semibold text-text">Welcome back</h1>
             <p className="text-sm text-text-secondary mt-1">Sign in to your AI advertising OS</p>

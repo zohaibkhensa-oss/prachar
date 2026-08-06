@@ -20,6 +20,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
   const [orbOpen, setOrbOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeBrandId, setActiveBrandId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -115,7 +116,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ProactiveNotifications open={notifOpen} onClose={() => setNotifOpen(false)} />
 
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16">
@@ -125,6 +126,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             document.dispatchEvent(event);
           }}
           onNotificationsClick={() => setNotifOpen(true)}
+          onMenuClick={() => setSidebarOpen(true)}
           notifCount={notifCount}
           email={email}
         />

@@ -76,7 +76,7 @@ export default function ContentPage({
     <div>
       <BrandNav brandId={id} active="Content" />
       <div className="p-8">
-        <h1 className="font-display uppercase text-4xl tracking-wide mb-8">
+        <h1 className="font-display uppercase text-2xl sm:text-3xl lg:text-4xl tracking-wide mb-8">
           Content / {brand?.name ?? "Brand"}
         </h1>
         <Table>

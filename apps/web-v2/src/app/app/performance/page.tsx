@@ -26,7 +26,7 @@ export default function PerformanceIndexPage() {
     return (
       <div className="space-y-6">
         <Skeleton className="h-16 w-48 rounded-xl" />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[0, 1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
         <div className="space-y-3">
@@ -71,7 +71,7 @@ export default function PerformanceIndexPage() {
 
       {/* Summary stats bar */}
       {campaigns.length > 0 && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="glass rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Target className="w-3.5 h-3.5 text-accent" />

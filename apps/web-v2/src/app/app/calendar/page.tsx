@@ -454,7 +454,7 @@ export default function CalendarPage() {
           <button onClick={viewMode === "month" ? prevMonth : prevWeek} className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] transition">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <h2 className="font-display text-lg font-semibold text-text min-w-[180px] text-center">
+          <h2 className="font-display text-base sm:text-lg font-semibold text-text text-center">
             {monthName}
           </h2>
           <button onClick={viewMode === "month" ? nextMonth : nextWeek} className="p-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] transition">

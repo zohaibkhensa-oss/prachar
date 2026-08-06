@@ -308,7 +308,7 @@ export default function ConversationalOnboardingPage() {
   if (phase === "auth") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg px-4">
-        <div className="glass-strong rounded-2xl p-8 max-w-md text-center">
+        <div className="glass-strong rounded-2xl p-6 sm:p-8 max-w-md text-center">
           <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-accent" />
           </div>

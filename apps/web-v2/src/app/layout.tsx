@@ -27,6 +27,13 @@ export const metadata: Metadata = {
   description: "AI-driven premium advertising agency platform. One brand upload → organic + paid visibility across every major platform.",
 };
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: "#0a0a0f",
+};
+
 export default function RootLayout({
   children,
 }: {
