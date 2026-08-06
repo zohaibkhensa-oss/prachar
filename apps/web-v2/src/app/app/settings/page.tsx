@@ -18,6 +18,8 @@ import {
   AlertCircle,
   Copy,
   Plus,
+  Download,
+  FileText,
 } from "lucide-react";
 import { Card } from "@/components/ui/card-3d";
 import { SectionHeader } from "@/components/ui/empty-state";
@@ -86,6 +88,24 @@ interface ApiTokenOut {
   token: string; // masked
   scopes: string[];
   created_at: string;
+}
+
+interface InvoiceOut {
+  id: string;
+  tenant_id: string;
+  plan: string;
+  amount_inr: number;
+  gst_inr: number;
+  total_inr: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  invoice_number: string;
+  gstin: string | null;
+}
+
+interface InvoicesResponse {
+  invoices: InvoiceOut[];
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -193,6 +213,15 @@ function useSubscription() {
   });
 }
 
+function useInvoices(enabled: boolean) {
+  return useQuery<InvoicesResponse>({
+    queryKey: ["billing", "invoices"],
+    queryFn: () => apiGet<InvoicesResponse>("/billing/invoices"),
+    enabled,
+    retry: 1,
+  });
+}
+
 function usePlans() {
   return useQuery<PlansResponse>({
     queryKey: ["billing", "plans"],
@@ -224,6 +253,8 @@ export default function SettingsPage() {
   const plansQuery = usePlans();
   const isAgencyPlan = subQuery.data?.plan === "agency";
   const tokensQuery = useApiTokens(tab === "api" && !!isAgencyPlan);
+  const invoicesQuery = useInvoices(tab === "billing" && !!subQuery.data);
+  const invoices = invoicesQuery.data?.invoices ?? [];
 
   const user = userQuery.data;
   const sub = subQuery.data;
@@ -530,11 +561,66 @@ export default function SettingsPage() {
 
               {/* Invoices */}
               <Card hover={false}>
-                <SectionHeader title="Invoices" subtitle="Download past invoices" />
-                <div className="py-8 text-center">
-                  <Clock className="w-10 h-10 text-text-muted mx-auto mb-3" />
-                  <p className="text-sm text-text-secondary">No invoices yet.</p>
-                </div>
+                <SectionHeader title="Invoices" subtitle="Download past invoices (PDF)" />
+                {invoicesQuery.isLoading ? (
+                  <LoadingRow label="Loading invoices…" />
+                ) : invoicesQuery.error ? (
+                  <ErrorRow message="Could not load invoices." />
+                ) : invoices.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <Clock className="w-10 h-10 text-text-muted mx-auto mb-3" />
+                    <p className="text-sm text-text-secondary">No invoices yet.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {invoices.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between p-4 hover:bg-surface-secondary/50 transition rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+                            <FileText className="w-5 h-5 text-accent" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-text">
+                              {inv.invoice_number}
+                            </p>
+                            <p className="text-xs text-text-secondary">
+                              {PLAN_LABELS[inv.plan] ?? inv.plan} ·{" "}
+                              Rs. {inv.total_inr.toLocaleString("en-IN")} ·{" "}
+                              {new Date(inv.created_at).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={cn(
+                              "text-xs px-2 py-1 rounded-full font-medium",
+                              inv.status === "active"
+                                ? "bg-success/10 text-success"
+                                : "bg-warning/10 text-warning"
+                            )}
+                          >
+                            {inv.status.toUpperCase()}
+                          </span>
+                          <a
+                            href={`/api/billing/invoices/${inv.invoice_number}/pdf`}
+                            download={`${inv.invoice_number}.pdf`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition"
+                          >
+                            <Download className="w-4 h-4" />
+                            PDF
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </Card>
             </div>
           )}

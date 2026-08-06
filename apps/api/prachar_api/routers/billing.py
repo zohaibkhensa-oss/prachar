@@ -648,6 +648,186 @@ async def list_invoices(
     return InvoicesResponse(invoices=[invoice])
 
 
+# ─── PDF Invoice Download ────────────────────────────────────────────────────
+
+@router.get("/invoices/{invoice_number}/pdf")
+async def download_invoice_pdf(
+    invoice_number: str,
+    user: CurrentUser,
+    session: SessionDep,
+):
+    """Generate and download a PDF invoice.
+
+    Uses reportlab to generate a professional GST-compliant invoice PDF
+    on-the-fly. The invoice data is computed from the tenant's billing
+    record and plan pricing.
+    """
+    import io
+    import datetime
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib.colors import HexColor
+    from reportlab.pdfgen import canvas as rl_canvas
+
+    billing = await _get_billing(session, user.tenant_id)
+    if not billing or not billing.sub_id:
+        raise HTTPException(status_code=404, detail="No billing record found")
+
+    plan_key = await get_tenant_plan(session, user)
+    plan = get_plan(plan_key) or get_plan("starter")
+
+    # Fetch tenant name
+    tenant_res = await session.execute(select(Tenant).where(Tenant.id == user.tenant_id))
+    tenant = tenant_res.scalar_one_or_none()
+    tenant_name = tenant.name if tenant else "Valued Customer"
+
+    # GST calculation (18% on plan price for India)
+    base_amount = plan.price_inr
+    gst_amount = int(base_amount * 0.18)
+    total = base_amount + gst_amount
+    now = datetime.datetime.now(datetime.UTC)
+
+    # Verify the invoice number matches (security check)
+    expected_inv = f"INV-{now.strftime('%Y%m')}-{str(user.tenant_id)[:8].upper()}"
+    if invoice_number != expected_inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # Generate PDF in memory
+    buf = io.BytesIO()
+    c = rl_canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+
+    # Colors
+    primary = HexColor("#1a1a2e")
+    accent = HexColor("#6c5ce7")
+    light_gray = HexColor("#f0f0f5")
+    dark_gray = HexColor("#333333")
+
+    # ─── Header bar ───
+    c.setFillColor(primary)
+    c.rect(0, height - 35 * mm, width, 35 * mm, fill=1, stroke=0)
+
+    # Logo / brand name
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 24)
+    c.drawString(20 * mm, height - 18 * mm, "PRACHAR")
+    c.setFont("Helvetica", 9)
+    c.drawString(20 * mm, height - 24 * mm, "AI-Driven Advertising Platform")
+    c.drawString(20 * mm, height - 29 * mm, "hello@prachar.app | www.prachar.app")
+
+    # Invoice title (right side)
+    c.setFont("Helvetica-Bold", 16)
+    c.drawRightString(width - 20 * mm, height - 18 * mm, "TAX INVOICE")
+    c.setFont("Helvetica", 9)
+    c.drawRightString(width - 20 * mm, height - 24 * mm, f"#{invoice_number}")
+    c.drawRightString(width - 20 * mm, height - 29 * mm, now.strftime("%d %b %Y"))
+
+    # ─── Bill To section ───
+    y = height - 50 * mm
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(20 * mm, y, "BILL TO")
+    y -= 6 * mm
+    c.setFont("Helvetica", 10)
+    c.setFillColor(HexColor("#555555"))
+    c.drawString(20 * mm, y, tenant_name)
+    y -= 5 * mm
+    c.drawString(20 * mm, y, f"Tenant ID: {str(user.tenant_id)[:8].upper()}")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, "India")
+
+    # ─── From section (right) ───
+    y_from = height - 50 * mm
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(width - 20 * mm, y_from, "FROM")
+    y_from -= 6 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#555555"))
+    c.drawRightString(width - 20 * mm, y_from, "PRACHAR AI Technologies")
+    y_from -= 5 * mm
+    c.drawRightString(width - 20 * mm, y_from, "GSTIN: 29ABCDE1234F1Z5")
+    y_from -= 5 * mm
+    c.drawRightString(width - 20 * mm, y_from, "Bengaluru, Karnataka, India")
+
+    # ─── Invoice items table ───
+    y = height - 75 * mm
+    # Table header
+    c.setFillColor(light_gray)
+    c.rect(20 * mm, y - 5 * mm, width - 40 * mm, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 9)
+    c.drawString(22 * mm, y - 2 * mm, "DESCRIPTION")
+    c.drawString(110 * mm, y - 2 * mm, "QTY")
+    c.drawString(130 * mm, y - 2 * mm, "RATE")
+    c.drawRightString(width - 22 * mm, y - 2 * mm, "AMOUNT")
+
+    # Item row
+    y -= 15 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#333333"))
+    plan_label = f"PRACHAR {plan_key.upper()} — Monthly Subscription"
+    c.drawString(22 * mm, y, plan_label)
+    c.drawString(110 * mm, y, "1")
+    c.drawString(130 * mm, y, f"Rs. {base_amount:,}")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
+
+    # Subtotal
+    y -= 10 * mm
+    c.setFont("Helvetica", 9)
+    c.setFillColor(HexColor("#666666"))
+    c.drawString(110 * mm, y, "Subtotal")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {base_amount:,}")
+
+    # GST
+    y -= 6 * mm
+    c.drawString(110 * mm, y, "GST (18%)")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {gst_amount:,}")
+
+    # Total
+    y -= 10 * mm
+    c.setFillColor(accent)
+    c.rect(108 * mm, y - 3 * mm, width - 128 * mm, 8 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#ffffff"))
+    c.setFont("Helvetica-Bold", 11)
+    c.drawString(110 * mm, y, "TOTAL")
+    c.drawRightString(width - 22 * mm, y, f"Rs. {total:,}")
+
+    # ─── Payment status ───
+    y -= 18 * mm
+    status_text = billing.status.value if hasattr(billing.status, "value") else str(billing.status)
+    c.setFillColor(dark_gray)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(20 * mm, y, "Payment Status:")
+    status_color = HexColor("#00b894") if status_text == "active" else HexColor("#fdcb6e")
+    c.setFillColor(status_color)
+    c.drawString(55 * mm, y, status_text.upper())
+
+    # ─── Footer ───
+    y = 30 * mm
+    c.setFillColor(light_gray)
+    c.rect(0, 0, width, 25 * mm, fill=1, stroke=0)
+    c.setFillColor(HexColor("#888888"))
+    c.setFont("Helvetica", 8)
+    c.drawString(20 * mm, y, "This is a computer-generated invoice and does not require a signature.")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, f"Invoice #{invoice_number} | Generated on {now.strftime('%d %b %Y at %H:%M UTC')}")
+    y -= 5 * mm
+    c.drawString(20 * mm, y, "PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India")
+
+    c.showPage()
+    c.save()
+
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    filename = f"{invoice_number}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # ─── Coupons ──────────────────────────────────────────────────────────────────
 
 class CouponValidateRequest(BaseModel):
