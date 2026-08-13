@@ -29,17 +29,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace("/login");
       return;
     }
-    const onboarded = localStorage.getItem("prachar_onboarded");
-    if (!onboarded) {
-      router.replace("/onboarding");
-      return;
-    }
     const storedEmail = localStorage.getItem("prachar_email");
     if (storedEmail) setEmail(storedEmail);
-    // Load active brand ID for the Orb
-    const storedBrandId = localStorage.getItem("prachar_active_brand_id");
-    if (storedBrandId) setActiveBrandId(storedBrandId);
-    setReady(true);
+
+    const onboarded = localStorage.getItem("prachar_onboarded");
+    if (onboarded) {
+      // Already onboarded — load brand ID and proceed
+      const storedBrandId = localStorage.getItem("prachar_active_brand_id");
+      if (storedBrandId) setActiveBrandId(storedBrandId);
+      setReady(true);
+      return;
+    }
+
+    // Not marked as onboarded in localStorage — check backend for brands
+    // (returning users may have brands but lost the localStorage flag)
+    (async () => {
+      try {
+        const { apiGet } = await import("@/lib/api");
+        const res = await apiGet<{ id: string }[] | { items: { id: string }[] }>("/brands?limit=1");
+        const brands = Array.isArray(res) ? res : res.items;
+        if (brands && brands.length > 0) {
+          // User has brands — skip onboarding, mark as onboarded
+          localStorage.setItem("prachar_onboarded", "1");
+          const id = brands[0]?.id;
+          if (id) {
+            setActiveBrandId(id);
+            localStorage.setItem("prachar_active_brand_id", id);
+          }
+          setReady(true);
+        } else {
+          // No brands — go to onboarding
+          router.replace("/onboarding");
+        }
+      } catch {
+        // API error — let them in anyway, onboarding is optional
+        localStorage.setItem("prachar_onboarded", "1");
+        setReady(true);
+      }
+    })();
   }, [router]);
 
   // Fetch active brand if not in localStorage

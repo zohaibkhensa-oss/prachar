@@ -324,11 +324,13 @@ def upgrade() -> None:
     """)
 
     # ─── auth_lookup: SECURITY DEFINER function for login (bypasses RLS) ─────
+    # NOTE: row_security=off is required so the function can bypass RLS
+    # regardless of who owns the function (non-superuser owners need this).
     op.execute(
         """
         CREATE OR REPLACE FUNCTION auth_lookup(p_email TEXT)
         RETURNS TABLE (id uuid, tenant_id uuid, pw_hash text, role text, is_active boolean)
-        LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+        LANGUAGE sql SECURITY DEFINER SET search_path = public, row_security = off AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active
           FROM users WHERE email = p_email LIMIT 1;
         $$;

@@ -56,7 +56,7 @@ export default function IntegrationsPage() {
     queryKey: ["integrations"],
     queryFn: async () => {
       const res = await fetch("/api/integrations", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("prachar_token")}` },
       });
       if (!res.ok) throw new Error("Failed to fetch integrations");
       return res.json() as Promise<Integration[]>;
@@ -67,7 +67,7 @@ export default function IntegrationsPage() {
     mutationFn: async (name: string) => {
       const res = await fetch(`/api/integrations/${name}/sync`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("prachar_token")}` },
       });
       if (!res.ok) throw new Error("Sync failed");
       return res.json();
@@ -81,7 +81,7 @@ export default function IntegrationsPage() {
     mutationFn: async (name: string) => {
       const res = await fetch(`/api/integrations/${name}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("prachar_token")}` },
       });
       if (!res.ok) throw new Error("Disconnect failed");
       return res.json();
@@ -106,7 +106,7 @@ export default function IntegrationsPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${localStorage.getItem("prachar_token")}`,
         },
         body: JSON.stringify(body),
       });

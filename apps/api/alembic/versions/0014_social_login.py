@@ -33,11 +33,14 @@ def upgrade() -> None:
     op.create_index("ix_users_provider", "users", ["provider", "provider_id"])
 
     # Update auth_lookup to handle NULL pw_hash
+    # NOTE: row_security=off is required so the SECURITY DEFINER function
+    # can bypass RLS regardless of who owns the function (non-superuser
+    # owners need this explicit setting to read cross-tenant rows).
     op.execute("""
         DROP FUNCTION IF EXISTS auth_lookup(text);
         CREATE FUNCTION auth_lookup(p_email TEXT)
         RETURNS TABLE (id uuid, tenant_id uuid, pw_hash text, role text, is_active boolean, email_verified boolean)
-        LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+        LANGUAGE sql SECURITY DEFINER SET search_path = public, row_security = off AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE email = p_email LIMIT 1;
         $$;
         DO $$ BEGIN
@@ -51,7 +54,7 @@ def upgrade() -> None:
     op.execute("""
         CREATE OR REPLACE FUNCTION auth_lookup_by_id(p_uid TEXT)
         RETURNS TABLE (id uuid, tenant_id uuid, pw_hash text, role text, is_active boolean, email_verified boolean)
-        LANGUAGE sql SECURITY DEFINER SET search_path = public AS $$
+        LANGUAGE sql SECURITY DEFINER SET search_path = public, row_security = off AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE id::text = p_uid LIMIT 1;
         $$;
         DO $$ BEGIN

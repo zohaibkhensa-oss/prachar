@@ -1,0 +1,89 @@
+{
+  "bugs": [
+    {
+      "phase": "API",
+      "description": "GET /billing/plans → 429 (expected 200)",
+      "severity": "medium"
+    },
+    {
+      "phase": "API",
+      "description": "GET /knowledge/sources → 429 (expected 200/404)",
+      "severity": "medium"
+    },
+    {
+      "phase": "API",
+      "description": "GET /performance/summary → 422 (expected 200/404)",
+      "severity": "medium"
+    },
+    {
+      "phase": "API",
+      "description": "GET /review/queue → 429 (expected 200/404)",
+      "severity": "medium"
+    },
+    {
+      "phase": "API",
+      "description": "GET /proactive/messages → 429 (expected 200/404)",
+      "severity": "medium"
+    },
+    {
+      "phase": "API",
+      "description": "GET /timeline → 429 (expected 200/404)",
+      "severity": "medium"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+  ],
+  "pageErrors": [],
+  "apiResults": {
+    "passed": 8,
+    "failed": 6
+  },
+  "phases": [
+    {
+      "phase": "B",
+      "status": "done"
+    },
+    {
+      "phase": "C",
+      "status": "done"
+    },
+    {
+      "phase": "D",
+      "status": "done"
+    },
+    {
+      "phase": "E",
+      "status": "done"
+    },
+    {
+      "phase": "F",
+      "status": "done"
+    },
+    {
+      "phase": "G",
+      "status": "done"
+    },
+    {
+      "phase": "H",
+      "status": "done"
+    },
+    {
+      "phase": "I",
+      "status": "done"
+    },
+    {
+      "phase": "J",
+      "status": "done"
+    },
+    {
+      "phase": "K",
+      "status": "done"
+    },
+    {
+      "phase": "L",
+      "status": "done"
+    }
+  ]
+}
