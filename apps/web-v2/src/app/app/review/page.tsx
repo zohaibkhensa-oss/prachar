@@ -47,7 +47,7 @@ function statusBadgeClass(status: ReviewStatus): string {
     case "in_review":
       return "badge-info"; // blue
     case "changes_requested":
-      return "badge-warning"; // orange
+      return "badge-warning"; // amber
     case "approved":
       return "badge-success";
     case "active":
@@ -162,7 +162,7 @@ export default function ReviewQueuePage() {
           <motion.div
             animate={{ y: [0, -8, 0] }}
             transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/20 to-orange-500/10 flex items-center justify-center mx-auto mb-5 glow-ring"
+            className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/20 to-amber-500/10 flex items-center justify-center mx-auto mb-5 glow-ring"
           >
             <ClipboardList className="w-7 h-7 text-accent" />
           </motion.div>

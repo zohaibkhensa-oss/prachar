@@ -421,7 +421,7 @@ function ReviewFeedback({ title, payload }: { title: string; payload: Record<str
       {payload.risks?.length > 0 && (
         <div className="mt-2 space-y-1">
           {payload.risks.map((risk: string, i: number) => (
-            <div key={i} className="text-[10px] text-orange-400">⚠ {risk}</div>
+            <div key={i} className="text-[10px] text-amber-400">⚠ {risk}</div>
           ))}
         </div>
       )}
@@ -453,7 +453,7 @@ function ReviewSummary({ title, payload }: { title: string; payload: Record<stri
           <span className={cn("absolute text-lg font-bold", scoreColor)}>{score}</span>
         </div>
         <div>
-          <span className={cn("text-sm font-bold", approved ? "text-green-400" : "text-orange-400")}>
+          <span className={cn("text-sm font-bold", approved ? "text-green-400" : "text-amber-400")}>
             {approved ? "Approved" : "Needs Revision"}
           </span>
           {payload.consensus && (
@@ -465,7 +465,7 @@ function ReviewSummary({ title, payload }: { title: string; payload: Record<stri
         <ul className="space-y-1.5">
           {payload.key_points.map((point: string, i: number) => (
             <li key={i} className="text-xs text-text-secondary flex items-start gap-2">
-              <span className={cn("mt-0.5", approved ? "text-green-400" : "text-orange-400")}>•</span>
+              <span className={cn("mt-0.5", approved ? "text-green-400" : "text-amber-400")}>•</span>
               {point}
             </li>
           ))}

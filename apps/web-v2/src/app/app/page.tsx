@@ -132,7 +132,7 @@ export default function DashboardPage() {
         <div className="mt-4 max-w-xl">
           <div className="glass rounded-2xl p-4 border-l-2 border-l-accent/50 text-left">
             <div className="flex items-start gap-3">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-accent to-orange-500 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center shrink-0">
                 <Sparkles className="w-3.5 h-3.5 text-bg" />
               </div>
               <p className="text-sm text-text leading-relaxed">
@@ -171,7 +171,7 @@ export default function DashboardPage() {
                 disabled={!href}
                 className={`px-4 py-2.5 min-h-[40px] rounded-xl text-sm font-semibold flex items-center gap-1.5 transition-all ${
                   i === 0
-                    ? "bg-gradient-to-br from-accent to-orange-500 text-bg"
+                    ? "bg-gradient-to-br from-accent to-accent-dark text-bg"
                     : "bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:text-text"
                 } ${!href ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
               >

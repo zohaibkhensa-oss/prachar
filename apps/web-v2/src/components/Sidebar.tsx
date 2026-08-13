@@ -98,7 +98,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
           </Link>
         ) : (
           <Link href="/app" className="flex items-center gap-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-orange-500 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center">
               <Zap className="w-4 h-4 text-bg" />
             </div>
             <span className="font-display text-sm font-bold text-gradient-accent">PRACHAR AI</span>

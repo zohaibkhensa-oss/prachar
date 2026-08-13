@@ -39,7 +39,7 @@ const STATUS_COLORS: Record<string, string> = {
   approved: "text-blue-400",
   executing: "text-accent",
   completed: "text-green-400",
-  completed_with_warnings: "text-orange-400",
+  completed_with_warnings: "text-amber-400",
   cancelled: "text-text-muted",
   failed: "text-red-400",
 };
@@ -179,7 +179,7 @@ export default function RuntimeDashboardPage() {
                       )}
                     </div>
                     {s.warnings.length > 0 && (
-                      <div className="mt-1 text-[10px] text-orange-400">
+                      <div className="mt-1 text-[10px] text-amber-400">
                         ⚠ {s.warnings.length} warning(s)
                       </div>
                     )}
@@ -372,12 +372,12 @@ function NodeResultsView({ result }: { result: Record<string, any> }) {
           {result.success ? "✓ Success" : "✕ Failed"}
         </span>
         {result.cancelled && <span className="text-text-muted">Cancelled</span>}
-        {result.has_warnings && <span className="text-orange-400">⚠ Warnings</span>}
+        {result.has_warnings && <span className="text-amber-400">⚠ Warnings</span>}
         <span className="text-text-muted">{(result.total_duration_ms / 1000).toFixed(2)}s</span>
         <span className="text-text-muted">${result.total_cost_usd?.toFixed(6)}</span>
       </div>
       {result.warnings?.map((w: string, i: number) => (
-        <div key={i} className="text-xs text-orange-400 bg-orange-400/[0.04] rounded p-2">
+        <div key={i} className="text-xs text-amber-400 bg-amber-400/[0.04] rounded p-2">
           ⚠ {w}
         </div>
       ))}

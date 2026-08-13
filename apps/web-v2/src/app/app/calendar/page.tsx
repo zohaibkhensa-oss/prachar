@@ -372,7 +372,7 @@ export default function CalendarPage() {
           <button
             onClick={generateAIPlan}
             disabled={generatingPlan}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-orange-500 text-bg text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-bg text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
           >
             {generatingPlan ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>

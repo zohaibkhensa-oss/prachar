@@ -74,8 +74,8 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
           style={{ width: 56, height: 56 }}
           animate={{
             boxShadow: [
-              "0 0 0 0px rgba(255,140,66,0.4)",
-              "0 0 0 8px rgba(255,140,66,0)",
+              "0 0 0 0px rgba(190,242,100,0.4)",
+              "0 0 0 8px rgba(190,242,100,0)",
             ],
           }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}

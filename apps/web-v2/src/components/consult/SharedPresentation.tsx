@@ -1382,7 +1382,7 @@ const HOOK_PATTERN_STYLES: Record<string, string> = {
   question: "bg-blue-500/10 text-blue-400",
   stat: "bg-emerald-500/10 text-emerald-400",
   story: "bg-purple-500/10 text-purple-400",
-  contrarian: "bg-orange-500/10 text-orange-400",
+  contrarian: "bg-amber-500/10 text-amber-400",
   aspiration: "bg-pink-500/10 text-pink-400",
 };
 
@@ -1517,8 +1517,8 @@ const OFFER_STRUCTURE_STYLES: Record<string, string> = {
   anchoring: "bg-blue-500/10 text-blue-400",
   scarcity: "bg-red-500/10 text-red-400",
   bundling: "bg-emerald-500/10 text-emerald-400",
-  "loss-aversion": "bg-orange-500/10 text-orange-400",
-  "loss_aversion": "bg-orange-500/10 text-orange-400",
+  "loss-aversion": "bg-amber-500/10 text-amber-400",
+  "loss_aversion": "bg-amber-500/10 text-amber-400",
   "decoy pricing": "bg-purple-500/10 text-purple-400",
   "decoy_pricing": "bg-purple-500/10 text-purple-400",
 };
@@ -1592,7 +1592,7 @@ const PRICING_TECHNIQUE_STYLES: Record<string, string> = {
   charm: "bg-blue-500/10 text-blue-400",
   tier: "bg-emerald-500/10 text-emerald-400",
   bundle: "bg-purple-500/10 text-purple-400",
-  anchor: "bg-orange-500/10 text-orange-400",
+  anchor: "bg-amber-500/10 text-amber-400",
   loss_leader: "bg-red-500/10 text-red-400",
   "loss-leader": "bg-red-500/10 text-red-400",
 };
@@ -1697,7 +1697,7 @@ const LOCAL_TYPE_STYLES: Record<string, string> = {
   partnership: "bg-emerald-500/10 text-emerald-400",
   geo_target: "bg-purple-500/10 text-purple-400",
   "geo-target": "bg-purple-500/10 text-purple-400",
-  seo: "bg-orange-500/10 text-orange-400",
+  seo: "bg-amber-500/10 text-amber-400",
 };
 
 function LocalIdeasSection({ ideas, why }: { ideas: LocalIdea[]; why?: string }) {

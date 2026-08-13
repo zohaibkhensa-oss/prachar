@@ -400,7 +400,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
               className={cn(
                 "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
                 msg.role === "user"
-                  ? "bg-gradient-to-br from-accent to-orange-500 text-bg"
+                  ? "bg-gradient-to-br from-accent to-accent-dark text-bg"
                   : "bg-white/[0.04] border border-white/[0.06] text-text",
                 msg.isClarifying && "border-amber-400/20 bg-amber-400/[0.04]"
               )}
@@ -547,7 +547,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
         <button
           onClick={() => sendMessage(input)}
           disabled={!input.trim() || active}
-          className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-orange-500 text-bg flex items-center justify-center font-bold disabled:opacity-30 flex-shrink-0"
+          className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark text-bg flex items-center justify-center font-bold disabled:opacity-30 flex-shrink-0"
         >
           ↑
         </button>

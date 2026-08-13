@@ -30,7 +30,7 @@ const categoryColors: Record<string, string> = {
   analytics: "text-blue-400 bg-blue-500/10",
   cms: "text-purple-400 bg-purple-500/10",
   ecommerce: "text-green-400 bg-green-500/10",
-  crm: "text-orange-400 bg-orange-500/10",
+  crm: "text-amber-400 bg-amber-500/10",
   email: "text-pink-400 bg-pink-500/10",
   ads: "text-amber-400 bg-amber-500/10",
 };
