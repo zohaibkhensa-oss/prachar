@@ -193,7 +193,7 @@ function NewCampaignPageInner({
                       "w-5 h-5 rounded-full flex items-center justify-center shrink-0 border mt-0.5",
                       goal === g ? "bg-accent border-accent" : "border-white/20",
                     )}>
-                      {goal === g && <Check className="w-3 h-3 text-ink" />}
+                      {goal === g && <Check className="w-3 h-3 text-text" />}
                     </div>
                     <div className="min-w-0">
                       <div className="text-sm font-medium">{g}</div>
@@ -280,7 +280,7 @@ function NewCampaignPageInner({
             <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="w-12 h-12 rounded-full border-3 border-accent/20 border-t-accent mx-auto mb-6"
+              className="w-12 h-12 rounded-full border border-accent/20 border-t-accent mx-auto mb-6"
             />
             <h2 className="font-display text-xl font-semibold text-text mb-2">
               Building your campaign…

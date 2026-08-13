@@ -57,7 +57,7 @@ export default function CampaignsPage({
           </div>
         ) : list.length === 0 ? (
           <Card className="text-center">
-            <p className="font-mono text-xs uppercase tracking-wider text-ink/60 mb-4">
+            <p className="font-mono text-xs uppercase tracking-wider text-text/60 mb-4">
               No campaigns yet
             </p>
             <Link href={`/app/brands/${id}/campaigns/new`} className="btn-yellow">
@@ -78,7 +78,7 @@ export default function CampaignsPage({
                         {c.status}
                       </Badge>
                     </div>
-                    <div className="mt-1 font-mono text-xs uppercase tracking-wider text-ink/60">
+                    <div className="mt-1 font-mono text-xs uppercase tracking-wider text-text/60">
                       {c.network} · spend ₹{c.spend.toFixed(0)} · CPA ₹{c.cpa.toFixed(0)} · ROAS {c.roas.toFixed(1)}x
                     </div>
                   </div>
@@ -92,9 +92,9 @@ export default function CampaignsPage({
                   </Button>
                 </div>
                 <div className="mt-4">
-                  <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider text-ink/60 mb-1">
+                  <div className="flex items-center justify-between font-mono text-xs uppercase tracking-wider text-text/60 mb-1">
                     <span>Budget</span>
-                    <span className="tabular-nums text-ink">₹{c.budget.toFixed(0)}/mo</span>
+                    <span className="tabular-nums text-text">₹{c.budget.toFixed(0)}/mo</span>
                   </div>
                   <input
                     type="range"

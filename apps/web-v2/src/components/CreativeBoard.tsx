@@ -15,7 +15,7 @@ export function CreativeBoard({ creatives }: { creatives: CreativeAsset[] }) {
     <div className="space-y-6">
       {Array.from(groups.entries()).map(([group, items]) => (
         <div key={group}>
-          <div className="font-mono text-xs uppercase tracking-wider text-ink/70 mb-3">
+          <div className="font-mono text-xs uppercase tracking-wider text-text-secondary mb-3">
             VARIANT GROUP / {group}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -23,18 +23,18 @@ export function CreativeBoard({ creatives }: { creatives: CreativeAsset[] }) {
               <div
                 key={c.id}
                 className={cn(
-                  "border-3 border-ink bg-paper p-4 flex flex-col gap-3",
-                  c.is_winner && "ring-3 ring-yellow ring-offset-2 ring-offset-paper",
+                  "border border-white/[0.06] bg-bg-card p-4 flex flex-col gap-3",
+                  c.is_winner && "ring-2 ring-accent ring-offset-2 ring-offset-bg-card",
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-ink/60">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
                     {c.channel} · {c.locale} · {c.type}
                   </span>
                   {c.is_winner && <Badge variant="yellow">WINNER</Badge>}
                 </div>
                 {c.image_url ? (
-                  <div className="aspect-video bg-ink/10 border-2 border-ink/20 flex items-center justify-center">
+                  <div className="aspect-video bg-white/[0.04] border-2 border-white/[0.04] flex items-center justify-center">
                     <img
                       src={c.image_url}
                       alt={c.id}
@@ -42,14 +42,14 @@ export function CreativeBoard({ creatives }: { creatives: CreativeAsset[] }) {
                     />
                   </div>
                 ) : (
-                  <div className="aspect-video bg-ink/5 border-2 border-dashed border-ink/20 flex items-center justify-center font-mono text-[10px] uppercase text-ink/40">
+                  <div className="aspect-video bg-white/[0.02] border-2 border-dashed border-white/[0.04] flex items-center justify-center font-mono text-[10px] uppercase text-text-muted">
                     IMAGE
                   </div>
                 )}
-                <p className="font-body text-sm text-ink leading-snug">{c.copy}</p>
+                <p className="font-body text-sm text-text leading-snug">{c.copy}</p>
                 <div className="flex items-center justify-between font-mono text-xs">
-                  <span className="text-ink/60 uppercase tracking-wider">CTR</span>
-                  <span className="tabular-nums text-ink">
+                  <span className="text-text-secondary uppercase tracking-wider">CTR</span>
+                  <span className="tabular-nums text-text">
                     {c.ctr != null ? `${c.ctr.toFixed(2)}%` : "—"}
                   </span>
                 </div>

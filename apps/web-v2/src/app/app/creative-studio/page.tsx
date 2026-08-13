@@ -293,7 +293,7 @@ export default function CreativeStudioPage() {
         <div>
           <label className="label-field block mb-2">Campaign</label>
           {plansLoading || brandLoading ? (
-            <div className="h-10 rounded-lg bg-ink/5 animate-pulse" />
+            <div className="h-10 rounded-lg bg-bg-surface/5 animate-pulse" />
           ) : plans && plans.length > 0 ? (
             <SelectDropdown
               value={selectedPlanId}
@@ -334,7 +334,7 @@ export default function CreativeStudioPage() {
                     "text-left rounded-xl p-3 border transition-all",
                     selectedDirectionId === opt.id && (i === 0 || selectedDirectionId !== "")
                       ? "border-accent bg-accent/5"
-                      : "border-white/[0.06] hover:border-white/[0.12] bg-ink/[0.02]",
+                      : "border-white/[0.06] hover:border-white/[0.12] bg-bg-surface/[0.02]",
                   )}
                 >
                   <div className="text-sm font-medium text-text">{opt.label}</div>
@@ -483,7 +483,7 @@ function FormatTabs({
                 "inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all",
                 activeTab === fmt.id
                   ? "bg-accent text-white"
-                  : "text-text-secondary hover:bg-ink/5 hover:text-text",
+                  : "text-text-secondary hover:bg-bg-surface/5 hover:text-text",
               )}
               title={fmt.description}
             >
@@ -527,7 +527,7 @@ function FormatTabs({
               <button
                 onClick={() => onCopy(activeTab)}
                 disabled={!activeData}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/[0.08] hover:bg-ink/5 transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/[0.08] hover:bg-bg-surface/5 transition-colors disabled:opacity-40"
               >
                 {copied === activeTab ? (
                   <>
@@ -544,7 +544,7 @@ function FormatTabs({
               <button
                 onClick={() => onRegenerate(activeTab)}
                 disabled={regenerating === activeTab}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/[0.08] hover:bg-ink/5 transition-colors disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-white/[0.08] hover:bg-bg-surface/5 transition-colors disabled:opacity-40"
               >
                 {regenerating === activeTab ? (
                   <>
@@ -584,7 +584,7 @@ function FormatTabs({
               <summary className="cursor-pointer text-xs text-text-muted font-mono hover:text-text-secondary transition-colors select-none">
                 ▸ Raw JSON
               </summary>
-              <pre className="mt-2 text-xs text-text-secondary bg-ink/5 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap border border-white/[0.04]">
+              <pre className="mt-2 text-xs text-text-secondary bg-bg-surface/5 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap border border-white/[0.04]">
                 {JSON.stringify(activeData, null, 2)}
               </pre>
             </details>
@@ -615,7 +615,7 @@ function SelectDropdown({
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-white/[0.08] bg-ink/[0.02] hover:border-white/[0.15] transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-white/[0.08] bg-bg-surface/[0.02] hover:border-white/[0.15] transition-colors text-left"
       >
         <span className={cn("text-sm", selected ? "text-text" : "text-text-muted")}>
           {selected ? selected.label : placeholder}
@@ -625,7 +625,7 @@ function SelectDropdown({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-paper shadow-lg max-h-64 overflow-y-auto">
+          <div className="absolute z-20 mt-1 w-full rounded-lg border border-white/[0.08] bg-bg-card shadow-lg max-h-64 overflow-y-auto">
             {options.map((opt) => (
               <button
                 key={opt.value}
@@ -634,7 +634,7 @@ function SelectDropdown({
                   setOpen(false);
                 }}
                 className={cn(
-                  "w-full text-left px-4 py-2.5 hover:bg-ink/5 transition-colors border-b border-white/[0.03] last:border-0",
+                  "w-full text-left px-4 py-2.5 hover:bg-bg-surface/5 transition-colors border-b border-white/[0.03] last:border-0",
                   value === opt.value && "bg-accent/5",
                 )}
               >

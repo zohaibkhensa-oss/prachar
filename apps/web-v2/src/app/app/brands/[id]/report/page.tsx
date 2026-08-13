@@ -70,7 +70,7 @@ export default function ReportPage({
                   <div className="font-display uppercase text-xl tracking-wide">
                     Week of {r.week}
                   </div>
-                  <div className="mt-1 font-mono text-xs uppercase tracking-wider text-ink/60">
+                  <div className="mt-1 font-mono text-xs uppercase tracking-wider text-text/60">
                     Weekly visibility report
                   </div>
                 </div>

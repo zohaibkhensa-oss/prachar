@@ -92,7 +92,7 @@ export default function ContentPage({
             {items.map((it) => (
               <Fragment key={it.id}>
                 <TableRow
-                  className="cursor-pointer hover:bg-ink/5"
+                  className="cursor-pointer hover:bg-bg-surface/5"
                   onClick={() => setExpanded(expanded === it.id ? null : it.id)}
                 >
                   <TableCell className="font-body">{it.title}</TableCell>
@@ -107,12 +107,12 @@ export default function ContentPage({
                   </TableCell>
                 </TableRow>
                 {expanded === it.id && (
-                  <TableRow className="bg-paper">
+                  <TableRow className="bg-bg-card">
                     <TableCell colSpan={4} className="p-4">
                       {"before" in it && it.before ? (
                         <DiffView before={it.before} after={it.after} delta={it.gsc_delta} />
                       ) : (
-                        <div className="border-3 border-ink p-4 font-body text-sm">
+                        <div className="border border-white/[0.06] p-4 font-body text-sm">
                           {it.after}
                         </div>
                       )}

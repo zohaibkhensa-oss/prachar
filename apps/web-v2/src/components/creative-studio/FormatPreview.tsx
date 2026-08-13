@@ -260,7 +260,7 @@ function InlineText({
         }
       },
       className: cn(
-        "w-full rounded-md border border-accent/40 bg-paper px-2 py-1 text-sm text-text",
+        "w-full rounded-md border border-accent/40 bg-bg-card px-2 py-1 text-sm text-text",
         "outline-none focus:ring-2 focus:ring-accent/30 resize-none",
         className,
       ),
@@ -362,7 +362,7 @@ function Field({
     <div className="group">
       <FieldLabel label={label} fieldName={fieldName} />
       {isRegenerating ? (
-        <div className="h-4 rounded bg-ink/5 animate-pulse" />
+        <div className="h-4 rounded bg-white/[0.02] animate-pulse" />
       ) : (
         <motion.div
           key={value}
@@ -404,7 +404,7 @@ function ListField({
       {isRegenerating ? (
         <div className="space-y-1.5">
           {items.map((_, i) => (
-            <div key={i} className="h-3 rounded bg-ink/5 animate-pulse" />
+            <div key={i} className="h-3 rounded bg-white/[0.02] animate-pulse" />
           ))}
         </div>
       ) : (
@@ -455,7 +455,7 @@ function Chips({
       {isRegenerating ? (
         <div className="flex flex-wrap gap-1.5">
           {items.map((_, i) => (
-            <div key={i} className="h-5 w-16 rounded-md bg-ink/5 animate-pulse" />
+            <div key={i} className="h-5 w-16 rounded-md bg-white/[0.02] animate-pulse" />
           ))}
         </div>
       ) : (
@@ -654,7 +654,7 @@ function EmailPreview({ data }: { data: Record<string, unknown> }) {
         {subjectsRegenerating ? (
           <div className="space-y-1.5">
             {subjects.map((_, i) => (
-              <div key={i} className="h-8 rounded-lg bg-ink/5 animate-pulse" />
+              <div key={i} className="h-8 rounded-lg bg-white/[0.02] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -759,7 +759,7 @@ function GenericPreview({ data }: { data: Record<string, unknown> }) {
           return (
             <div key={key}>
               <div className="label-field mb-1">{key.replace(/_/g, " ")}</div>
-              <pre className="text-xs text-text-secondary bg-ink/5 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
+              <pre className="text-xs text-text-secondary bg-white/[0.02] rounded-lg p-3 overflow-x-auto whitespace-pre-wrap">
                 {JSON.stringify(value, null, 2)}
               </pre>
             </div>

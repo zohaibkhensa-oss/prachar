@@ -19,20 +19,20 @@ function ChipList({
       {values.map((v, i) => (
         <span
           key={`${v}-${i}`}
-          className="inline-flex items-center gap-1 border-2 border-ink px-2 py-0.5 font-mono text-xs"
+          className="inline-flex items-center gap-1 border-2 border-white/[0.06] px-2 py-0.5 font-mono text-xs"
         >
           {v}
           <button
             type="button"
             onClick={() => onChange(values.filter((_, idx) => idx !== i))}
-            className="text-ink/50 hover:text-ink"
+            className="text-text-muted hover:text-text"
           >
             x
           </button>
         </span>
       ))}
       <input
-        className="bg-transparent font-mono text-xs outline-none border-b-2 border-ink/30 focus:border-ink min-w-[120px] flex-1"
+        className="bg-transparent font-mono text-xs outline-none border-b-2 border-white/[0.08] focus:border-white/[0.06] min-w-[120px] flex-1"
         placeholder={placeholder}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
@@ -62,8 +62,8 @@ export function AudienceBuilder({
     onChange({ ...value, [k]: v });
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 border-3 border-ink">
-      <div className="lg:col-span-2 p-6 space-y-5 border-b-3 lg:border-b-0 lg:border-r-3 border-ink">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-0 border border-white/[0.06]">
+      <div className="lg:col-span-2 p-6 space-y-5 border-b lg:border-b-0 lg:border-r border-white/[0.06]">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <Label>Geo</Label>
@@ -103,7 +103,7 @@ export function AudienceBuilder({
           </div>
           <div>
             <Label>Gender</Label>
-            <div className="flex border-3 border-ink">
+            <div className="flex border border-white/[0.06]">
               {(["all", "male", "female"] as const).map((g) => (
                 <button
                   key={g}
@@ -111,7 +111,7 @@ export function AudienceBuilder({
                   onClick={() => set("gender", g)}
                   className={cn(
                     "flex-1 py-2 font-mono text-xs uppercase tracking-wider",
-                    value.gender === g ? "bg-ink text-paper" : "bg-paper text-ink hover:bg-ink/10",
+                    value.gender === g ? "bg-bg-surface text-text" : "bg-bg-card text-text hover:bg-white/[0.04]",
                   )}
                 >
                   {g}
@@ -145,15 +145,15 @@ export function AudienceBuilder({
           />
         </div>
       </div>
-      <div className="p-6 bg-ink text-paper">
-        <div className="font-mono text-xs uppercase tracking-wider text-paper/60 mb-4">
+      <div className="p-6 bg-bg-surface text-text">
+        <div className="font-mono text-xs uppercase tracking-wider text-text-secondary mb-4">
           NETWORK TRANSLATION
         </div>
         <div className="space-y-4 font-mono text-xs leading-relaxed">
           {networks.includes("meta") && (
             <div>
-              <div className="text-yellow uppercase tracking-wider mb-1">META</div>
-              <div className="text-paper/80">
+              <div className="text-accent uppercase tracking-wider mb-1">META</div>
+              <div className="text-text/80">
                 interests[{value.interests.join(", ")}] · age {value.age[0]}-{value.age[1]} ·
                 geo[{value.geo.join(", ")}]
                 {value.lookalike_seed && ` · lookalike(${value.lookalike_seed})`}
@@ -162,8 +162,8 @@ export function AudienceBuilder({
           )}
           {networks.includes("tiktok") && (
             <div>
-              <div className="text-yellow uppercase tracking-wider mb-1">TIKTOK</div>
-              <div className="text-paper/80">
+              <div className="text-accent uppercase tracking-wider mb-1">TIKTOK</div>
+              <div className="text-text/80">
                 hashtag audiences[{value.interests.join(", ")}] · age {value.age[0]}-{value.age[1]}
                 · geo[{value.geo.join(", ")}]
               </div>
@@ -171,8 +171,8 @@ export function AudienceBuilder({
           )}
           {networks.includes("google") && (
             <div>
-              <div className="text-yellow uppercase tracking-wider mb-1">GOOGLE</div>
-              <div className="text-paper/80">
+              <div className="text-accent uppercase tracking-wider mb-1">GOOGLE</div>
+              <div className="text-text/80">
                 keywords[{value.intents.join(", ")}] + in-market[{value.interests.join(", ")}] ·
                 geo[{value.geo.join(", ")}]
               </div>

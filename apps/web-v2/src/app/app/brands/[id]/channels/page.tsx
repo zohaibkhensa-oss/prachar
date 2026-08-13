@@ -37,7 +37,7 @@ export default function ChannelsPage({
           </div>
         ) : list.length === 0 ? (
           <Card className="text-center">
-            <p className="font-mono text-xs uppercase tracking-wider text-ink/60">
+            <p className="font-mono text-xs uppercase tracking-wider text-text/60">
               No channels connected. Visit Connections to add platforms.
             </p>
           </Card>
@@ -61,10 +61,10 @@ export default function ChannelsPage({
                     {c.status}
                   </Badge>
                 </div>
-                <div className="space-y-1 font-mono text-xs uppercase tracking-wider text-ink/60">
+                <div className="space-y-1 font-mono text-xs uppercase tracking-wider text-text/60">
                   <div>Region: {c.region || "—"}</div>
                   <div>Last publish: {c.last_publish ?? "never"}</div>
-                  <div className="text-ink">Next: {c.next_action || "—"}</div>
+                  <div className="text-text">Next: {c.next_action || "—"}</div>
                 </div>
               </Card>
             ))}

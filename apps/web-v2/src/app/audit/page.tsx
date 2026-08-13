@@ -191,7 +191,7 @@ export default function AuditPage() {
 
   return (
     <main className="min-h-screen">
-      <header className="border-b-3 border-ink bg-paper">
+      <header className="border-b border-white/[0.06] bg-bg-card">
         <div className="container flex items-center justify-between py-4">
           <Link href="/" className="flex items-center">
             <Logo size="sm" />
@@ -202,12 +202,12 @@ export default function AuditPage() {
         </div>
       </header>
 
-      <section className="border-b-3 border-ink bg-paper">
+      <section className="border-b border-white/[0.06] bg-bg-card">
         <div className="container py-16 text-center">
           <h1 className="font-display uppercase text-5xl sm:text-6xl tracking-wide leading-[0.9]">
             FREE VISIBILITY AUDIT
           </h1>
-          <p className="mx-auto mt-4 max-w-xl font-body text-ink/70">
+          <p className="mx-auto mt-4 max-w-xl font-body text-text/70">
             Enter your website or @handle. We crawl, measure, and report in seconds.
           </p>
           <form onSubmit={startAudit} className="mx-auto mt-8 max-w-2xl flex gap-0">
@@ -226,9 +226,9 @@ export default function AuditPage() {
       </section>
 
       {phase === "error" && (
-        <section className="border-b-3 border-ink bg-paper">
+        <section className="border-b border-white/[0.06] bg-bg-card">
           <div className="container py-8">
-            <div className="border-3 border-ink bg-ink text-yellow p-4 font-mono text-sm">
+            <div className="border border-white/[0.06] bg-bg-surface text-accent p-4 font-mono text-sm">
               ERROR / {error}
             </div>
           </div>
@@ -236,38 +236,38 @@ export default function AuditPage() {
       )}
 
       {phase === "running" && (
-        <section className="border-b-3 border-ink bg-ink text-paper">
+        <section className="border-b border-white/[0.06] bg-bg-surface text-text">
           <div className="container py-8">
-            <div className="font-mono text-xs uppercase tracking-wider text-paper/60 mb-3">
+            <div className="font-mono text-xs uppercase tracking-wider text-text/60 mb-3">
               LIVE PROGRESS / JOB {jobId ?? "—"}
             </div>
             <div
               ref={logRef}
-              className="h-64 overflow-y-auto border-3 border-paper/20 p-4 font-mono text-sm text-paper/90 bg-ink"
+              className="h-64 overflow-y-auto border border-text/20 p-4 font-mono text-sm text-text/90 bg-bg-surface"
             >
               {logs.map((l, i) => (
                 <div key={i} className="whitespace-pre-wrap">
                   {l}
                 </div>
               ))}
-              <div className="text-yellow animate-pulse">_</div>
+              <div className="text-accent animate-pulse">_</div>
             </div>
           </div>
         </section>
       )}
 
       {phase === "done" && result && (
-        <section className="border-b-3 border-ink bg-paper">
+        <section className="border-b border-white/[0.06] bg-bg-card">
           <div className="container py-12 space-y-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <VisibilityScoreHero score={result.score} />
-              <div className="border-3 border-ink bg-paper p-6">
-                <div className="font-mono text-xs uppercase tracking-wider text-ink/60 mb-4">
+              <div className="border border-white/[0.06] bg-bg-card p-6">
+                <div className="font-mono text-xs uppercase tracking-wider text-text/60 mb-4">
                   TOP FINDINGS
                 </div>
                 <div className="space-y-4">
                   {visibleFindings.map((f, i) => (
-                    <div key={i} className="border-b-2 border-ink/10 pb-4 last:border-0">
+                    <div key={i} className="border-b-2 border-white/[0.06] pb-4 last:border-0">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant={f.impact === "high" ? "yellow" : "ink"}>
                           {f.impact}
@@ -276,7 +276,7 @@ export default function AuditPage() {
                           {f.title}
                         </span>
                       </div>
-                      <p className="font-body text-sm text-ink/70">{f.fix_description}</p>
+                      <p className="font-body text-sm text-text/70">{f.fix_description}</p>
                     </div>
                   ))}
                 </div>
@@ -284,7 +284,7 @@ export default function AuditPage() {
             </div>
 
             {gatedFindings.length > 0 && (
-              <div className="relative border-3 border-ink bg-paper p-6 overflow-hidden">
+              <div className="relative border border-white/[0.06] bg-bg-card p-6 overflow-hidden">
                 <div className="blur-sm select-none pointer-events-none space-y-4">
                   {gatedFindings.map((f, i) => (
                     <div key={i}>
@@ -294,11 +294,11 @@ export default function AuditPage() {
                           {f.title}
                         </span>
                       </div>
-                      <p className="font-body text-sm text-ink/70">{f.fix_description}</p>
+                      <p className="font-body text-sm text-text/70">{f.fix_description}</p>
                     </div>
                   ))}
                 </div>
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-paper/80">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-card/80">
                   <div className="font-display uppercase text-2xl tracking-wide text-center">
                     {gatedFindings.length} more findings
                   </div>
