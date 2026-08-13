@@ -60,7 +60,7 @@ type Channel = {
 const SUPPORTED_CHANNELS: { id: string; name: string; icon: typeof Globe; color: string; oauthNote: string }[] = [
   { id: "google", name: "Google Ads", icon: Search, color: "#3B82F6", oauthNote: "Connect via Google Ads OAuth to sync campaigns and performance." },
   { id: "youtube", name: "YouTube", icon: Youtube, color: "#EF4444", oauthNote: "Connect via Google OAuth to manage your YouTube channel." },
-  { id: "instagram", name: "Instagram", icon: Instagram, color: "#FFD400", oauthNote: "Connect via Meta Business Suite to publish and track Instagram." },
+  { id: "instagram", name: "Instagram", icon: Instagram, color: "#E879F9", oauthNote: "Connect via Meta Business Suite to publish and track Instagram." },
   { id: "facebook", name: "Facebook", icon: Facebook, color: "#3B82F6", oauthNote: "Connect via Meta Business Suite to manage Facebook pages and ads." },
   { id: "tiktok", name: "TikTok", icon: Zap, color: "#22C55E", oauthNote: "Connect via TikTok for Business OAuth to post and track content." },
   { id: "linkedin", name: "LinkedIn", icon: Linkedin, color: "#3B82F6", oauthNote: "Connect via LinkedIn OAuth to publish and track professional content." },

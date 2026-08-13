@@ -560,12 +560,12 @@ export function VoiceAssistant() {
               animate={{
                 scale: orbPulse ? 1.05 : 1,
                 boxShadow: orbPulse
-                  ? "0 0 30px rgba(255,212,0,0.3), 0 0 60px rgba(255,212,0,0.1)"
-                  : "0 0 20px rgba(255,212,0,0.15)",
+                  ? "0 0 30px rgba(190,242,100,0.3), 0 0 60px rgba(190,242,100,0.1)"
+                  : "0 0 20px rgba(190,242,100,0.15)",
               }}
               transition={{ duration: 1.5, ease: "easeInOut" }}
               className={cn(
-                "relative w-14 h-14 rounded-full bg-gradient-to-br from-accent via-yellow-600 to-accent-dark flex items-center justify-center shadow-3d-lg group-hover:scale-110 transition-transform",
+                "relative w-14 h-14 rounded-full bg-gradient-to-br from-accent via-accent-dark to-accent-dark flex items-center justify-center shadow-3d-lg group-hover:scale-110 transition-transform",
                 wakeDetected && "ring-4 ring-accent/40",
               )}
             >
@@ -628,11 +628,11 @@ export function VoiceAssistant() {
                   <motion.div
                     animate={{
                       boxShadow: speaking
-                        ? ["0 0 10px rgba(255,212,0,0.3)", "0 0 25px rgba(255,212,0,0.5)", "0 0 10px rgba(255,212,0,0.3)"]
-                        : "0 0 10px rgba(255,212,0,0.15)",
+                        ? ["0 0 10px rgba(190,242,100,0.3)", "0 0 25px rgba(190,242,100,0.5)", "0 0 10px rgba(190,242,100,0.3)"]
+                        : "0 0 10px rgba(190,242,100,0.15)",
                     }}
                     transition={{ duration: 0.5, repeat: speaking ? Infinity : 0 }}
-                    className="w-10 h-10 rounded-full bg-gradient-to-br from-accent via-yellow-600 to-accent-dark flex items-center justify-center"
+                    className="w-10 h-10 rounded-full bg-gradient-to-br from-accent via-accent-dark to-accent-dark flex items-center justify-center"
                   >
                     <Brain className="w-5 h-5 text-bg" />
                   </motion.div>
@@ -700,7 +700,7 @@ export function VoiceAssistant() {
                   <div className={cn(
                     "shrink-0 w-7 h-7 rounded-full flex items-center justify-center",
                     msg.role === "assistant"
-                      ? "bg-gradient-to-br from-accent to-yellow-600"
+                      ? "bg-gradient-to-br from-accent to-accent-dark"
                       : "bg-bg-elevated",
                   )}>
                     {msg.role === "assistant" ? (
@@ -734,7 +734,7 @@ export function VoiceAssistant() {
                   animate={{ opacity: 1 }}
                   className="flex gap-2.5"
                 >
-                  <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-accent to-yellow-600 flex items-center justify-center">
+                  <div className="shrink-0 w-7 h-7 rounded-full bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center">
                     <Brain className="w-3.5 h-3.5 text-bg" />
                   </div>
                   <div className="rounded-xl px-4 py-3 bg-white/[0.04] border border-white/[0.06]">

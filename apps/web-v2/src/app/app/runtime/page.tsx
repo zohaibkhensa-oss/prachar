@@ -35,7 +35,7 @@ interface SessionDetail {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "text-yellow-400",
+  pending: "text-amber-400",
   approved: "text-blue-400",
   executing: "text-accent",
   completed: "text-green-400",
@@ -271,7 +271,7 @@ export default function RuntimeDashboardPage() {
                   <span>timeout: {t.hard_timeout_ms / 1000}s</span>
                   <span>retry: {t.supports_retry ? "yes" : "no"}</span>
                   <span>side: {t.side_effects}</span>
-                  {t.successor && <span className="text-yellow-400">→ {t.successor}</span>}
+                  {t.successor && <span className="text-amber-400">→ {t.successor}</span>}
                 </div>
               </div>
             ))}
@@ -318,7 +318,7 @@ function GraphView({ graph }: { graph: Record<string, any> }) {
             <span className="w-2 h-2 rounded-full bg-accent" />
             <span className="font-mono text-text">{n.tool}</span>
             {n.needs_approval && (
-              <span className="text-[9px] px-1 rounded bg-yellow-400/20 text-yellow-400">APPROVAL</span>
+              <span className="text-[9px] px-1 rounded bg-amber-400/20 text-amber-400">APPROVAL</span>
             )}
             <span className="text-text-muted text-[10px]">({n.id})</span>
           </div>
@@ -390,7 +390,7 @@ function NodeResultsView({ result }: { result: Record<string, any> }) {
             <span className="font-mono">{nr.tool}</span>
             <span className="text-text-muted">{nr.duration_ms}ms</span>
             <span className="text-text-muted">${nr.cost_usd?.toFixed(6)}</span>
-            {nr.retries > 0 && <span className="text-yellow-400">↻{nr.retries}</span>}
+            {nr.retries > 0 && <span className="text-amber-400">↻{nr.retries}</span>}
             {nr.timed_out && <span className="text-red-400">TIMEOUT</span>}
             {nr.error && <span className="text-red-400 truncate">{nr.error}</span>}
           </div>

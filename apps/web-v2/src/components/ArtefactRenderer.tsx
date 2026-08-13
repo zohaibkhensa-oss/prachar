@@ -180,7 +180,7 @@ function CampaignCard({ title, payload }: { title: string; payload: Record<strin
         <span className={cn(
           "text-[10px] px-2.5 py-1 rounded-full font-medium border",
           payload.status === "active" && "bg-green-500/10 text-green-400 border-green-500/20",
-          payload.status === "draft" && "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+          payload.status === "draft" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
           payload.status === "planned" && "bg-blue-500/10 text-blue-400 border-blue-500/20",
           payload.status === "in_review" && "bg-purple-500/10 text-purple-400 border-purple-500/20",
         )}>
@@ -432,7 +432,7 @@ function ReviewFeedback({ title, payload }: { title: string; payload: Record<str
 function ReviewSummary({ title, payload }: { title: string; payload: Record<string, any> }) {
   const approved = payload.approved;
   const score = payload.score;
-  const scoreColor = score >= 8 ? "text-green-400" : score >= 6 ? "text-yellow-400" : "text-red-400";
+  const scoreColor = score >= 8 ? "text-green-400" : score >= 6 ? "text-amber-400" : "text-red-400";
   return (
     <ArtefactShell
       title={title}
@@ -505,8 +505,8 @@ function TimelinePlan({ title, payload }: { title: string; payload: Record<strin
 }
 
 function OpportunityCard({ title, payload }: { title: string; payload: Record<string, any> }) {
-  const impactColor = payload.impact === "high" ? "text-green-400" : payload.impact === "medium" ? "text-yellow-400" : "text-text-muted";
-  const diffColor = payload.difficulty === "easy" ? "text-green-400" : payload.difficulty === "medium" ? "text-yellow-400" : "text-red-400";
+  const impactColor = payload.impact === "high" ? "text-green-400" : payload.impact === "medium" ? "text-amber-400" : "text-text-muted";
+  const diffColor = payload.difficulty === "easy" ? "text-green-400" : payload.difficulty === "medium" ? "text-amber-400" : "text-red-400";
   return (
     <Card className="border-l-2 border-l-accent/30">
       <div className="text-sm font-semibold mb-1">{payload.title || title}</div>
@@ -637,7 +637,7 @@ function TaskList({ title, payload, onAction }: { title: string; payload: Record
           <div key={i} className="flex items-center gap-2 text-xs">
             <span className={cn(
               "w-1.5 h-1.5 rounded-full",
-              task.priority === "high" ? "bg-red-400" : task.priority === "medium" ? "bg-yellow-400" : "bg-text-muted"
+              task.priority === "high" ? "bg-red-400" : task.priority === "medium" ? "bg-amber-400" : "bg-text-muted"
             )} />
             <span className="text-text-secondary flex-1">{task.title || task.action}</span>
             {task.action && onAction && (
@@ -659,7 +659,7 @@ function AlertArtefact({ title, payload, onAction }: { title: string; payload: R
   const severity = payload.severity || "info";
   const colors = {
     info: "border-l-blue-400/40 text-blue-400",
-    warning: "border-l-yellow-400/40 text-yellow-400",
+    warning: "border-l-amber-400/40 text-amber-400",
     critical: "border-l-red-400/40 text-red-400",
   };
   const icons = { info: Info, warning: AlertTriangle, critical: AlertTriangle };
@@ -766,7 +766,7 @@ function PageContentArtefact({ title, payload }: { title: string; payload: Recor
 
 function SeoAuditArtefact({ title, payload }: { title: string; payload: Record<string, any> }) {
   const score = payload.score || 0;
-  const scoreColor = score >= 80 ? "text-green-400" : score >= 50 ? "text-yellow-400" : "text-red-400";
+  const scoreColor = score >= 80 ? "text-green-400" : score >= 50 ? "text-amber-400" : "text-red-400";
   return (
     <ArtefactShell title={title || "SEO Audit"} icon="🔍">
       <div className="flex items-center gap-3 mb-3">
@@ -780,7 +780,7 @@ function SeoAuditArtefact({ title, payload }: { title: string; payload: Record<s
             <div key={i} className="flex items-start gap-2 text-[11px]">
               <span className={`px-1.5 py-0.5 rounded font-medium ${
                 issue.severity === "high" ? "bg-red-500/10 text-red-400" :
-                issue.severity === "medium" ? "bg-yellow-500/10 text-yellow-400" :
+                issue.severity === "medium" ? "bg-amber-500/10 text-amber-400" :
                 "bg-white/[0.04] text-text-muted"
               }`}>{issue.severity}</span>
               <span className="text-text-secondary">{issue.issue}</span>
@@ -811,7 +811,7 @@ function KeywordGridArtefact({ title, payload }: { title: string; payload: Recor
                 <span className="text-text-muted">{kw.search_volume?.toLocaleString() || 0}</span>
                 <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
                   kw.opportunity === "high" ? "bg-green-500/10 text-green-400" :
-                  kw.opportunity === "medium" ? "bg-yellow-500/10 text-yellow-400" :
+                  kw.opportunity === "medium" ? "bg-amber-500/10 text-amber-400" :
                   "bg-white/[0.04] text-text-muted"
                 }`}>{kw.opportunity || "low"}</span>
               </div>
@@ -929,7 +929,7 @@ function WhatsAppCampaignArtefact({ title, payload }: { title: string; payload: 
         </div>
       )}
       {payload.compliance_notes && (
-        <div className="text-[10px] text-yellow-400/80 mt-2 p-2 rounded-lg bg-yellow-500/5">
+        <div className="text-[10px] text-amber-400/80 mt-2 p-2 rounded-lg bg-amber-500/5">
           ⚠ {payload.compliance_notes}
         </div>
       )}
@@ -978,7 +978,7 @@ function TeamBoardArtefact({ title, payload }: { title: string; payload: Record<
           {payload.tasks.slice(0, 5).map((t: any, i: number) => (
             <div key={i} className="flex items-center gap-2 text-[11px]">
               <span className={`w-1.5 h-1.5 rounded-full ${
-                t.priority === "high" ? "bg-red-400" : t.priority === "medium" ? "bg-yellow-400" : "bg-text-muted"
+                t.priority === "high" ? "bg-red-400" : t.priority === "medium" ? "bg-amber-400" : "bg-text-muted"
               }`} />
               <span className="text-text-secondary">{t.title}</span>
             </div>
@@ -986,7 +986,7 @@ function TeamBoardArtefact({ title, payload }: { title: string; payload: Record<
         </div>
       )}
       {payload.pending_approvals?.length > 0 && (
-        <div className="mt-2 text-[10px] px-2 py-1 rounded-lg bg-yellow-500/10 text-yellow-400">
+        <div className="mt-2 text-[10px] px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400">
           {payload.pending_approvals.length} pending approvals
         </div>
       )}

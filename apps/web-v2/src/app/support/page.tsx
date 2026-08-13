@@ -50,12 +50,12 @@ export default function SupportPage() {
           </div>
 
           <div className="glass rounded-xl p-5">
-            <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center mb-3">
-              <Zap className="w-5 h-5 text-yellow-400" />
+            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-3">
+              <Zap className="w-5 h-5 text-accent" />
             </div>
             <h3 className="font-display font-semibold text-text mb-1">Feature Requests</h3>
             <p className="text-xs text-text-secondary mb-2">Suggest new features or improvements.</p>
-            <p className="text-xs text-yellow-400">features@prachar.ai</p>
+            <p className="text-xs text-accent">features@prachar.ai</p>
           </div>
         </div>
 

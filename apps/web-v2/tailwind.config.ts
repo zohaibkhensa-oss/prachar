@@ -15,13 +15,13 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // ─── Dark-first palette ───
+        // ─── Neon-Black palette ───
         bg: {
-          DEFAULT: "#0B0F14",
-          surface: "#111827",
-          card: "#161B22",
-          elevated: "#1C2333",
-          hover: "#1F2937",
+          DEFAULT: "#08090D",
+          surface: "#0F1117",
+          card: "#131620",
+          elevated: "#1A1E2A",
+          hover: "#1F2433",
         },
         text: {
           DEFAULT: "#F9FAFB",
@@ -30,18 +30,18 @@ const config: Config = {
           muted: "#475569",
         },
         accent: {
-          DEFAULT: "#FFD400",
-          dark: "#E6C000",
-          glow: "rgba(255,212,0,0.15)",
+          DEFAULT: "#BEF264",
+          dark: "#A3E635",
+          glow: "rgba(190,242,100,0.15)",
         },
         success: "#22C55E",
         danger: "#EF4444",
         info: "#3B82F6",
         warning: "#F59E0B",
-        // Legacy aliases for backward compat
-        ink: { DEFAULT: "#0B0F14" },
-        paper: { DEFAULT: "#0B0F14" },
-        yellow: { DEFAULT: "#FFD400", dark: "#E6C000" },
+        // Legacy aliases (map to new neon theme)
+        ink: { DEFAULT: "#08090D" },
+        paper: { DEFAULT: "#08090D" },
+        yellow: { DEFAULT: "#BEF264", dark: "#A3E635" },
         blue: "#3B82F6",
       },
       fontFamily: {
@@ -79,7 +79,7 @@ const config: Config = {
         "3d": "0 8px 24px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
         "3d-lg": "0 16px 48px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
         "3d-xl": "0 32px 64px rgba(0,0,0,0.6), 0 8px 32px rgba(0,0,0,0.4)",
-        glow: "0 0 24px rgba(255,212,0,0.2)",
+        glow: "0 0 24px rgba(190,242,100,0.2)",
         "glow-blue": "0 0 24px rgba(59,130,246,0.2)",
         "glow-green": "0 0 24px rgba(34,197,94,0.2)",
         "glow-red": "0 0 24px rgba(239,68,68,0.2)",
@@ -88,11 +88,11 @@ const config: Config = {
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-        "gradient-mesh": "radial-gradient(at 0% 0%, rgba(59,130,246,0.08) 0%, transparent 50%), radial-gradient(at 100% 0%, rgba(255,212,0,0.06) 0%, transparent 50%), radial-gradient(at 50% 100%, rgba(34,197,94,0.05) 0%, transparent 50%)",
-        "gradient-surface": "linear-gradient(145deg, #161B22 0%, #111827 100%)",
-        "gradient-card": "linear-gradient(145deg, rgba(28,35,51,0.6) 0%, rgba(17,24,39,0.6) 100%)",
-        "gradient-accent": "linear-gradient(135deg, #FFD400 0%, #E6C000 100%)",
-        "gradient-dark": "linear-gradient(180deg, #0B0F14 0%, #111827 100%)",
+        "gradient-mesh": "radial-gradient(at 0% 0%, rgba(59,130,246,0.08) 0%, transparent 50%), radial-gradient(at 100% 0%, rgba(190,242,100,0.06) 0%, transparent 50%), radial-gradient(at 50% 100%, rgba(34,197,94,0.05) 0%, transparent 50%)",
+        "gradient-surface": "linear-gradient(145deg, #131620 0%, #0F1117 100%)",
+        "gradient-card": "linear-gradient(145deg, rgba(26,30,42,0.6) 0%, rgba(15,17,23,0.6) 100%)",
+        "gradient-accent": "linear-gradient(135deg, #BEF264 0%, #A3E635 100%)",
+        "gradient-dark": "linear-gradient(180deg, #08090D 0%, #0F1117 100%)",
       },
       keyframes: {
         "fade-in": {
@@ -112,8 +112,8 @@ const config: Config = {
           "100%": { backgroundPosition: "1000px 0" },
         },
         "glow-pulse": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(255,212,0,0.1)" },
-          "50%": { boxShadow: "0 0 40px rgba(255,212,0,0.25)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(190,242,100,0.1)" },
+          "50%": { boxShadow: "0 0 40px rgba(190,242,100,0.25)" },
         },
         "ai-thinking": {
           "0%, 100%": { opacity: "0.3" },

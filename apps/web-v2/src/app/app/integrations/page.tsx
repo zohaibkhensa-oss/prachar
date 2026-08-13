@@ -32,7 +32,7 @@ const categoryColors: Record<string, string> = {
   ecommerce: "text-green-400 bg-green-500/10",
   crm: "text-orange-400 bg-orange-500/10",
   email: "text-pink-400 bg-pink-500/10",
-  ads: "text-yellow-400 bg-yellow-500/10",
+  ads: "text-amber-400 bg-amber-500/10",
 };
 
 const capabilityIcons: Record<string, typeof Activity> = {

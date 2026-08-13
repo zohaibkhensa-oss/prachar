@@ -33,7 +33,7 @@ interface MetricsChartProps {
 const METRIC_COLORS: Record<string, string> = {
   impressions: "#60a5fa",
   clicks: "#a78bfa",
-  conversions: "#FFD400",
+  conversions: "#BEF264",
   spend: "#f472b6",
   revenue: "#34d399",
 };
@@ -50,7 +50,7 @@ function barColor(entry: { metric?: string; note?: string }): string {
   if (entry.note && entry.note.startsWith("spike")) {
     return NOTE_COLOR.spike!;
   }
-  return METRIC_COLORS[entry.metric ?? ""] ?? "#FFD400";
+  return METRIC_COLORS[entry.metric ?? ""] ?? "#BEF264";
 }
 
 interface ChartPoint {

@@ -40,7 +40,7 @@ const TABS = ["Generated Videos", "Video Templates", "Voice Library", "Performan
 const SCENE_GRADIENTS = [
   "from-blue-600/40 via-cyan-500/30 to-sky-400/20",
   "from-purple-600/40 via-pink-500/30 to-rose-400/20",
-  "from-amber-600/40 via-orange-500/30 to-yellow-400/20",
+  "from-amber-600/40 via-orange-500/30 to-lime-400/20",
   "from-emerald-600/40 via-green-500/30 to-teal-400/20",
   "from-indigo-600/40 via-violet-500/30 to-purple-400/20",
   "from-rose-600/40 via-red-500/30 to-orange-400/20",

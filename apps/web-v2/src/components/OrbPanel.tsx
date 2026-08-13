@@ -402,11 +402,11 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
                 msg.role === "user"
                   ? "bg-gradient-to-br from-accent to-orange-500 text-bg"
                   : "bg-white/[0.04] border border-white/[0.06] text-text",
-                msg.isClarifying && "border-yellow-400/20 bg-yellow-400/[0.04]"
+                msg.isClarifying && "border-amber-400/20 bg-amber-400/[0.04]"
               )}
             >
               {msg.isClarifying && (
-                <div className="text-[10px] text-yellow-400 mb-1 font-medium">
+                <div className="text-[10px] text-amber-400 mb-1 font-medium">
                   ✦ Clarifying
                 </div>
               )}
@@ -482,11 +482,11 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="rounded-xl border border-yellow-400/20 bg-yellow-400/[0.04] p-4 space-y-3"
+              className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-4 space-y-3"
             >
               <div className="flex items-center gap-2">
-                <span className="text-yellow-400 text-lg">⚠</span>
-                <span className="text-sm font-semibold text-yellow-400">Approval needed</span>
+                <span className="text-amber-400 text-lg">⚠</span>
+                <span className="text-sm font-semibold text-amber-400">Approval needed</span>
               </div>
               <p className="text-sm text-text-secondary">
                 {session.approvalRequest.reason}
