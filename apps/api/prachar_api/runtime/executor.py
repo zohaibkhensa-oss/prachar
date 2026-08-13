@@ -233,7 +233,12 @@ class ExecutionEngine:
                 result.warnings = [
                     f"{nr.tool} failed: {nr.error}" for nr in failed
                 ]
-                # Don't set success=False — the graph completed, just with warnings
+                # If ALL nodes failed, the execution did not succeed.
+                # Only keep success=True for partial failures (some tools
+                # succeeded, some failed).
+                succeeded = result.successful_nodes
+                if not succeeded:
+                    result.success = False
 
         return result
 

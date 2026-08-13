@@ -138,6 +138,17 @@ class ResponseComposer:
                 "suggested_actions": [],
             }
         if not execution.success:
+            # Check for budget exceeded in warnings
+            budget_warning = next(
+                (w for w in execution.warnings if "budget exceeded" in w.lower()),
+                None,
+            )
+            if budget_warning:
+                return {
+                    "reply": "I've reached your monthly AI usage limit. You can upgrade your plan in Settings → Billing to get more tokens, or try again next month when your quota resets.",
+                    "summary": "Budget exceeded",
+                    "suggested_actions": ["Upgrade plan", "View billing"],
+                }
             return {
                 "reply": f"I ran into an issue: {execution.error or 'something went wrong'}. Want me to try again?",
                 "summary": "Error",
