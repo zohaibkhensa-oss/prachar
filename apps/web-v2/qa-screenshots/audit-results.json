@@ -1,0 +1,664 @@
+[
+  {
+    "route": "/login",
+    "name": "login",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 4,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/register",
+    "name": "register",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 4,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/auth/forgot-password",
+    "name": "forgot-password",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 2,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/auth/resend-verification",
+    "name": "resend-verification",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 2,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/auth/reset-password",
+    "name": "reset-password",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 2,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/auth/verify",
+    "name": "verify",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 1,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/onboarding",
+    "name": "onboarding",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 3,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/privacy",
+    "name": "privacy",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 1,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/terms",
+    "name": "terms",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 1,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/support",
+    "name": "support",
+    "status": "PASS",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 1,
+    "consoleErrors": [],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app",
+    "name": "dashboard",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 18,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/campaigns",
+    "name": "campaigns",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 11,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/creative-studio",
+    "name": "creative-studio",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=GO70ikNwR0RdmnHR - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/review",
+    "name": "review",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/performance",
+    "name": "performance",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/timeline",
+    "name": "timeline",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 9,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/video",
+    "name": "video",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 34,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/images",
+    "name": "images",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 32,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/design",
+    "name": "design",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/brands",
+    "name": "brands",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/channels",
+    "name": "channels",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 13,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=dlyaBxgILuB0khKv - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/calendar",
+    "name": "calendar",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 17,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/reviews",
+    "name": "reviews",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 9,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/settings",
+    "name": "settings",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 15,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/knowledge",
+    "name": "knowledge",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 13,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/integrations",
+    "name": "integrations",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 9,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/connections",
+    "name": "connections",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 61,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=gLIIK5ZNx6CiVSLm - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/reports",
+    "name": "reports",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 17,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/analytics",
+    "name": "analytics",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/creative",
+    "name": "creative",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 11,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=meOx2X9kZZZTPSmt - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/repurpose",
+    "name": "repurpose",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/runtime",
+    "name": "runtime",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 12,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=mz44rNp7L8xY3jWV - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/pricing",
+    "name": "pricing",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=IlH_HY4ujqq-vJpB - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/shop",
+    "name": "shop",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/bio",
+    "name": "bio",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=DXG_Bls_OtTVo6hi - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/listening",
+    "name": "listening",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=wAkdbKTRfZ8RQ8vJ - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/marketplace",
+    "name": "marketplace",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/influencers",
+    "name": "influencers",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=z4evPBjhIX0VocE8 - net::ERR_ABORTED"
+    ]
+  },
+  {
+    "route": "/app/advocacy",
+    "name": "advocacy",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/audience",
+    "name": "audience",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 429 (Too Many Requests)"
+    ],
+    "pageErrors": [],
+    "networkErrors": []
+  },
+  {
+    "route": "/app/youtube-plan",
+    "name": "youtube-plan",
+    "status": "FAIL",
+    "hasContent": true,
+    "hasOverflow": false,
+    "hasMobileOverflow": false,
+    "yellowRemnant": false,
+    "buttonCount": 10,
+    "consoleErrors": [
+      "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "Failed to load resource: the server responded with a status of 404 (Not Found)"
+    ],
+    "pageErrors": [],
+    "networkErrors": [
+      "GET http://localhost:3000/login?_rsc=Lmmj7lsTfufzEqwD - net::ERR_ABORTED"
+    ]
+  }
+]

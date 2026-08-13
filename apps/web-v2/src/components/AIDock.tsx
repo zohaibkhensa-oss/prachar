@@ -44,9 +44,9 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 lg:left-[60px] right-0 z-50 h-16 bg-bg-surface/90 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-center">
+    <div className="fixed bottom-0 left-0 lg:left-[60px] right-0 z-50 h-16 bg-bg-surface/90 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-center overflow-hidden">
       {/* Left items (2) */}
-      <div className="flex items-center flex-1 justify-end gap-1 pr-4">
+      <div className="flex items-center flex-1 justify-end gap-1 pr-2 sm:pr-4">
         {DOCK_ITEMS.slice(0, 2).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -55,19 +55,19 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-lg transition-colors",
+                "flex flex-col items-center gap-0.5 px-2 sm:px-4 py-1.5 rounded-lg transition-colors min-w-0",
                 active ? "text-accent" : "text-text-muted hover:text-text-secondary",
               )}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-medium truncate">{item.label}</span>
             </Link>
           );
         })}
       </div>
 
       {/* Center AI orb — prominent, pulsing, labeled */}
-      <div className="flex flex-col items-center gap-0.5 px-2 relative">
+      <div className="flex flex-col items-center gap-0.5 px-2 relative overflow-visible shrink-0">
         {/* Pulsing ring to draw attention */}
         <motion.div
           className="absolute -top-1 left-1/2 -translate-x-1/2 rounded-full"
@@ -127,7 +127,7 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
       </div>
 
       {/* Right items (2) */}
-      <div className="flex items-center flex-1 justify-start gap-1 pl-4">
+      <div className="flex items-center flex-1 justify-start gap-1 pl-2 sm:pl-4">
         {DOCK_ITEMS.slice(2).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -136,12 +136,12 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-lg transition-colors",
+                "flex flex-col items-center gap-0.5 px-2 sm:px-4 py-1.5 rounded-lg transition-colors min-w-0",
                 active ? "text-accent" : "text-text-muted hover:text-text-secondary",
               )}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
+              <span className="text-[10px] font-medium truncate">{item.label}</span>
             </Link>
           );
         })}
