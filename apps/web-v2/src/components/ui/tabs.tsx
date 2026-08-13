@@ -15,23 +15,23 @@ export function Tabs({ tabs, defaultValue, className }: TabsProps) {
 
   return (
     <div className={cn("", className)}>
-      <div className="flex border-3 border-ink">
+      <div className="flex gap-1 p-1 bg-bg-surface rounded-lg border border-white/[0.06]">
         {tabs.map((t) => (
           <button
             key={t.value}
             onClick={() => setActive(t.value)}
             className={cn(
-              "px-4 py-2 font-mono text-xs uppercase tracking-wider transition-colors flex-1",
+              "px-4 py-2 text-sm font-body font-medium rounded-md transition-all duration-200 flex-1 min-h-[36px]",
               active === t.value
-                ? "bg-ink text-paper"
-                : "bg-paper text-ink hover:bg-ink/10",
+                ? "bg-bg-elevated text-text shadow-sm"
+                : "text-text-secondary hover:text-text hover:bg-white/[0.04]",
             )}
           >
             {t.label}
           </button>
         ))}
       </div>
-      <div className="border-3 border-t-0 border-ink p-4">{current?.content}</div>
+      <div className="mt-4">{current?.content}</div>
     </div>
   );
 }

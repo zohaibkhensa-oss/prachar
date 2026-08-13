@@ -24,10 +24,13 @@ export function Dialog({ open, onClose, children, className }: DialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-ink/60" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div
         className={cn(
-          "relative z-10 bg-paper border-3 border-ink p-6 max-w-lg w-full mx-4",
+          "relative z-10 bg-bg-card border border-white/[0.08] rounded-2xl p-6 max-w-lg w-full mx-4 shadow-3d-lg",
           className,
         )}
       >

@@ -10,10 +10,15 @@ export const Card = forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "border-3 border-ink p-6",
-        dark ? "bg-ink text-paper" : "bg-paper text-ink",
+        "rounded-xl border border-white/[0.06] p-6 transition-all duration-300",
+        dark
+          ? "bg-bg-card text-text"
+          : "bg-bg-card text-text",
         className,
       )}
+      style={{
+        backgroundImage: "linear-gradient(145deg, rgba(26,30,42,0.5) 0%, rgba(15,17,23,0.5) 100%)",
+      }}
       {...props}
     />
   ),
@@ -31,7 +36,7 @@ export const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadi
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn("font-display uppercase text-xl tracking-wide", className)}
+      className={cn("font-display text-lg font-semibold tracking-tight text-text", className)}
       {...props}
     />
   ),
