@@ -90,7 +90,7 @@ async def invoke(
         await bus.publish(make_event(
             session_id=session_id,
             type="runtime.session.error",
-            phase=EventPhase.FAILED.value,
+            phase=EventPhase.ERROR.value,
             orb_state=OrbState.ERROR.value,
             data={
                 "error": "AI brain is unavailable right now. Please try again in a moment.",
@@ -270,6 +270,218 @@ async def replay_timeline_entry(
         "decision_id": response.decision_id,
         "stream_url": response.stream_url,
         "replay_of": entry.id,
+    }
+
+
+# ─── GET /runtime/sessions — list past chat sessions ─────────────────────────
+
+
+@router.get("/sessions")
+async def list_sessions(
+    user: CurrentUser,
+    session: SessionDep,
+    brand_id: uuid.UUID | None = Query(None, description="Filter by brand"),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict[str, Any]:
+    """List past chat sessions (ChatGPT/Gemini-style history).
+
+    Groups runtime_events by session_id, extracts the first user message
+    as the title, and returns the most recent sessions.
+    """
+    from sqlalchemy import select, func, and_
+    from ..models.tables import RuntimeEventRecord
+
+    # Build query: group by session_id, get first + last event, event count
+    base_filter = [RuntimeEventRecord.tenant_id == user.tenant_id]
+    if brand_id:
+        # Filter by brand_id stored in event data (invoke events carry it)
+        base_filter.append(
+            RuntimeEventRecord.data["brand_id"].astext == str(brand_id)
+        )
+
+    # Get distinct session_ids with their first event timestamp
+    subq = (
+        select(
+            RuntimeEventRecord.session_id,
+            func.min(RuntimeEventRecord.timestamp).label("first_ts"),
+            func.max(RuntimeEventRecord.timestamp).label("last_ts"),
+            func.count(RuntimeEventRecord.id).label("event_count"),
+        )
+        .where(and_(*base_filter))
+        .group_by(RuntimeEventRecord.session_id)
+        .order_by(func.max(RuntimeEventRecord.timestamp).desc())
+        .limit(limit)
+        .subquery()
+    )
+
+    res = await session.execute(select(subq))
+    rows = res.all()
+
+    sessions: list[dict[str, Any]] = []
+    for row in rows:
+        session_id = row.session_id
+        first_ts = row.first_ts
+        last_ts = row.last_ts
+        event_count = row.event_count
+
+        # Fetch the first user message (from the invoke event data)
+        # and the AI reply (from the session.completed event)
+        events_res = await session.execute(
+            select(RuntimeEventRecord)
+            .where(RuntimeEventRecord.session_id == session_id)
+            .order_by(RuntimeEventRecord.timestamp.asc())
+        )
+        events = events_res.scalars().all()
+
+        title = "New conversation"
+        last_reply = ""
+        has_artefacts = False
+
+        for ev in events:
+            # Extract user message from session.started OR session.completed
+            if ev.type == "runtime.session.started" and ev.data:
+                msg = ev.data.get("message") or ev.data.get("user_message")
+                if msg:
+                    title = msg[:80]
+            if ev.type == "runtime.session.completed" and ev.data:
+                # Fallback: user_message stored in completion event
+                if title == "New conversation":
+                    msg = ev.data.get("user_message")
+                    if msg:
+                        title = msg[:80]
+                resp = ev.data.get("response") or {}
+                last_reply = (resp.get("reply") or "")[:120]
+            # Check for artefacts
+            if ev.type and ev.type.startswith("artefact."):
+                has_artefacts = True
+
+        duration_s = 0
+        if first_ts and last_ts:
+            duration_s = int((last_ts - first_ts).total_seconds())
+
+        sessions.append({
+            "session_id": session_id,
+            "title": title,
+            "preview": last_reply,
+            "timestamp": last_ts.isoformat() if last_ts else "",
+            "created_at": first_ts.isoformat() if first_ts else "",
+            "event_count": event_count,
+            "duration_s": duration_s,
+            "has_artefacts": has_artefacts,
+        })
+
+    return {"sessions": sessions, "count": len(sessions)}
+
+
+# ─── GET /runtime/sessions/{id} — load a session's messages ──────────────────
+
+
+@router.get("/sessions/{session_id}")
+async def get_session_messages(
+    user: CurrentUser,
+    session: SessionDep,
+    session_id: str,
+) -> dict[str, Any]:
+    """Load a past session's conversation messages (for replay/display).
+
+    Reconstructs the user/AI message pairs from persisted runtime events.
+    """
+    from sqlalchemy import select
+    from ..models.tables import RuntimeEventRecord
+
+    res = await session.execute(
+        select(RuntimeEventRecord)
+        .where(
+            RuntimeEventRecord.session_id == session_id,
+            RuntimeEventRecord.tenant_id == user.tenant_id,
+        )
+        .order_by(RuntimeEventRecord.timestamp.asc())
+    )
+    events = res.scalars().all()
+
+    if not events:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "session not found")
+
+    messages: list[dict[str, Any]] = []
+    artefacts: list[dict[str, Any]] = []
+    title = "New conversation"
+    created_at = ""
+    user_msg_added = False
+
+    for ev in events:
+        # User message (from session.started event)
+        if ev.type == "runtime.session.started" and ev.data:
+            msg = ev.data.get("message") or ev.data.get("user_message")
+            if msg:
+                if not title or title == "New conversation":
+                    title = msg[:80]
+                if not created_at:
+                    created_at = ev.timestamp.isoformat() if ev.timestamp else ""
+                messages.append({
+                    "role": "user",
+                    "content": msg,
+                    "timestamp": ev.timestamp.isoformat() if ev.timestamp else "",
+                })
+                user_msg_added = True
+
+        # Planner explanation
+        if ev.type == "planner.decision.created" and ev.data:
+            explanation = ev.data.get("user_explanation")
+            if explanation:
+                messages.append({
+                    "role": "ai",
+                    "content": "",
+                    "explanation": explanation,
+                    "timestamp": ev.timestamp.isoformat() if ev.timestamp else "",
+                })
+
+        # Artefacts
+        if ev.type and ev.type.startswith("artefact.") and ev.data:
+            artefact = ev.data.get("artefact")
+            if artefact:
+                artefacts.append(artefact)
+
+        # AI reply (from session.completed event)
+        if ev.type == "runtime.session.completed" and ev.data:
+            # Fallback: extract user message from completion event if not already added
+            if not user_msg_added:
+                msg = ev.data.get("user_message")
+                if msg:
+                    if not title or title == "New conversation":
+                        title = msg[:80]
+                    messages.append({
+                        "role": "user",
+                        "content": msg,
+                        "timestamp": ev.timestamp.isoformat() if ev.timestamp else "",
+                    })
+                    user_msg_added = True
+
+            resp = ev.data.get("response") or {}
+            reply = resp.get("reply") or ""
+            suggestions = resp.get("suggested_actions") or []
+            if reply:
+                messages.append({
+                    "role": "ai",
+                    "content": reply,
+                    "suggestions": suggestions,
+                    "artefacts": artefacts if artefacts else None,
+                    "timestamp": ev.timestamp.isoformat() if ev.timestamp else "",
+                })
+                artefacts = []  # consumed
+
+        # Error
+        if ev.type == "runtime.session.error" and ev.data:
+            messages.append({
+                "role": "ai",
+                "content": ev.data.get("error") or "Something went wrong.",
+                "timestamp": ev.timestamp.isoformat() if ev.timestamp else "",
+            })
+
+    return {
+        "session_id": session_id,
+        "title": title,
+        "created_at": created_at,
+        "messages": messages,
     }
 
 

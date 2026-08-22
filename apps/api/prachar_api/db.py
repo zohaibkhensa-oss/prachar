@@ -85,11 +85,19 @@ async def get_session(request: Request):
 
 @asynccontextmanager
 async def session_scope(tenant_id: str | None = None) -> AsyncIterator[AsyncSession]:
-    """Imperative context for workers/scripts. Optionally sets RLS context."""
+    """Imperative context for workers/scripts. Optionally sets RLS context.
+
+    Auto-commits on successful exit, rolls back on exception.
+    """
     sm = get_sessionmaker()
     async with sm() as session:
         if tenant_id is not None:
             await session.execute(
                 text("SELECT set_config('app.tenant_id', :tid, true)"), {"tid": str(tenant_id)}
             )
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

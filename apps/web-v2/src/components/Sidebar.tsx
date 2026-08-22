@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Home, Megaphone, Sparkles, CircleCheckBig, TrendingUp,
   Video, Image, Palette, Building2, Share2, Calendar, Star,
-  Settings, ChevronLeft, ChevronRight, LogOut, Zap, Clock,
+  Settings, ChevronLeft, ChevronRight, LogOut, Zap, Clock, MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getToken, clearToken } from "@/lib/auth";
@@ -30,6 +30,7 @@ const BUSINESS_NAV: NavSection[] = [
     section: "Main",
     items: [
       { label: "Home", href: "/app", icon: Home },
+      { label: "Chat History", href: "/app/chat-history", icon: MessageSquare },
       { label: "Campaigns", href: "/app/campaigns", icon: Megaphone },
       { label: "Creative Studio", href: "/app/creative-studio", icon: Sparkles },
       { label: "Review", href: "/app/review", icon: CircleCheckBig },

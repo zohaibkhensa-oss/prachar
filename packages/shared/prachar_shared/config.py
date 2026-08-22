@@ -82,8 +82,6 @@ class Settings(BaseSettings):
     ai_gen_url: str = ""  # Self-hosted GPU service URL (always-on)
     runpod_api_key: str = ""  # RunPod API key for auto spin-up/shut-down
     runpod_gpu_type: str = "rtx4090"  # GPU type: rtx4090, rtx4000, a6000, a100
-    modal_video_url: str = ""  # Modal.com serverless GPU endpoint for video
-    modal_image_url: str = ""  # Modal.com serverless GPU endpoint for image
     ai_default_provider: str = "groq"
     ai_small_model: str = "llama-3.3-70b-versatile"
     ai_large_model: str = "llama-3.3-70b-versatile"

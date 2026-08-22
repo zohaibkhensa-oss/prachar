@@ -1,17 +1,15 @@
-"""AI Video & Image Generation router — Kling 2.5 Turbo (primary) + Gemini Veo (premium/image) + Modal (free).
+"""AI Video & Image Generation router — Grok Imagine 1.5 (primary) + Gemini Veo (fallback).
 
 Video generation priority (cost-optimized):
-  - DEFAULT:  Kling 2.5 Turbo via fal.ai ($0.07/s, 720p + audio) — best value
-  - PREMIUM:  Gemini Veo 3.1 ($0.08-0.40/s, 1080p + audio) — for image-to-video
-  - FREE:     Modal.com self-hosted (free, low quality, ~90s cold start)
+  - DEFAULT:  Grok Imagine 1.5 via fal.ai (~$0.14/s, 720p + native audio) — best value
+  - FALLBACK: Gemini Veo 3.1 ($0.08-0.40/s, 1080p + audio)
 
 Image generation priority:
-  1. Gemini Imagen (if GEMINI_API_KEY set)
+  1. fal.ai Seedream V4.5 (if FAL_KEY set) — best quality, text rendering
+  2. Gemini Imagen (if GEMINI_API_KEY set) — fallback
 
-Image generation priority:
-  1. Gemini Imagen (if GEMINI_API_KEY set)
-  2. Modal.com serverless GPU (if MODAL_IMAGE_URL set)
-  3. fal.ai Flux Schnell (if FAL_KEY set)
+Image editing:
+  1. fal.ai FLUX Kontext Pro ($0.04/image) — instruction-based edits with reference image
 """
 from __future__ import annotations
 
@@ -43,11 +41,14 @@ VEO_TIER_COST_PER_SEC = {
     "standard": 0.40,  # 1080p with audio
 }
 
-# fal.ai models — Kling 2.5 Turbo is the DEFAULT (cheapest with audio)
-# Pricing: $0.07/s at 720p with audio = $0.56 for 8s (vs Veo $0.64-3.20)
+# fal.ai models — Grok Imagine 1.5 is the DEFAULT (best value with native audio)
+# Pricing: ~$0.14/s at 720p with native audio = $2.10 for 15s
+# Supports text-to-video, image-to-video, reference-to-video; 1-15s; 480p/720p/1080p
 FAL_MODELS = {
-    "kling_turbo": "fal-ai/kling-video/kling-2.5-turbo/text-to-video",
-    "kling": "kwaivgi/kling-v3.0-pro/text-to-video",
+    "grok": "xai/grok-imagine-video/v1.5/text-to-video",
+    "grok_imagine": "xai/grok-imagine-video/v1.5/text-to-video",
+    "kling": "fal-ai/kling-video/v2.6/pro/text-to-video",
+    "kling_turbo": "fal-ai/kling-video/v2.6/pro/text-to-video",
     "ltx": "fal-ai/ltx-2.3/text-to-video",
     "seedance_fast": "bytedance/seedance-2.0/fast/text-to-video",
     "seedance": "bytedance/seedance-2.0/text-to-video",
@@ -55,8 +56,8 @@ FAL_MODELS = {
     "pixverse": "fal-ai/pixverse/pixverse-v6/text-to-video",
 }
 
-# Default fal.ai model (best quality-to-price with audio)
-FAL_DEFAULT_MODEL = "kling_turbo"
+# Default fal.ai model (best quality-to-price with native audio)
+FAL_DEFAULT_MODEL = "grok"
 FAL_DEFAULT_COST_PER_SEC = 0.07  # 720p with audio
 
 ASPECT_RATIOS = {
@@ -100,6 +101,14 @@ class ImageGenRequest(BaseModel):
     num_inference_steps: int = 4
 
 
+class ImageEditRequest(BaseModel):
+    prompt: str          # Instruction-based edit prompt (e.g. "change the car to blue")
+    image_url: str       # Reference image URL to edit
+    guidance_scale: float = 2.5
+    num_inference_steps: int = 28
+    seed: int | None = None
+
+
 class VideoGenResponse(BaseModel):
     video_url: str
     model: str
@@ -108,6 +117,19 @@ class VideoGenResponse(BaseModel):
     generation_time: float = 0.0
     gpu_cost_estimate: str = ""
     quality_tier: str = "lite"
+
+
+class TTSRequest(BaseModel):
+    prompt: str          # Text to convert to speech (supports natural-language style instructions)
+    voice: str = "Kore"  # One of 30 voice presets
+    model: str = "gemini-2.5-flash-tts"  # gemini-2.5-flash-tts or gemini-2.5-pro-tts
+    speakers: list[dict[str, str]] | None = None  # Multi-speaker: [{"voice": "Charon", "speaker_id": "Host"}, ...]
+
+
+class TTSResponse(BaseModel):
+    audio_url: str
+    model: str
+    generation_time: float = 0.0
 
 
 class ImageGenResponse(BaseModel):
@@ -124,18 +146,6 @@ def _get_gemini_api_key() -> str | None:
     s = _get_settings()
     key = getattr(s, "gemini_api_key", "") or os.environ.get("GEMINI_API_KEY", "")
     return key.strip() or None
-
-
-def _get_modal_video_url() -> str | None:
-    s = _get_settings()
-    url = getattr(s, "modal_video_url", "") or os.environ.get("MODAL_VIDEO_URL", "")
-    return url.strip() or None
-
-
-def _get_modal_image_url() -> str | None:
-    s = _get_settings()
-    url = getattr(s, "modal_image_url", "") or os.environ.get("MODAL_IMAGE_URL", "")
-    return url.strip() or None
 
 
 def _normalize_quality(req: VideoGenRequest) -> str:
@@ -177,7 +187,7 @@ async def generate_video(
       - standard (premium): Gemini Veo 3.1 ($0.08-0.40/s, 1080p + audio) — if Gemini key set
       - image-to-video: Gemini Veo (only Veo supports image input)
 
-    Fallback chain: Kling (fal.ai) → Gemini Veo → Modal.com (free preview)
+    Fallback chain: Kling (fal.ai) → Gemini Veo
     """
     from ..deps import get_tenant_plan
     from prachar_shared.plans import get_plan
@@ -261,18 +271,9 @@ async def generate_video(
         except Exception as e:
             log.error("fal.ai failed: %s: %s", type(e).__name__, str(e)[:200])
 
-    # --- Last resort: Modal preview ---
-    modal_url = _get_modal_video_url()
-    if modal_url:
-        try:
-            log.info("Last resort: Modal.com preview")
-            return await _call_modal_video(modal_url, enhanced_prompt, req)
-        except Exception as e:
-            log.error("Modal last-resort failed: %s", str(e)[:200])
-
     raise HTTPException(
         status_code=500,
-        detail="No video generation service configured. Set GEMINI_API_KEY (recommended), FAL_KEY, or MODAL_VIDEO_URL in .env",
+        detail="No video generation service configured. Set GEMINI_API_KEY (recommended) or FAL_KEY in .env",
     )
 
 
@@ -283,69 +284,179 @@ async def generate_image(
     req: ImageGenRequest,
     user: CurrentUser,
 ) -> ImageGenResponse:
-    """Generate an image from text.
+    """Generate an image from text (FastAPI endpoint)."""
+    return await _generate_image_core(
+        prompt=req.prompt,
+        width=req.width,
+        height=req.height,
+        num_inference_steps=req.num_inference_steps,
+    )
+
+
+async def _generate_image_core(
+    prompt: str,
+    width: int = 1024,
+    height: int = 1024,
+    num_inference_steps: int = 4,
+) -> ImageGenResponse:
+    """Generate an image from text — core logic, callable from tools.
 
     Priority:
-    1. Gemini Imagen (if GEMINI_API_KEY set) — best quality
-    2. Modal.com serverless GPU (if MODAL_IMAGE_URL set)
-    3. fal.ai Flux Schnell (if FAL_KEY set)
+    1. fal.ai Seedream V4.5 (if FAL_KEY set) — best quality, text rendering
+    2. Gemini Imagen (if GEMINI_API_KEY set) — fallback
     """
-    # Option 1: Gemini Imagen
-    gemini_key = _get_gemini_api_key()
-    if gemini_key:
-        try:
-            log.info("Using Gemini Imagen for image generation")
-            return await _call_gemini_imagen(api_key=gemini_key, prompt=req.prompt, width=req.width, height=req.height)
-        except Exception as e:
-            log.error("Gemini Imagen failed: %s: %s", type(e).__name__, str(e)[:200])
+    # Map width/height to Seedream image_size enum
+    if width == height:
+        image_size = "square_hd"
+    elif width > height:
+        image_size = "landscape_16_9" if width / height > 1.5 else "landscape_4_3"
+    else:
+        image_size = "portrait_16_9" if height / width > 1.5 else "portrait_4_3"
 
-    # Option 2: Modal.com serverless GPU
-    modal_url = _get_modal_image_url()
-    if modal_url:
-        try:
-            log.info("Using Modal.com GPU for image generation")
-            async with httpx.AsyncClient(timeout=300, follow_redirects=True) as client:
-                resp = await client.post(
-                    modal_url,
-                    json={
-                        "prompt": req.prompt,
-                        "width": req.width,
-                        "height": req.height,
-                        "num_inference_steps": req.num_inference_steps,
-                    },
-                    timeout=300,
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    url = data.get("url", "")
-                    return ImageGenResponse(
-                        image_url=url,
-                        model=data.get("model", "modal-sdxl"),
-                        generation_time=data.get("generation_time", 0),
-                    )
-                raise RuntimeError(f"Modal image gen failed: {resp.text[:200]}")
-        except Exception as e:
-            log.error("Modal image gen failed: %s", str(e)[:200])
-
-    # Option 3: fal.ai fallback
+    # Option 1: fal.ai Seedream V4.5
     fal_key = _get_settings().fal_key.strip()
     if fal_key:
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                resp = await client.post(
-                    "https://fal.run/fal-ai/flux/schnell",
-                    headers={"Authorization": f"Key {fal_key}", "Content-Type": "application/json"},
-                    json={"prompt": req.prompt, "image_size": {"width": req.width, "height": req.height}, "num_inference_steps": req.num_inference_steps},
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    url = data.get("images", [{}])[0].get("url", "")
-                    if url:
-                        return ImageGenResponse(image_url=url, model="flux-schnell-fal")
-        except Exception:
-            pass
+            import os
+            os.environ["FAL_KEY"] = fal_key
+            import fal_client
+            log.info("Using Seedream V4.5 for image generation")
+            data = await fal_client.subscribe_async(
+                "fal-ai/bytedance/seedream/v4.5/text-to-image",
+                {
+                    "prompt": prompt,
+                    "image_size": image_size,
+                    "num_images": 1,
+                    "enable_safety_checker": True,
+                },
+            )
+            images = data.get("images", [])
+            if images and images[0].get("url"):
+                return ImageGenResponse(image_url=images[0]["url"], model="seedream-v4.5")
+        except Exception as e:
+            log.error("Seedream V4.5 failed: %s: %s", type(e).__name__, str(e)[:200])
+
+    # Option 2: Gemini Imagen (fallback)
+    gemini_key = _get_gemini_api_key()
+    if gemini_key:
+        try:
+            log.info("Using Gemini Imagen for image generation (fallback)")
+            return await _call_gemini_imagen(api_key=gemini_key, prompt=prompt, width=width, height=height)
+        except Exception as e:
+            log.error("Gemini Imagen failed: %s: %s", type(e).__name__, str(e)[:200])
 
     raise HTTPException(status_code=500, detail="No image generation service available")
+
+
+# ─── Image editing endpoint (FLUX Kontext Pro) ──────────────────────────────
+
+@router.post("/edit-image", response_model=ImageGenResponse)
+async def edit_image(
+    req: ImageEditRequest,
+    user: CurrentUser,
+) -> ImageGenResponse:
+    """Edit an existing image using instruction-based prompts (FLUX Kontext Pro)."""
+    return await _edit_image_core(
+        prompt=req.prompt,
+        image_url=req.image_url,
+        guidance_scale=req.guidance_scale,
+        num_inference_steps=req.num_inference_steps,
+        seed=req.seed,
+    )
+
+
+async def _edit_image_core(
+    prompt: str,
+    image_url: str,
+    guidance_scale: float = 2.5,
+    num_inference_steps: int = 28,
+    seed: int | None = None,
+) -> ImageGenResponse:
+    """Edit an image using FLUX Kontext Pro — instruction-based edits with a reference image.
+
+    Uses fal.ai FLUX.1 Kontext [pro] ($0.04/image).
+    """
+    fal_key = _get_settings().fal_key.strip()
+    if not fal_key:
+        raise HTTPException(status_code=500, detail="FAL_KEY not configured for image editing")
+
+    import os
+    os.environ["FAL_KEY"] = fal_key
+    import fal_client
+
+    payload: dict[str, Any] = {
+        "prompt": prompt,
+        "image_url": image_url,
+        "guidance_scale": guidance_scale,
+        "num_inference_steps": num_inference_steps,
+    }
+    if seed is not None:
+        payload["seed"] = seed
+
+    try:
+        log.info("Using FLUX Kontext Pro for image editing")
+        data = await fal_client.subscribe_async("fal-ai/flux-pro/kontext", payload)
+        images = data.get("images", [])
+        if images and images[0].get("url"):
+            return ImageGenResponse(image_url=images[0]["url"], model="flux-kontext-pro")
+        raise HTTPException(status_code=500, detail="FLUX Kontext returned no image")
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("FLUX Kontext Pro failed: %s: %s", type(e).__name__, str(e)[:200])
+        raise HTTPException(status_code=502, detail=f"Image edit failed: {str(e)[:200]}")
+
+
+# ─── TTS endpoint (Gemini TTS via fal.ai) ───────────────────────────────────
+
+@router.post("/tts", response_model=TTSResponse)
+async def text_to_speech(
+    req: TTSRequest,
+    user: CurrentUser,
+) -> TTSResponse:
+    """Convert text to speech using Gemini TTS via fal.ai.
+
+    Supports 30 voice presets and natural-language control over style, pace,
+    accent, and emotion. Supports multi-speaker synthesis.
+    """
+    fal_key = _get_settings().fal_key.strip()
+    if not fal_key:
+        raise HTTPException(status_code=500, detail="FAL_KEY not configured for TTS")
+
+    import os
+    os.environ["FAL_KEY"] = fal_key
+    import fal_client
+
+    payload: dict[str, Any] = {
+        "prompt": req.prompt,
+        "voice": req.voice,
+        "model": req.model,
+    }
+    if req.speakers:
+        payload["speakers"] = req.speakers
+
+    try:
+        log.info("Using Gemini TTS (voice=%s, model=%s)", req.voice, req.model)
+        data = await fal_client.subscribe_async("fal-ai/gemini-tts", payload)
+        # Response has audio.output with the audio data URI or URL
+        audio = data.get("audio", {})
+        if isinstance(audio, dict):
+            audio_url = audio.get("url", "") or audio.get("output", "")
+        elif isinstance(audio, str):
+            audio_url = audio
+        else:
+            audio_url = ""
+        if not audio_url:
+            # Try alternate fields
+            audio_url = data.get("output", {}).get("url", "") if isinstance(data.get("output"), dict) else data.get("output", "")
+        if not audio_url:
+            raise HTTPException(status_code=500, detail="Gemini TTS returned no audio")
+        return TTSResponse(audio_url=audio_url, model=req.model)
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.error("Gemini TTS failed: %s: %s", type(e).__name__, str(e)[:200])
+        raise HTTPException(status_code=502, detail=f"TTS failed: {str(e)[:200]}")
 
 
 # ─── Gemini Veo implementation ──────────────────────────────────────────────
@@ -466,11 +577,34 @@ def _download_gemini_video(client, video) -> bytes:
 async def _store_video_bytes(data: bytes, filename: str) -> str:
     """Store video bytes and return a URL.
 
-    Uses S3/MinIO if configured, otherwise returns a data URL (base64) as a
-    fallback for local dev. In production this should upload to S3 and return
-    a presigned URL.
+    Uploads to fal.ai storage (which returns a public URL), falling back to
+    a data URL (base64) only if upload fails.
     """
     import base64
+    import os
+    from pathlib import Path
+
+    # Read FAL_KEY from env
+    env = {}
+    env_path = Path(__file__).resolve().parents[3] / ".env"
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            if "=" in line and not line.startswith("#"):
+                k, v = line.split("=", 1)
+                env[k.strip()] = v.strip()
+
+    fal_key = os.environ.get("FAL_KEY") or env.get("FAL_KEY", "")
+    if fal_key:
+        try:
+            os.environ["FAL_KEY"] = fal_key
+            import fal_client
+            # Upload to fal storage — returns a public URL
+            url = await fal_client.upload_async(data, filename, "video/mp4")
+            log.info("video stored at fal storage: %s", url[:80])
+            return url
+        except Exception as exc:
+            log.warning("fal storage upload failed: %s — falling back to data URL", str(exc)[:200])
+
     # Fallback: return a data URL (works in browser, not ideal for production)
     b64 = base64.b64encode(data).decode("ascii")
     return f"data:video/mp4;base64,{b64}"
@@ -535,55 +669,32 @@ def _aspect_ratio_from_dims(width: int, height: int) -> str:
     return "9:16" if height / width > 1.5 else "3:4"
 
 
-# ─── Modal.com (preview tier) ───────────────────────────────────────────────
-
-async def _call_modal_video(modal_url: str, prompt: str, req: VideoGenRequest) -> VideoGenResponse:
-    """Call Modal.com serverless GPU for video generation (preview tier)."""
-    duration_sec = int(req.duration.replace("s", "")) if req.duration.endswith("s") else int(req.duration)
-    num_frames = 16 if duration_sec <= 5 else 24
-
-    async with httpx.AsyncClient(timeout=600, follow_redirects=True) as client:
-        resp = await client.post(
-            modal_url,
-            json={
-                "prompt": prompt,
-                "duration": duration_sec,
-                "num_frames": num_frames,
-            },
-            timeout=600,
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            video_url = data.get("url", "")
-            return VideoGenResponse(
-                video_url=video_url,
-                model=data.get("model", "modal-animatediff"),
-                duration=req.duration,
-                resolution=req.resolution,
-                generation_time=data.get("generation_time", 0),
-                gpu_cost_estimate="~$0.01-0.02 (Modal T4 serverless, preview quality)",
-                quality_tier="preview",
-            )
-        raise RuntimeError(f"Modal video gen failed: {resp.text[:200]}")
-
-
 # ─── fal.ai (fallback) ──────────────────────────────────────────────────────
 
 async def _call_fal_video(fal_key: str, req: VideoGenRequest, prompt: str, aspect: str) -> VideoGenResponse:
-    """Call fal.ai for video generation (Kling 2.5 Turbo primary, others fallback)."""
+    """Call fal.ai for video generation using the official fal_client library."""
+    import os
+    os.environ["FAL_KEY"] = fal_key
+    import fal_client
+
     model_id = FAL_MODELS.get(req.model, FAL_MODELS[FAL_DEFAULT_MODEL])
-    submit_url = f"https://queue.fal.run/{model_id}"
-    headers = {"Authorization": f"Key {fal_key}", "Content-Type": "application/json"}
 
     # Build payload based on model
     payload: dict[str, Any] = {"prompt": prompt}
 
-    # Kling 2.5 Turbo: supports duration, aspect_ratio, negative_prompt
-    if "kling-2.5-turbo" in model_id or "kling" in model_id:
+    # Grok Imagine 1.5: duration (int 1-15), resolution, aspect_ratio; native audio always included
+    if "grok" in model_id:
+        duration_val = int(str(req.duration).replace("s", "").replace(".0", ""))
+        payload["duration"] = min(max(duration_val, 1), 15)  # Grok supports 1-15s
+        payload["aspect_ratio"] = aspect
+        payload["resolution"] = "720p"  # 480p / 720p / 1080p
+    # Kling 2.6 Pro: supports duration, aspect_ratio, negative_prompt, generate_audio
+    elif "kling" in model_id:
         duration_val = str(req.duration).replace("s", "")
         payload["duration"] = duration_val  # "5" or "10" (Kling supports these)
         payload["aspect_ratio"] = aspect
         payload["negative_prompt"] = "blur, distort, and low quality, low resolution, watermark"
+        payload["generate_audio"] = True  # Native audio generation
     elif "seedance" in model_id:
         payload["duration"] = str(req.duration).replace("s", "")
         payload["aspect_ratio"] = aspect
@@ -596,63 +707,30 @@ async def _call_fal_video(fal_key: str, req: VideoGenRequest, prompt: str, aspec
     else:
         payload["resolution"] = req.resolution
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(submit_url, headers=headers, json=payload)
-        if resp.status_code == 403:
-            detail = resp.json().get("detail", "fal.ai balance exhausted")
-            raise HTTPException(status_code=402, detail=f"fal.ai: {detail}")
-        if resp.status_code != 200:
-            raise HTTPException(status_code=502, detail=f"fal.ai error: {resp.text[:200]}")
+    log.info("Using fal_client.subscribe_async for model %s", model_id)
 
-        result = resp.json()
-        request_id = result.get("request_id")
-        if not request_id:
-            video_url = _extract_video_url(result)
-            if video_url:
-                dur_sec = int(str(req.duration).replace("s", ""))
-                cost = dur_sec * FAL_DEFAULT_COST_PER_SEC
-                return VideoGenResponse(
-                    video_url=video_url, model=model_id, duration=req.duration,
-                    resolution="720p", quality_tier="kling-turbo",
-                    gpu_cost_estimate=f"~${cost:.2f} (Kling 2.5 Turbo 720p + audio)",
-                )
-            raise HTTPException(status_code=500, detail="fal.ai returned no request_id")
+    try:
+        data = await fal_client.subscribe_async(model_id, payload)
+    except Exception as exc:
+        err_msg = str(exc)[:300]
+        if "402" in err_msg or "403" in err_msg or "locked" in err_msg.lower():
+            raise HTTPException(status_code=402, detail=f"fal.ai: {err_msg}")
+        raise HTTPException(status_code=502, detail=f"fal.ai error: {err_msg}")
 
-        log.info("fal.ai request %s, polling...", request_id)
-        status_url = f"https://queue.fal.run/{model_id}/requests/{request_id}/status"
-        result_url = f"https://queue.fal.run/{model_id}/requests/{request_id}"
+    video_url = _extract_video_url(data)
+    if not video_url:
+        raise HTTPException(status_code=500, detail=f"fal.ai completed but no video URL. Response: {str(data)[:200]}")
 
-        for attempt in range(120):
-            import asyncio
-            await asyncio.sleep(2)
-            status_resp = await client.get(status_url, headers=headers)
-            if status_resp.status_code != 200:
-                continue
-            status_data = status_resp.json()
-            status = status_data.get("status", "")
-            log.info("fal.ai [%d]: %s", attempt, status)
-
-            if status == "COMPLETED":
-                result_resp = await client.get(result_url, headers=headers)
-                if result_resp.status_code == 200:
-                    video_url = _extract_video_url(result_resp.json())
-                    if video_url:
-                        dur_sec = int(str(req.duration).replace("s", ""))
-                        cost = dur_sec * FAL_DEFAULT_COST_PER_SEC
-                        return VideoGenResponse(
-                            video_url=video_url,
-                            model=model_id,
-                            duration=req.duration,
-                            resolution="720p",
-                            quality_tier="kling-turbo",
-                            generation_time=attempt * 2,
-                            gpu_cost_estimate=f"~${cost:.2f} (Kling 2.5 Turbo 720p + audio)",
-                        )
-                raise HTTPException(status_code=500, detail="fal.ai completed but no video URL")
-            if status == "FAILED":
-                raise HTTPException(status_code=502, detail=f"fal.ai failed: {status_data.get('error', 'unknown')}")
-
-        raise HTTPException(status_code=504, detail="fal.ai timed out")
+    dur_sec = int(str(req.duration).replace("s", ""))
+    cost = dur_sec * FAL_DEFAULT_COST_PER_SEC
+    return VideoGenResponse(
+        video_url=video_url,
+        model=model_id,
+        duration=req.duration,
+        resolution="720p",
+        quality_tier="kling-turbo",
+        gpu_cost_estimate=f"~${cost:.2f} (Kling 2.5 Turbo 720p + audio)",
+    )
 
 
 def _extract_video_url(data: dict) -> str | None:

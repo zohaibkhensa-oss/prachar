@@ -14,11 +14,7 @@ export class ApiError extends Error {
 // The rewrite in next.config.mjs forwards /api/* to http://localhost:8000/*
 const BASE = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
 
-function authHeaders(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = window.localStorage.getItem("prachar_token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
+import { authedFetch } from "./auth";
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -35,43 +31,42 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    cache: "no-store",
+  const res = await authedFetch(`${BASE}${path}`, {
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store" as RequestInit["cache"],
   });
   return handle<T>(res);
 }
 
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await authedFetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   return handle<T>(res);
 }
 
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await authedFetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { ...authHeaders() },
     body: formData,
   });
   return handle<T>(res);
 }
 
 export async function apiDelete<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await authedFetch(`${BASE}${path}`, {
     method: "DELETE",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
   });
   return handle<T>(res);
 }
 
 export async function apiPostStream(path: string, body?: unknown): Promise<Response> {
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await authedFetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {

@@ -686,6 +686,7 @@ class Runtime:
                     "cost_usd": result.total_cost_usd,
                     "warnings": result.warnings if result.has_warnings else [],
                     "health_warnings": state.decision.health_warnings,
+                    "user_message": message,
                 },
             ))
             await bus.close()

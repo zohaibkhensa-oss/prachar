@@ -146,7 +146,7 @@ async def chat_respond(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
 
     completion = await gateway.async_complete(
         prompt=prompt,
-        tier=Tier.large,
+        tier=Tier.small,
         task="chat",
         tenant_id=str(ctx.tenant_id),
         plan=ctx.billing.plan,
@@ -179,7 +179,7 @@ async def chat_respond(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     display_name="Business Analysis",
     description="Analyzes business positioning, audience, and competitors. Returns structured profiles.",
     category=ToolCategory.CAMPAIGN,
-    input_schema={"goal": "string", "budget": "string", "locale": "string"},
+    input_schema={"goal": "string", "locale": "string", "description": "string"},
     output_schema={"business_profile": "object", "audience_profile": "object", "competitor_profile": "object"},
     estimated_cost_usd=0.05,
     estimated_time_ms=8000,
@@ -198,9 +198,13 @@ async def campaign_brain_analyse(ctx: AIContext, input: dict[str, Any]) -> dict[
     brain = CampaignBrain()
     result = await brain.analyse(
         brand_id=ctx.brand_id,
+        tenant_id=ctx.tenant_id,
         goal=input.get("goal", ""),
-        budget=input.get("budget", ""),
         locale=input.get("locale", "en-IN"),
+        description=input.get("description", ""),
+        business_name=ctx.brand.name if ctx.brand else "",
+        website=ctx.brand.website if ctx.brand else "",
+        category=ctx.brand.category if ctx.brand else "",
     )
     return {
         "business_profile": result.get("business_profile", {}),
@@ -228,7 +232,7 @@ async def campaign_brain_analyse(ctx: AIContext, input: dict[str, Any]) -> dict[
     display_name="Campaign Strategy",
     description="Generates marketing objective and campaign strategy from business + audience profiles.",
     category=ToolCategory.CAMPAIGN,
-    input_schema={"goal": "string", "business_profile": "object", "audience_profile": "object"},
+    input_schema={"goal": "string", "budget": "string", "locale": "string"},
     output_schema={"marketing_objective": "object", "campaign_strategy": "object"},
     estimated_cost_usd=0.08,
     estimated_time_ms=8000,
@@ -247,9 +251,13 @@ async def campaign_brain_strategy(ctx: AIContext, input: dict[str, Any]) -> dict
     brain = CampaignBrain()
     result = await brain.generate_strategy(
         brand_id=ctx.brand_id,
+        tenant_id=ctx.tenant_id,
         goal=input.get("goal", ""),
-        business_profile=input.get("business_profile"),
-        audience_profile=input.get("audience_profile"),
+        budget=input.get("budget", ""),
+        locale=input.get("locale", "en-IN"),
+        business_name=ctx.brand.name if ctx.brand else "",
+        website=ctx.brand.website if ctx.brand else "",
+        category=ctx.brand.category if ctx.brand else "",
     )
     return {
         "marketing_objective": result.get("marketing_objective", {}),
@@ -271,7 +279,7 @@ async def campaign_brain_strategy(ctx: AIContext, input: dict[str, Any]) -> dict
     display_name="Creative Direction",
     description="Determines visual style, mood, colour palette, typography before any assets are generated.",
     category=ToolCategory.CAMPAIGN,
-    input_schema={"campaign_strategy": "object", "audience_profile": "object"},
+    input_schema={"goal": "string", "budget": "string", "locale": "string"},
     output_schema={"creative_direction": "object"},
     estimated_cost_usd=0.06,
     estimated_time_ms=6000,
@@ -288,10 +296,15 @@ async def campaign_brain_creative(ctx: AIContext, input: dict[str, Any]) -> dict
     from prachar_shared.marketing_intelligence import CampaignBrain
 
     brain = CampaignBrain()
-    result = await brain.generate_creative_direction(
+    result = await brain.generate_strategy(
         brand_id=ctx.brand_id,
-        campaign_strategy=input.get("campaign_strategy"),
-        audience_profile=input.get("audience_profile"),
+        tenant_id=ctx.tenant_id,
+        goal=input.get("goal", ""),
+        budget=input.get("budget", ""),
+        locale=input.get("locale", "en-IN"),
+        business_name=ctx.brand.name if ctx.brand else "",
+        website=ctx.brand.website if ctx.brand else "",
+        category=ctx.brand.category if ctx.brand else "",
     )
     return {
         "creative_direction": result.get("creative_direction", {}),
@@ -331,9 +344,13 @@ async def campaign_brain_media(ctx: AIContext, input: dict[str, Any]) -> dict[st
     brain = CampaignBrain()
     result = await brain.generate_media_plan(
         brand_id=ctx.brand_id,
+        tenant_id=ctx.tenant_id,
         goal=input.get("goal", ""),
         budget=input.get("budget", ""),
-        campaign_strategy=input.get("campaign_strategy"),
+        campaign_strategy=input.get("campaign_strategy") or {},
+        business_profile={},
+        audience_profile={},
+        objective={},
     )
     return {
         "media_plan": result.get("media_plan", {}),
@@ -375,10 +392,14 @@ async def campaign_brain_full_campaign(ctx: AIContext, input: dict[str, Any]) ->
     brain = CampaignBrain()
     result = await brain.generate_campaign(
         brand_id=ctx.brand_id,
+        tenant_id=ctx.tenant_id,
         goal=input.get("goal", ""),
         budget=input.get("budget", ""),
         locale=input.get("locale", "en-IN"),
         name=input.get("name", ""),
+        business_name=ctx.brand.name if ctx.brand else "",
+        website=ctx.brand.website if ctx.brand else "",
+        category=ctx.brand.category if ctx.brand else "",
         save=True,
     )
     return {
@@ -798,9 +819,9 @@ async def creative_studio_generate(ctx: AIContext, input: dict[str, Any]) -> dic
 @register_tool(ToolManifest(
     name="creative_studio.generate_image",
     display_name="AI Image Generator",
-    description="Generates an AI image from a text prompt.",
+    description="Generates an AI image from a text prompt. Returns the image URL.",
     category=ToolCategory.CREATIVE,
-    input_schema={"prompt": "string", "width": "number", "height": "number"},
+    input_schema={"prompt": "string (description of the image to generate)", "width": "number (optional, default 1024)", "height": "number (optional, default 1024)"},
     output_schema={"image_url": "string", "model": "string"},
     estimated_cost_usd=0.08,
     estimated_time_ms=10000,
@@ -809,29 +830,42 @@ async def creative_studio_generate(ctx: AIContext, input: dict[str, Any]) -> dic
     quality_score=0.85,
     supports_streaming=True,
     requires_brand=False,
-    side_effects=SideEffects.EXTERNAL,
+    requires_user_approval=False,
+    side_effects=SideEffects.WRITES,
     memory_categories=[MemoryCategory.BRAND, MemoryCategory.CREATIVE, MemoryCategory.AUDIENCE],
 ))
 async def creative_studio_generate_image(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
-    """Generate an AI image."""
-    from ..routers.video_gen import generate_image
+    """Generate an AI image from a text prompt."""
+    from ..routers.video_gen import _generate_image_core
 
-    result = await generate_image(
-        prompt=input.get("prompt", ""),
-        width=input.get("width", 1024),
-        height=input.get("height", 1024),
-    )
-    if isinstance(result, dict) and result.get("image_url"):
-        result["artefacts"] = [
-            image_artefact(
-                url=result["image_url"],
-                alt=input.get("prompt", "Generated image"),
-                prompt=input.get("prompt", ""),
-                width=input.get("width", 1024),
-                height=input.get("height", 1024),
-            ).to_dict()
-        ]
-    return result
+    prompt = (input.get("prompt") or "").strip()
+    if not prompt:
+        return {"error": "prompt is required", "image_url": "", "model": ""}
+
+    width = int(input.get("width", 1024))
+    height = int(input.get("height", 1024))
+
+    try:
+        result = await _generate_image_core(
+            prompt=prompt,
+            width=width,
+            height=height,
+        )
+        return {
+            "image_url": result.image_url,
+            "model": result.model,
+            "artefacts": [
+                image_artefact(
+                    url=result.image_url,
+                    alt=prompt,
+                    prompt=prompt,
+                    width=width,
+                    height=height,
+                ).to_dict()
+            ],
+        }
+    except Exception as exc:
+        return {"error": f"image generation failed: {exc}", "image_url": "", "model": ""}
 
 
 # ─── Performance Tools ──────────────────────────────────────────────────────

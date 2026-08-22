@@ -89,6 +89,7 @@ class AIGateway:
         user_input: str | None = None,
         prompt_version: str = "",
         campaign_id: str = "",
+        model_override: str | None = None,
     ) -> Completion:
         # ─── Safety: check for prompt injection ───────────────────────────
         if user_input:
@@ -112,7 +113,7 @@ class AIGateway:
 
         request_id = new_request_id()
         t0 = time.monotonic()
-        model = pick_model(tier)
+        model = model_override if model_override else pick_model(tier)
         key = self.cache.key(model, prompt, schema)
 
         cached = self.cache.get(key)

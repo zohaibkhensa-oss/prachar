@@ -9,10 +9,10 @@ const apiUrl =
 const nextConfig = {
   reactStrictMode: true,
   typedRoutes: false,
-  // Video generation via Modal can take 90-180s (cold start).
-  // Default proxy timeout is 30s which is too short.
+  // Video generation can take up to 5 min for 60s videos (multi-clip stitch).
+  // SSE stream must stay alive for the full duration.
   experimental: {
-    proxyTimeout: 300_000, // 5 minutes
+    proxyTimeout: 30 * 60 * 1000, // 30 minutes
   },
   async rewrites() {
     return [

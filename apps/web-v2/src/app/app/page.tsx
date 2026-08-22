@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { CurvOrb } from "@/components/CurvOrb";
 import { ArtefactRenderer, type Artefact } from "@/components/ArtefactRenderer";
+import { TypewriterText } from "@/components/TypewriterText";
+import { ThinkingBubble } from "@/components/ThinkingBubble";
 import { useActiveBrand } from "@/lib/hooks";
 import { useRuntimeSession, type AIEvent } from "@/lib/runtime";
+import { apiGet } from "@/lib/api";
+import { getToolLabel, getContextualSuggestions } from "@/lib/tool-labels";
 import {
   type OrbState,
   ORB_STATE_DESCRIPTIONS,
@@ -33,10 +38,10 @@ import {
 
 // ─── Suggestion chips ───────────────────────────────────────────────────────
 const SUGGESTIONS = [
-  "Create Instagram campaign",
-  "Make a 30s video ad",
-  "Design a poster",
-  "Promote this reel",
+  "Generate an image of a sunset over Mumbai",
+  "Create a 5-second video ad for coffee",
+  "Build a campaign for my brand",
+  "How is my performance doing?",
 ];
 
 // ─── Time-based greeting ────────────────────────────────────────────────────
@@ -91,6 +96,8 @@ interface ChatMessage {
 export default function DashboardPage() {
   const { brand } = useActiveBrand();
   const session = useRuntimeSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   // ─── Conversation state ───────────────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -101,6 +108,7 @@ export default function DashboardPage() {
   const [progressSteps, setProgressSteps] = useState<
     { label: string; status: "pending" | "running" | "done" | "error" }[]
   >([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -108,6 +116,7 @@ export default function DashboardPage() {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const processedEventsRef = useRef<Set<string>>(new Set());
 
   const email = typeof window !== "undefined" ? localStorage.getItem("prachar_email") : null;
   const displayName = getDisplayName(email, brand?.name ?? null);
@@ -141,26 +150,74 @@ export default function DashboardPage() {
   // ─── Derive orb state from latest event + handle completion ───────────────
   useEffect(() => {
     if (session.events.length === 0) return;
-    const latest = session.events[session.events.length - 1];
-    if (!latest) return;
-    const newState = (latest.orb_state as OrbState) || orbStateFromEvent(latest.type);
-    setOrbState(newState);
 
-    // Handle completion — add AI message
-    if (latest.type === "runtime.session.completed" && latest.data?.response) {
-      const response = latest.data.response;
-      const isClarifying = latest.data?.clarifying === true;
+    // Process only NEW events that haven't been handled yet.
+    // This prevents duplicate messages when the effect re-runs
+    // (React Strict Mode in dev, or state-driven re-renders).
+    const newEvents: AIEvent[] = [];
+    for (const evt of session.events) {
+      const evtKey = `${evt.timestamp}-${evt.type}-${evt.tool || ""}-${evt.decision_id || ""}`;
+      if (!processedEventsRef.current.has(evtKey)) {
+        processedEventsRef.current.add(evtKey);
+        newEvents.push(evt);
+      }
+    }
+    if (newEvents.length === 0) return;
+
+    // Update orb state from the latest new event
+    const latest = newEvents[newEvents.length - 1];
+    if (latest) {
+      const newState = (latest.orb_state as OrbState) || orbStateFromEvent(latest.type);
+      setOrbState(newState);
+    }
+
+    // Process each new event
+    for (const evt of newEvents) {
+
+    // Handle completion — add AI message (merge pending artefacts into it)
+    if (evt.type === "runtime.session.completed" && evt.data?.response) {
+      const response = evt.data.response;
+      const isClarifying = evt.data?.clarifying === true;
       const replyText = response.reply || "Done!";
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "ai",
-          content: replyText,
-          timestamp: latest.timestamp,
-          suggestions: response.suggested_actions || [],
-          isClarifying,
-        },
-      ]);
+
+      // Collect any pending artefacts that were emitted during this session
+      // but not yet attached to a message
+      setMessages((prev) => {
+        // Find artefact-only messages (empty content, has artefacts) at the end
+        const pendingArtefacts: Artefact[] = [];
+        const cleaned = [...prev];
+        while (cleaned.length > 0) {
+          const last = cleaned[cleaned.length - 1];
+          if (!last) break;
+          if (last.role === "ai" && !last.content && last.artefacts && last.artefacts.length > 0 && !last.explanation) {
+            pendingArtefacts.unshift(...(last.artefacts || []));
+            cleaned.pop();
+          } else {
+            break;
+          }
+        }
+
+        // Determine contextual suggestions based on tools used + artefacts
+        const toolsUsed = progressSteps.map((s) => s.label);
+        const lastTool = toolsUsed[toolsUsed.length - 1];
+        const artefactKinds = pendingArtefacts.map((a) => a.kind);
+        const contextualSuggestions =
+          pendingArtefacts.length > 0
+            ? getContextualSuggestions(lastTool, artefactKinds)
+            : response.suggested_actions || [];
+
+        return [
+          ...cleaned,
+          {
+            role: "ai",
+            content: replyText,
+            timestamp: evt.timestamp,
+            suggestions: contextualSuggestions,
+            isClarifying,
+            artefacts: pendingArtefacts.length > 0 ? pendingArtefacts : undefined,
+          },
+        ];
+      });
 
       if (isSpeechSynthesisAvailable()) {
         setOrbState("speaking");
@@ -168,66 +225,84 @@ export default function DashboardPage() {
       } else {
         setTimeout(() => setOrbState("idle"), 2000);
       }
+
+      // Clear progress steps after a short delay (let user see the "done" state)
+      setTimeout(() => setProgressSteps([]), 1500);
     }
 
     // Handle error
-    if (latest.type === "runtime.session.error") {
+    if (evt.type === "runtime.session.error") {
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: latest.data?.error || "Something went wrong. Let me try again.",
-          timestamp: latest.timestamp,
+          content: evt.data?.error || "Something went wrong. Let me try again.",
+          timestamp: evt.timestamp,
         },
       ]);
       setTimeout(() => setOrbState("idle"), 3000);
     }
 
     // Planner explanation
-    if (latest.type === "planner.decision.created" && latest.data?.user_explanation) {
-      const explanation = latest.data.user_explanation;
+    if (evt.type === "planner.decision.created" && evt.data?.user_explanation) {
+      const explanation = evt.data.user_explanation;
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
           content: "",
-          timestamp: latest.timestamp,
+          timestamp: evt.timestamp,
           explanation,
         },
       ]);
     }
 
-    // Track progress steps
-    if (latest.type === "tool.started" && latest.tool) {
+    // Track progress steps with friendly labels
+    if (evt.type === "tool.started" && evt.tool) {
+      const friendly = getToolLabel(evt.tool);
       setProgressSteps((prev) => [
         ...prev,
-        { label: latest.tool!, status: "running" },
+        { label: friendly.label, status: "running" },
       ]);
     }
-    if (latest.type === "tool.completed" && latest.tool) {
-      setProgressSteps((prev) =>
-        prev.map((s) => (s.label === latest.tool && s.status === "running" ? { ...s, status: "done" } : s)),
-      );
+    if (evt.type === "tool.completed" && evt.tool) {
+      // Mark the first running step as done
+      setProgressSteps((prev) => {
+        const idx = prev.findIndex((s) => s.status === "running");
+        if (idx === -1) return prev;
+        const next = [...prev];
+        const step = next[idx];
+        if (!step) return prev;
+        next[idx] = { label: step.label, status: "done" as const };
+        return next;
+      });
     }
-    if (latest.type === "tool.error" && latest.tool) {
-      setProgressSteps((prev) =>
-        prev.map((s) => (s.label === latest.tool && s.status === "running" ? { ...s, status: "error" } : s)),
-      );
+    if (evt.type === "tool.error" && evt.tool) {
+      setProgressSteps((prev) => {
+        const idx = prev.findIndex((s) => s.status === "running");
+        if (idx === -1) return prev;
+        const next = [...prev];
+        const step = next[idx];
+        if (!step) return prev;
+        next[idx] = { label: step.label, status: "error" as const };
+        return next;
+      });
     }
 
-    // Artefact events
-    if (latest.type.startsWith("artefact.") && latest.data?.artefact) {
-      const artefact = latest.data.artefact as Artefact;
+    // Artefact events — add as a temporary message (will be merged on completion)
+    if (evt.type.startsWith("artefact.") && evt.data?.artefact) {
+      const artefact = evt.data.artefact as Artefact;
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
           content: "",
-          timestamp: latest.timestamp,
+          timestamp: evt.timestamp,
           artefacts: [artefact],
         },
       ]);
     }
+    } // end for loop
   }, [session.events]);
 
   // ─── Auto-scroll to bottom on new messages / progress ─────────────────────
@@ -240,29 +315,48 @@ export default function DashboardPage() {
     if (!text.trim() && (!atts || atts.length === 0)) return;
     unlockSpeechSynthesis();
 
-    if (!brand?.id) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: text, timestamp: new Date().toISOString(), attachments: atts },
-        {
-          role: "ai",
-          content: "I need a brand to work with. Please create a brand first from the Brands page.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-      return;
-    }
-
-    // Add user message
+    // Add user message immediately
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, timestamp: new Date().toISOString(), attachments: atts },
     ]);
     setProgressSteps([]);
+    processedEventsRef.current.clear();
+    setCurrentSessionId(null);
     setOrbState("understanding");
 
+    // If no brand, try to auto-create one so the user can still chat
+    let activeBrandId = brand?.id;
+    if (!activeBrandId) {
+      try {
+        const { apiPost } = await import("@/lib/api");
+        const newBrand = await apiPost<{ id: string }>("/brands", {
+          name: "My Brand",
+          category: "technology",
+          website: "",
+        });
+        activeBrandId = newBrand.id;
+        // Store it so useActiveBrand picks it up on next render
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("prachar_active_brand_id", newBrand.id);
+          window.localStorage.setItem("prachar_active_brand", newBrand.id);
+        }
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: "I need a brand to work with. You can create one from the Brands page, or complete the onboarding flow.",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        setOrbState("idle");
+        return;
+      }
+    }
+
     try {
-      await session.invoke(text, brand.id, "text");
+      await session.invoke(text, activeBrandId!, "text");
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -426,11 +520,63 @@ export default function DashboardPage() {
     session.reset();
     setMessages([]);
     setProgressSteps([]);
+    processedEventsRef.current.clear();
     setPrompt("");
     setAttachments([]);
     setOrbState("idle");
+    setCurrentSessionId(null);
     stopSpeaking();
   }, [session]);
+
+  // ─── Load a past session from URL query param ─────────────────────────────
+  const loadSession = useCallback(async (sessionId: string) => {
+    try {
+      const data = await apiGet<{
+        session_id: string;
+        title: string;
+        messages: Array<{
+          role: string;
+          content: string;
+          explanation?: string;
+          suggestions?: string[];
+          artefacts?: Artefact[];
+          timestamp: string;
+        }>;
+      }>(`/runtime/sessions/${sessionId}`);
+
+      // Reset current session state
+      session.reset();
+      processedEventsRef.current.clear();
+      setProgressSteps([]);
+      setPrompt("");
+      setAttachments([]);
+      setOrbState("idle");
+      stopSpeaking();
+
+      // Load messages into the conversation
+      const loadedMessages: ChatMessage[] = (data.messages || []).map((m) => ({
+        role: m.role as "user" | "ai",
+        content: m.content,
+        explanation: m.explanation,
+        suggestions: m.suggestions,
+        artefacts: m.artefacts,
+        timestamp: m.timestamp,
+      }));
+
+      setMessages(loadedMessages);
+      setCurrentSessionId(sessionId);
+    } catch (err) {
+      console.error("Failed to load session:", err);
+    }
+  }, [session]);
+
+  // Check for ?session=<id> on mount and load it
+  useEffect(() => {
+    const sessionId = searchParams.get("session");
+    if (sessionId && sessionId !== currentSessionId) {
+      loadSession(sessionId);
+    }
+  }, [searchParams, currentSessionId, loadSession]);
 
   // ─── Cleanup ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -557,33 +703,33 @@ export default function DashboardPage() {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // CONVERSATION STATE — inline Gemini-style chat
+  // CONVERSATION STATE — ChatGPT/Gemini-style full-width chat
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="flex flex-col h-[calc(100vh-64px)]">
-      {/* ─── Conversation header — small orb identity indicator ─── */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
-        <div className="flex items-center gap-3">
-          <CurvOrb state={orbState} size={32} showWaves={active} />
-          <div>
-            <div className="text-sm font-semibold text-text">CURV AI</div>
-            <div className="text-[10px] text-text-muted">
+      {/* ─── Conversation header ─── */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] flex-shrink-0">
+        <div className="flex items-center gap-2.5">
+          <CurvOrb state={orbState} size={28} showWaves={active} />
+          <span className="text-sm font-semibold text-text">CURV AI</span>
+          {active && (
+            <span className="text-[10px] text-text-muted animate-pulse">
               {ORB_STATE_DESCRIPTIONS[orbState]}
-            </div>
-          </div>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {active && (
             <button
               onClick={handleCancel}
-              className="text-[10px] px-2 py-1 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors min-h-[28px]"
+              className="text-[10px] px-2.5 py-1 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
             >
-              Cancel
+              Stop
             </button>
           )}
           <button
             onClick={handleNewChat}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text hover:bg-white/[0.06] transition-all min-h-[32px]"
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-text-secondary hover:text-text hover:bg-white/[0.06] transition-all"
             aria-label="Start new conversation"
             title="New chat"
           >
@@ -594,133 +740,156 @@ export default function DashboardPage() {
       </div>
 
       {/* ─── Messages — scrollable conversation area ─── */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-2xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
           {messages.map((msg, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
               className={cn(
-                "flex",
-                msg.role === "user" ? "justify-end" : "justify-start",
+                "flex gap-3",
+                msg.role === "user" ? "flex-row-reverse" : "flex-row",
               )}
             >
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3 text-sm",
-                  msg.role === "user"
-                    ? "bg-gradient-to-br from-accent to-accent-dark text-white"
-                    : "bg-white/[0.04] border border-white/[0.06] text-text",
-                  msg.isClarifying && "border-amber-400/20 bg-amber-400/[0.04]",
-                )}
-              >
-                {/* User attachments */}
-                {msg.role === "user" && msg.attachments && msg.attachments.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-2">
-                    {msg.attachments.map((att, j) => (
-                      <div
-                        key={j}
-                        className="flex items-center gap-2 rounded-lg bg-bg/20 px-2 py-1"
-                      >
-                        {att.type === "image" ? (
-                          <img
-                            src={att.url}
-                            alt={att.name}
-                            className="w-8 h-8 rounded object-cover"
-                          />
-                        ) : (
-                          <div className="w-8 h-8 rounded bg-bg/20 flex items-center justify-center">
-                            {att.type === "video" ? (
-                              <Video className="w-4 h-4" />
-                            ) : (
-                              <Paperclip className="w-4 h-4" />
-                            )}
-                          </div>
-                        )}
-                        <span className="text-xs max-w-[100px] truncate">{att.name}</span>
-                      </div>
-                    ))}
+              {/* Avatar */}
+              <div className="flex-shrink-0">
+                {msg.role === "user" ? (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center text-white text-xs font-semibold">
+                    {displayName.charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                    <CurvOrb state={orbState} size={20} showWaves={false} />
                   </div>
                 )}
+              </div>
 
-                {/* AI clarifying badge */}
-                {msg.isClarifying && (
-                  <div className="text-[10px] text-amber-400 mb-1 font-medium">
-                    ✦ Clarifying
-                  </div>
-                )}
+              {/* Message body */}
+              <div className={cn("flex-1 min-w-0", msg.role === "user" && "flex flex-col items-end")}>
+                {/* Name label */}
+                <div className={cn("text-[11px] font-medium text-text-muted mb-1", msg.role === "user" && "text-right")}>
+                  {msg.role === "user" ? displayName : "CURV AI"}
+                </div>
 
-                {/* AI planner explanation */}
-                {msg.explanation && (
-                  <div className="text-[11px] text-text-muted mb-1.5 italic border-l-2 border-accent/30 pl-2">
-                    {msg.explanation}
-                  </div>
-                )}
+                {/* Content container */}
+                <div
+                  className={cn(
+                    "rounded-2xl text-sm leading-relaxed",
+                    msg.role === "user"
+                      ? "bg-gradient-to-br from-accent/90 to-accent-dark/90 text-white px-4 py-2.5 max-w-[80%]"
+                      : "text-text px-0 py-0 max-w-full",
+                    msg.isClarifying && "border border-amber-400/20",
+                  )}
+                >
+                  {/* User attachments */}
+                  {msg.role === "user" && msg.attachments && msg.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {msg.attachments.map((att, j) => (
+                        <div
+                          key={j}
+                          className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1"
+                        >
+                          {att.type === "image" ? (
+                            <img
+                              src={att.url}
+                              alt={att.name}
+                              className="w-8 h-8 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                              {att.type === "video" ? (
+                                <Video className="w-4 h-4" />
+                              ) : (
+                                <Paperclip className="w-4 h-4" />
+                              )}
+                            </div>
+                          )}
+                          <span className="text-xs max-w-[100px] truncate">{att.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
-                {/* Message content */}
-                {msg.content && <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>}
+                  {/* AI clarifying badge */}
+                  {msg.isClarifying && (
+                    <div className="text-[10px] text-amber-400 mb-1 font-medium">
+                      ✦ Clarifying
+                    </div>
+                  )}
 
-                {/* Artefacts */}
-                {msg.artefacts && msg.artefacts.length > 0 && (
-                  <div className="mt-2 space-y-2">
-                    {msg.artefacts.map((artefact, j) => (
-                      <ArtefactRenderer
-                        key={j}
-                        artefact={artefact}
-                        onAction={(action) => handleSuggestion(action)}
-                      />
-                    ))}
-                  </div>
-                )}
+                  {/* AI planner explanation */}
+                  {msg.explanation && (
+                    <div className="text-[11px] text-text-muted mb-2 italic border-l-2 border-accent/30 pl-2.5">
+                      {msg.explanation}
+                    </div>
+                  )}
 
-                {/* AI suggestions */}
-                {Array.isArray(msg.suggestions) && msg.suggestions.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {msg.suggestions.map((s, j) => (
-                      <button
-                        key={j}
-                        onClick={() => handleSuggestion(s)}
-                        className="px-2.5 py-1 rounded-lg bg-white/[0.06] text-[11px] text-text-secondary hover:text-text hover:bg-white/[0.1] transition-all min-h-[28px]"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                  {/* Message content — with typewriter effect for AI responses */}
+                  {msg.content && msg.role === "ai" && (
+                    <div className="whitespace-pre-wrap leading-7 text-[15px]">
+                      <TypewriterText text={msg.content} speed={3} />
+                    </div>
+                  )}
+                  {msg.content && msg.role === "user" && (
+                    <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                  )}
+
+                  {/* Artefacts */}
+                  {msg.artefacts && msg.artefacts.length > 0 && (
+                    <div className="mt-3 space-y-3">
+                      {msg.artefacts.map((artefact, j) => (
+                        <ArtefactRenderer
+                          key={j}
+                          artefact={artefact}
+                          onAction={(action) => handleSuggestion(action)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* AI suggestions */}
+                  {Array.isArray(msg.suggestions) && msg.suggestions.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {msg.suggestions.map((s, j) => (
+                        <button
+                          key={j}
+                          onClick={() => handleSuggestion(s)}
+                          className="px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-xs text-text-secondary hover:text-text hover:bg-white/[0.08] hover:border-accent/20 transition-all"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           ))}
 
-          {/* Progress indicator */}
-          {showProgress && (
-            <div className="space-y-1.5 py-2">
-              {progressSteps.map((step, i) => (
-                <div key={i} className="flex items-center gap-2 text-xs">
-                  <div
-                    className={cn(
-                      "w-4 h-4 rounded-full flex items-center justify-center text-[10px]",
-                      step.status === "done" && "bg-green-500/20 text-green-400",
-                      step.status === "running" && "bg-accent/20 text-accent",
-                      step.status === "error" && "bg-red-500/20 text-red-400",
-                      step.status === "pending" && "bg-white/[0.04] text-text-muted",
-                    )}
-                  >
-                    {step.status === "done" ? "✓" : step.status === "error" ? "⚠" : step.status === "running" ? "●" : "○"}
-                  </div>
-                  <span className={cn(
-                    "text-text-secondary",
-                    step.status === "running" && "text-text",
-                    step.status === "done" && "text-text-muted line-through",
-                  )}>
-                    {step.label}
-                  </span>
-                  {step.status === "running" && (
-                    <span className="text-text-muted animate-pulse">...</span>
-                  )}
-                </div>
-              ))}
-            </div>
+          {/* Thinking bubble — ChatGPT/Gemini-style */}
+          {(showProgress || (active && !showProgress && session.status === "streaming")) && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex gap-3"
+            >
+              <div className="w-8 h-8 rounded-full bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                <CurvOrb state={orbState} size={20} showWaves={false} />
+              </div>
+              <div className="flex-1">
+                <div className="text-[11px] font-medium text-text-muted mb-1">CURV AI</div>
+                <ThinkingBubble
+                  label={
+                    showProgress
+                      ? progressSteps.find((s) => s.status === "running")?.label || "Thinking…"
+                      : "Thinking…"
+                  }
+                  steps={showProgress ? progressSteps : undefined}
+                />
+              </div>
+            </motion.div>
           )}
 
           {/* Approval dialog */}
@@ -730,7 +899,7 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-4 space-y-3 max-w-2xl"
+                className="rounded-xl border border-amber-400/20 bg-amber-400/[0.04] p-4 space-y-3"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-amber-400 text-lg">⚠</span>
@@ -764,9 +933,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ─── Sticky multimodal input at bottom ─── */}
-      <div className="px-4 py-3 border-t border-white/[0.04]">
-        <div className="max-w-2xl mx-auto">
+      {/* ─── Sticky input at bottom ─── */}
+      <div className="flex-shrink-0 px-4 py-3 border-t border-white/[0.04]">
+        <div className="max-w-3xl mx-auto">
           <PromptInput
             inputRef={inputRef}
             imageInputRef={imageInputRef}

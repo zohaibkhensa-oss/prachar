@@ -182,35 +182,41 @@ async def integrations_list(ctx: AIContext, input: dict[str, Any]) -> dict[str, 
     name="video_gen.generate",
     display_name="Video Generation",
     description=(
-        "Generate a short promotional video from a text prompt. "
-        "Uses Gemini Veo (primary) with fal.ai fallback. "
-        "Requires approval — incurs GPU cost."
+        "Generate a promotional video from a text prompt. "
+        "Supports 5-60 seconds. For videos >15s, multiple clips are "
+        "generated and stitched together with ffmpeg. "
+        "Uses fal.ai Kling (primary) with Gemini Veo fallback. "
+        "Returns a playable video URL."
     ),
     category=ToolCategory.CREATIVE,
     input_schema={
-        "prompt": "string",
-        "duration": "number (optional, default 5)",
-        "aspect_ratio": "string (optional, default 16:9)",
+        "prompt": "string (description of the video to generate)",
+        "duration": "number (optional, default 5, max 60)",
+        "aspect_ratio": "string (optional, default 16:9 — options: 16:9, 9:16, 1:1)",
     },
     output_schema={"video_url": "string", "status": "string", "duration": "number"},
     estimated_cost_usd=0.15,
-    estimated_time_ms=30000,
+    estimated_time_ms=60000,
     estimated_tokens=0,
-    estimated_latency_ms=30000,
+    estimated_latency_ms=60000,
     quality_score=0.8,
-    requires_user_approval=True,
+    requires_user_approval=False,
     side_effects=SideEffects.WRITES,
+    soft_timeout_ms=600_000,    # 10 min soft timeout
+    hard_timeout_ms=1_200_000,  # 20 min hard timeout (3 clips × ~5min + stitching)
+    supports_retry=False,       # Don't retry — each clip costs money
 ))
 async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
-    """Generate a promotional video via the video generation pipeline."""
+    """Generate a promotional video via the video generation pipeline.
+
+    For videos >15s, generates multiple 10s clips and stitches them
+    together using ffmpeg into a single seamless video.
+    """
     try:
         from ..routers.video_gen import (
-            VEO_MODELS,
             _get_gemini_api_key,
             _call_gemini_veo,
             _call_fal_video,
-            _get_modal_video_url,
-            _call_modal_video,
             VideoGenRequest,
         )
         from prachar_shared.config import get_settings
@@ -224,74 +230,119 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
             duration_sec = int(duration)
         except (TypeError, ValueError):
             duration_sec = 5
-        duration_sec = max(5, min(15, duration_sec))
+        duration_sec = max(5, min(60, duration_sec))
 
         aspect_ratio = (input.get("aspect_ratio") or "16:9").strip() or "16:9"
 
-        req = VideoGenRequest(
-            prompt=prompt,
-            quality="lite",
-            duration=str(duration_sec),
-            aspect_ratio=aspect_ratio,
-            video_type="landscape",
+        # ─── Single clip (≤15s) ───────────────────────────────────────────
+        if duration_sec <= 15:
+            video_url = await _generate_single_clip(
+                prompt=_truncate_prompt(prompt),
+                duration_sec=duration_sec,
+                aspect_ratio=aspect_ratio,
+            )
+            if not video_url:
+                return {
+                    "error": "no video generation service configured (set FAL_KEY or GEMINI_API_KEY)",
+                    "video_url": "",
+                    "status": "failed",
+                    "duration": duration_sec,
+                }
+
+            from .artefacts import video_preview
+            artefact = video_preview(
+                title=prompt[:80],
+                url=video_url,
+                thumbnail_url="",
+                duration=f"{duration_sec}s",
+            )
+            return {
+                "video_url": video_url,
+                "status": "completed",
+                "duration": duration_sec,
+                "artefacts": [artefact.to_dict()],
+            }
+
+        # ─── Multi-clip stitching (>15s) ──────────────────────────────────
+        # Grok Imagine 1.5 supports up to 15s per clip; Kling supports 10s.
+        # Use 15s per clip to minimize cost and generation time.
+        clip_duration = 15
+        num_clips = (duration_sec + clip_duration - 1) // clip_duration  # ceil division
+        log.info("video_gen.generate: multi-clip mode — %d clips × %ds = %ds total",
+                 num_clips, clip_duration, num_clips * clip_duration)
+
+        # Generate scene prompts — break the main prompt into scenes
+        scene_prompts = _split_into_scenes(prompt, num_clips)
+
+        clip_urls: list[str] = []
+        for i, scene_prompt in enumerate(scene_prompts):
+            log.info("video_gen.generate: generating clip %d/%d: %s", i + 1, num_clips, scene_prompt[:80])
+            clip_url = await _generate_single_clip(
+                prompt=scene_prompt,
+                duration_sec=clip_duration,
+                aspect_ratio=aspect_ratio,
+            )
+            if clip_url:
+                clip_urls.append(clip_url)
+            else:
+                log.warning("video_gen.generate: clip %d failed, skipping", i + 1)
+
+        if not clip_urls:
+            return {
+                "error": "all clip generations failed (set FAL_KEY or GEMINI_API_KEY)",
+                "video_url": "",
+                "status": "failed",
+                "duration": duration_sec,
+            }
+
+        # If only one clip succeeded, return it directly
+        if len(clip_urls) == 1:
+            from .artefacts import video_preview
+            artefact = video_preview(
+                title=prompt[:80],
+                url=clip_urls[0],
+                thumbnail_url="",
+                duration=f"{clip_duration}s",
+            )
+            return {
+                "video_url": clip_urls[0],
+                "status": "completed",
+                "duration": clip_duration,
+                "artefacts": [artefact.to_dict()],
+            }
+
+        # Stitch clips together with ffmpeg
+        final_url = await _stitch_clips_with_ffmpeg(clip_urls, ctx)
+        if not final_url:
+            # Fallback: return the first clip if stitching fails
+            from .artefacts import video_preview
+            artefact = video_preview(
+                title=prompt[:80],
+                url=clip_urls[0],
+                thumbnail_url="",
+                duration=f"{clip_duration}s",
+            )
+            return {
+                "video_url": clip_urls[0],
+                "status": "completed",
+                "duration": clip_duration,
+                "artefacts": [artefact.to_dict()],
+                "warning": "stitching failed, returning first clip only",
+            }
+
+        actual_duration = len(clip_urls) * clip_duration
+        from .artefacts import video_preview
+        artefact = video_preview(
+            title=prompt[:80],
+            url=final_url,
+            thumbnail_url="",
+            duration=f"{actual_duration}s",
         )
-
-        # Gemini Veo (primary)
-        gemini_key = _get_gemini_api_key()
-        if gemini_key:
-            try:
-                log.info("video_gen.generate: using Gemini Veo lite")
-                resp = await _call_gemini_veo(
-                    api_key=gemini_key,
-                    prompt=prompt,
-                    quality="lite",
-                    duration_sec=duration_sec,
-                    aspect_ratio=aspect_ratio,
-                    with_audio=True,
-                )
-                return {
-                    "video_url": resp.video_url,
-                    "status": "completed",
-                    "duration": duration_sec,
-                }
-            except Exception as exc:  # noqa: BLE001
-                log.error("video_gen.generate Gemini failed: %s", str(exc)[:300])
-
-        # fal.ai fallback
-        fal_key = get_settings().fal_key.strip()
-        if fal_key:
-            try:
-                log.info("video_gen.generate: falling back to fal.ai")
-                req_copy = req.model_copy()
-                req_copy.model = "ltx"
-                resp = await _call_fal_video(fal_key, req_copy, prompt, aspect_ratio)
-                return {
-                    "video_url": resp.video_url,
-                    "status": "completed",
-                    "duration": duration_sec,
-                }
-            except Exception as exc:  # noqa: BLE001
-                log.error("video_gen.generate fal.ai failed: %s", str(exc)[:300])
-
-        # Modal preview last resort
-        modal_url = _get_modal_video_url()
-        if modal_url:
-            try:
-                log.info("video_gen.generate: last resort Modal preview")
-                resp = await _call_modal_video(modal_url, prompt, req)
-                return {
-                    "video_url": resp.video_url,
-                    "status": "completed",
-                    "duration": duration_sec,
-                }
-            except Exception as exc:  # noqa: BLE001
-                log.error("video_gen.generate Modal failed: %s", str(exc)[:300])
-
         return {
-            "error": "no video generation service configured",
-            "video_url": "",
-            "status": "failed",
-            "duration": duration_sec,
+            "video_url": final_url,
+            "status": "completed",
+            "duration": actual_duration,
+            "artefacts": [artefact.to_dict()],
         }
     except Exception as exc:  # noqa: BLE001
         log.exception("video_gen.generate failed: %s", exc)
@@ -301,6 +352,194 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
             "status": "failed",
             "duration": 0,
         }
+
+
+async def _generate_single_clip(prompt: str, duration_sec: int, aspect_ratio: str) -> str:
+    """Generate a single video clip. Returns the video URL or empty string."""
+    from ..routers.video_gen import (
+        _get_gemini_api_key,
+        _call_gemini_veo,
+        _call_fal_video,
+        VideoGenRequest,
+    )
+    from prachar_shared.config import get_settings
+
+    # Clamp to valid range for single clip
+    duration_sec = max(5, min(15, duration_sec))
+
+    req = VideoGenRequest(
+        prompt=prompt,
+        quality="lite",
+        duration=str(duration_sec),
+        aspect_ratio=aspect_ratio,
+        video_type="landscape" if aspect_ratio == "16:9" else "reel",
+    )
+
+    # fal.ai Grok Imagine 1.5 (primary — best value, native audio, 1-15s)
+    fal_key = get_settings().fal_key.strip()
+    if fal_key:
+        try:
+            req_copy = req.model_copy()
+            req_copy.model = "grok"  # Grok Imagine 1.5 — supports 1-15s with native audio
+            resp = await _call_fal_video(fal_key, req_copy, prompt, aspect_ratio)
+            return resp.video_url
+        except Exception as exc:  # noqa: BLE001
+            log.error("video_gen.generate fal.ai failed: %s", str(exc)[:300])
+
+    # Gemini Veo fallback (supports 4, 6, or 8s)
+    gemini_key = _get_gemini_api_key()
+    if gemini_key:
+        try:
+            resp = await _call_gemini_veo(
+                api_key=gemini_key,
+                prompt=prompt,
+                quality="lite",
+                duration_sec=duration_sec,
+                aspect_ratio=aspect_ratio,
+                with_audio=True,
+            )
+            return resp.video_url
+        except Exception as exc:  # noqa: BLE001
+            log.error("video_gen.generate Gemini failed: %s", str(exc)[:300])
+
+    return ""
+
+
+def _split_into_scenes(prompt: str, num_scenes: int) -> list[str]:
+    """Split a single prompt into N scene prompts for multi-clip generation.
+
+    If the prompt describes a sequence (SCENE 1, SCENE 2, etc.), we split
+    by those markers. Otherwise we keep the overall context but add
+    scene-specific framing, truncating to stay under Fal's 2500-char limit.
+    """
+    if num_scenes <= 1:
+        return [_truncate_prompt(prompt)]
+
+    # Try to split by SCENE markers (e.g. "SCENE 1", "SCENE 2")
+    import re
+    scene_splits = re.split(r'\bSCENE\s+\d+\s*[-:.\s]', prompt, flags=re.IGNORECASE)
+    scene_splits = [s.strip() for s in scene_splits if s.strip()]
+
+    scenes: list[str] = []
+    if len(scene_splits) >= num_scenes:
+        # We have enough explicit scenes — use them directly
+        for i in range(num_scenes):
+            scene_context = _SCENE_HINTS[i % len(_SCENE_HINTS)]
+            scenes.append(_truncate_prompt(f"{scene_splits[i]}. {scene_context}"))
+    else:
+        # No explicit scenes — use the full prompt with varied camera angles
+        # But truncate the base prompt to leave room for the scene hint
+        base = _truncate_prompt(prompt, max_chars=2200)
+        for i in range(num_scenes):
+            scene_context = _SCENE_HINTS[i % len(_SCENE_HINTS)]
+            scenes.append(_truncate_prompt(f"{base}. {scene_context}"))
+    return scenes
+
+
+def _truncate_prompt(prompt: str, max_chars: int = 2400) -> str:
+    """Truncate a prompt to stay under Fal.ai's 2500-character limit."""
+    if len(prompt) <= max_chars:
+        return prompt
+    # Try to cut at a sentence boundary
+    truncated = prompt[:max_chars - 3]
+    last_period = truncated.rfind(". ")
+    if last_period > (max_chars - 3) * 0.7:
+        return truncated[:last_period + 1]
+    return truncated + "..."
+
+
+# Scene hints for multi-clip variety — cycling through camera angles/moods
+_SCENE_HINTS = [
+    "Wide establishing shot, cinematic lighting",
+    "Medium shot, dynamic camera movement",
+    "Close-up detail shot, shallow depth of field",
+    "Slow pan across the scene, golden hour lighting",
+    "Aerial drone perspective, sweeping motion",
+    "Low angle shot, dramatic perspective",
+    "Overhead top-down view, clean composition",
+    "Tracking shot following the subject, energetic",
+]
+
+
+async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str:
+    """Download clips, stitch with ffmpeg, upload to storage. Returns URL."""
+    import asyncio
+    import os
+    import tempfile
+    import httpx
+    from ..routers.video_gen import _store_video_bytes
+
+    if len(clip_urls) < 2:
+        return clip_urls[0] if clip_urls else ""
+
+    tmpdir = tempfile.mkdtemp(prefix="video_stitch_")
+    try:
+        # Download all clips
+        clip_paths: list[str] = []
+        for i, url in enumerate(clip_urls):
+            clip_path = os.path.join(tmpdir, f"clip_{i:03d}.mp4")
+            try:
+                async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+                    resp = await client.get(url, timeout=120)
+                    resp.raise_for_status()
+                    with open(clip_path, "wb") as f:
+                        f.write(resp.content)
+                clip_paths.append(clip_path)
+            except Exception as exc:
+                log.warning("failed to download clip %d: %s", i, str(exc)[:200])
+
+        if len(clip_paths) < 2:
+            return clip_urls[0] if clip_urls else ""
+
+        # Create ffmpeg concat file
+        concat_file = os.path.join(tmpdir, "concat.txt")
+        with open(concat_file, "w") as f:
+            for path in clip_paths:
+                f.write(f"file '{path}'\n")
+
+        # Stitch with ffmpeg (re-encode for compatibility)
+        output_path = os.path.join(tmpdir, "stitched.mp4")
+        cmd = [
+            "ffmpeg", "-y",
+            "-f", "concat", "-safe", "0",
+            "-i", concat_file,
+            "-c:v", "libx264",
+            "-c:a", "aac",
+            "-preset", "fast",
+            "-movflags", "+faststart",
+            output_path,
+        ]
+        log.info("video_gen.generate: stitching %d clips with ffmpeg", len(clip_paths))
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+
+        if proc.returncode != 0:
+            log.error("ffmpeg stitching failed: %s", stderr.decode()[:500])
+            return ""
+
+        # Read the stitched video
+        with open(output_path, "rb") as f:
+            video_bytes = f.read()
+
+        # Store and get URL
+        final_url = await _store_video_bytes(video_bytes, "stitched_video.mp4")
+        log.info("video_gen.generate: stitched video stored at %s", final_url[:80])
+        return final_url
+
+    except Exception as exc:
+        log.error("video stitching failed: %s", str(exc)[:300])
+        return ""
+    finally:
+        # Clean up temp files
+        import shutil
+        try:
+            shutil.rmtree(tmpdir)
+        except Exception:
+            pass
 
 
 # ─── audit.run — Run a brand audit ─────────────────────────────────────────

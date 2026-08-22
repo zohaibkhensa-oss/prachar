@@ -41,6 +41,14 @@ specialists, their roles, or that it's a "council"
 - Keep it to 2-4 sentences unless the user asked for detail
 - Be conversational, not technical. You are a marketing partner, not software.
 - DO NOT copy the example format — generate a unique response based on the actual tool outputs
+- If an image was generated, mention it naturally: "Here's your image!" or \
+"I've created the visual for you." The image is shown above automatically.
+- If a video was generated, mention it naturally: "Here's your video!" or \
+"Your video is ready to play above." The video is shown above automatically.
+- If content was published, mention where: "I've published it to YouTube!" \
+or "It's live on your Instagram now."
+- If a channel needs connecting, mention it: "You'll need to connect your \
+YouTube account first — click the link above to authorise."
 
 User's original request: {message}
 Brand: {brand_name}
@@ -105,7 +113,7 @@ class ResponseComposer:
                 task="response_composer",
                 tenant_id=str(ctx.tenant_id),
                 plan=ctx.billing.plan,
-                max_tokens=500,
+                max_tokens=1500,
                 temperature=0.4,
             )
             data = extract_json_or_raise(completion.text)
@@ -122,11 +130,41 @@ class ResponseComposer:
         """Format tool outputs for the composer prompt (truncated)."""
         lines: list[str] = []
         for tool, output in outputs.items():
-            # Truncate large outputs
-            output_str = str(output)
-            if len(output_str) > 500:
-                output_str = output_str[:500] + "..."
-            lines.append(f"[{tool}]: {output_str}")
+            if not isinstance(output, dict):
+                output_str = str(output)
+                if len(output_str) > 500:
+                    output_str = output_str[:500] + "..."
+                lines.append(f"[{tool}]: {output_str}")
+                continue
+
+            # Highlight key results the composer should mention
+            parts: list[str] = []
+            if output.get("image_url"):
+                parts.append(f"image generated: {output['image_url'][:80]}")
+            if output.get("video_url"):
+                parts.append(f"video generated: {output['video_url'][:80]}")
+            if output.get("published"):
+                parts.append(f"published to {output.get('channel', 'channel')}: {output.get('url', '')[:80]}")
+            if output.get("needs_connection"):
+                parts.append(f"needs {output.get('channel', 'channel')} connection — auth URL provided")
+            if output.get("error"):
+                parts.append(f"error: {output['error'][:200]}")
+            # Include other fields (truncated)
+            for key in ("reply", "summary", "goal", "marketing_objective", "campaign_strategy", "creative_direction", "media_plan", "full_campaign"):
+                val = output.get(key)
+                if val:
+                    val_str = str(val)
+                    if len(val_str) > 300:
+                        val_str = val_str[:300] + "..."
+                    parts.append(f"{key}: {val_str}")
+
+            if parts:
+                lines.append(f"[{tool}]: {' | '.join(parts)}")
+            else:
+                output_str = str(output)
+                if len(output_str) > 500:
+                    output_str = output_str[:500] + "..."
+                lines.append(f"[{tool}]: {output_str}")
         return "\n".join(lines) if lines else "(no tool outputs)"
 
     def _fallback_response(self, execution: ExecutionResult) -> dict[str, Any]:

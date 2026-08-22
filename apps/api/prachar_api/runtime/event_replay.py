@@ -63,6 +63,11 @@ async def persist_event(
     logged but never raised — persistence must not break the event stream.
     """
     try:
+        # Guard: skip if tenant_id is missing or invalid
+        if not tenant_id or str(tenant_id) == "":
+            log.warning("skip persist: empty tenant_id for event %s", event.type)
+            return
+
         # Parse the ISO-8601 timestamp string back into a datetime.
         ts = _parse_timestamp(event.timestamp)
         record = RuntimeEventRecord(
@@ -78,7 +83,10 @@ async def persist_event(
             timestamp=ts,
         )
         session.add(record)
-        await session.flush()
+        # Use begin_nested (savepoint) to avoid "Session is already flushing" errors
+        # when persist is called concurrently with another session operation
+        async with session.begin_nested():
+            await session.flush()
     except Exception as exc:  # noqa: BLE001
         log.warning("failed to persist event %s: %s", event.type, exc)
 

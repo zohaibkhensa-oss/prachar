@@ -339,8 +339,8 @@ list does not exist:
 - Attribution pixel (first-party JS, gclid/fbclid/ttclid, position-based 40/20/40)
 - AI Gateway (Groq primary, Anthropic/OpenAI fallback, tiering, caching, budgeting)
 - 14 locale packs
-- Video generation (AnimateDiff via Modal.com)
-- Image generation (SDXL via Modal.com)
+- Video generation (Kling 2.5 Turbo via fal.ai, Gemini Veo fallback)
+- Image generation (Gemini Imagen, fal.ai Flux Schnell fallback)
 - PDF reports
 - Mission Control dashboard
 - Campaign Studio (Kanban)

@@ -315,10 +315,37 @@ async def channel_publish(ctx: AIContext, input: dict[str, Any]) -> dict[str, An
 
         tokens = await _load_tokens(ctx, channel)
         if tokens is None:
+            # No active connection — emit a connect suggestion artefact
+            from .artefacts import alert
+            from prachar_shared.adapters.registry import get_organic
+
+            auth_url = ""
+            try:
+                adapter = get_organic(channel)
+                auth_url = adapter.auth_url(str(ctx.brand_id))
+            except Exception:
+                pass
+
+            connect_artefact = alert(
+                severity="info",
+                title=f"Connect your {channel.title()} account",
+                detail=(
+                    f"You haven't connected {channel.title()} yet. "
+                    f"Click the link below to authorize CURV AI to publish to your {channel.title()} account."
+                ),
+                action=f"Connect {channel.title()}",
+            )
+            # Store the auth URL in the artefact payload so the frontend can use it
+            connect_artefact.payload["auth_url"] = auth_url
+            connect_artefact.payload["channel"] = channel
+
             return {
                 "error": f"no active connection for {channel}",
                 "channel": channel,
                 "published": False,
+                "needs_connection": True,
+                "auth_url": auth_url,
+                "artefacts": [connect_artefact.to_dict()],
             }
 
         from prachar_shared.adapters.registry import get_organic

@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiPost, apiGet } from "./api";
+import { getToken, refreshToken } from "./auth";
 
 // ─── Event Types ───────────────────────────────────────────────────────────
 
@@ -64,6 +65,13 @@ export function useRuntimeSession() {
   ): Promise<InvokeResponse | null> => {
     setState({ ...INITIAL_STATE, status: "invoking" });
 
+    // Ensure we have a valid token (refresh if expired)
+    let token = getToken();
+    if (!token) {
+      token = await refreshToken();
+      if (!token) return null; // refreshToken redirects to login
+    }
+
     try {
       const res = await apiPost<InvokeResponse>("/runtime/invoke", {
         message,
@@ -80,6 +88,27 @@ export function useRuntimeSession() {
 
       return res;
     } catch (err: any) {
+      // If 401, try refreshing token and retry once
+      if (err.status === 401) {
+        const newToken = await refreshToken();
+        if (newToken) {
+          try {
+            const res = await apiPost<InvokeResponse>("/runtime/invoke", {
+              message,
+              brand_id: brandId,
+              modality,
+              context,
+            });
+            sessionIdRef.current = res.session_id;
+            setState((prev) => ({ ...prev, status: "streaming" }));
+            subscribeToStream(res.session_id);
+            return res;
+          } catch (retryErr: any) {
+            setState({ ...INITIAL_STATE, status: "error", error: retryErr.message || "Failed to invoke" });
+            return null;
+          }
+        }
+      }
       setState({ ...INITIAL_STATE, status: "error", error: err.message || "Failed to invoke" });
       return null;
     }
@@ -94,7 +123,8 @@ export function useRuntimeSession() {
     }
 
     const base = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
-    const token = typeof window !== "undefined" ? window.localStorage.getItem("prachar_token") : null;
+    // Use getToken() to get the latest token (may have been refreshed)
+    const token = getToken();
 
     // EventSource doesn't support headers, so we pass token as query param
     // (the API should accept this as a fallback)
@@ -103,7 +133,23 @@ export function useRuntimeSession() {
     const es = new EventSource(url);
     eventSourceRef.current = es;
 
+    // Track last event time — SSE may auto-reconnect during long tool execution
+    // (video gen can take 3-5 min for 60s videos). Only error if we get NO
+    // events for 30 minutes (the absolute max for a multi-clip stitch job).
+    let lastEventTime = Date.now();
+    const watchdog = setInterval(() => {
+      const elapsed = Date.now() - lastEventTime;
+      // If we're still streaming and no event for 30 min, something is wrong
+      setState((prev) => {
+        if ((prev.status === "streaming" || prev.status === "invoking") && elapsed > 30 * 60 * 1000) {
+          return { ...prev, status: "error", error: "Stream timed out — no events for 30 minutes" };
+        }
+        return prev;
+      });
+    }, 30000);
+
     es.onmessage = (ev) => {
+      lastEventTime = Date.now();
       try {
         const event: AIEvent = JSON.parse(ev.data);
         handleEvent(event);
@@ -113,13 +159,22 @@ export function useRuntimeSession() {
     };
 
     es.onerror = () => {
-      // SSE errors can happen on close — only set error if we're still streaming
+      // EventSource auto-reconnects on error — only treat as error if
+      // the session is already completed/cancelled (stream closed by server)
       setState((prev) => {
-        if (prev.status === "streaming" || prev.status === "invoking") {
-          return { ...prev, status: "error", error: "Stream connection lost" };
+        if (prev.status === "completed" || prev.status === "cancelled" || prev.status === "error") {
+          return prev; // Already done — this is just the stream closing
         }
+        // Still streaming — EventSource will auto-reconnect, don't error
         return prev;
       });
+    };
+
+    // Clean up watchdog when the EventSource is closed
+    const origClose = es.close.bind(es);
+    es.close = () => {
+      clearInterval(watchdog);
+      origClose();
     };
   }, []);
 

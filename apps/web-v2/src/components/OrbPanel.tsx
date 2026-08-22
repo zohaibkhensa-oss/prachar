@@ -195,21 +195,8 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     if (!text.trim()) return;
     // Unlock speech synthesis on iOS Safari (requires user gesture)
     unlockSpeechSynthesis();
-    if (!brandId) {
-      setMessages((prev) => [
-        ...prev,
-        { role: "user", content: text, timestamp: new Date().toISOString() },
-        {
-          role: "ai",
-          content: "I need a brand to work with. Please create a brand first from the Brands page.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
-      setInput("");
-      return;
-    }
 
-    // Add user message
+    // Add user message immediately
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text, timestamp: new Date().toISOString() },
@@ -218,9 +205,38 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
     setProgressSteps([]);
     setOrbState("understanding");
 
+    // If no brand, try to auto-create one
+    let activeBrandId = brandId;
+    if (!activeBrandId) {
+      try {
+        const { apiPost } = await import("@/lib/api");
+        const newBrand = await apiPost<{ id: string }>("/brands", {
+          name: "My Brand",
+          category: "technology",
+          website: "",
+        });
+        activeBrandId = newBrand.id;
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem("prachar_active_brand_id", newBrand.id);
+          window.localStorage.setItem("prachar_active_brand", newBrand.id);
+        }
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "ai",
+            content: "I need a brand to work with. You can create one from the Brands page.",
+            timestamp: new Date().toISOString(),
+          },
+        ]);
+        setOrbState("idle");
+        return;
+      }
+    }
+
     // Invoke runtime
     try {
-      await session.invoke(text, brandId, "text");
+      await session.invoke(text, activeBrandId!, "text");
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,

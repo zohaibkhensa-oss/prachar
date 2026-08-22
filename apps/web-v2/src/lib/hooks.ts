@@ -43,7 +43,7 @@ export function useBrands() {
 export function useActiveBrand() {
   const { data: brands, isLoading, error } = useBrands();
   const activeId = typeof window !== "undefined"
-    ? window.localStorage.getItem("prachar_active_brand")
+    ? window.localStorage.getItem("prachar_active_brand") || window.localStorage.getItem("prachar_active_brand_id")
     : null;
   const active = brands?.find((b) => b.id === activeId) ?? brands?.[0] ?? null;
   return { brand: active, brands, isLoading, error };

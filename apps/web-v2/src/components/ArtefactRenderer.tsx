@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, AlertTriangle, Info, CheckCircle, XCircle, Download, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, Info, CheckCircle, XCircle, Download, Sparkles, Share2, Maximize2, Check } from "lucide-react";
 import { useState } from "react";
 
 // ─── Artefact Types ─────────────────────────────────────────────────────────
@@ -250,10 +250,42 @@ function KpiGrid({ title, payload }: { title: string; payload: Record<string, an
 }
 
 function ImageArtefact({ title, payload }: { title: string; payload: Record<string, any> }) {
+  const [copied, setCopied] = useState(false);
+  const url = payload.url || "";
+
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = (payload.alt || title || "image").replace(/[^a-z0-9]/gi, "_") + ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: title || "Generated image", url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {}
+  };
+
   return (
-    <Card className="p-2">
+    <Card className="p-2 group relative">
       <img
-        src={payload.url}
+        src={url}
         alt={payload.alt || title}
         className="rounded-lg w-full max-h-64 object-cover"
         loading="lazy"
@@ -261,6 +293,25 @@ function ImageArtefact({ title, payload }: { title: string; payload: Record<stri
       {payload.prompt && (
         <div className="text-[10px] text-text-muted mt-2 px-1 italic">"{payload.prompt}"</div>
       )}
+      {/* Gemini-style action bar */}
+      <div className="flex items-center gap-1 mt-2 px-1">
+        <button
+          onClick={handleDownload}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-text-muted hover:text-text transition-all"
+          title="Download"
+        >
+          <Download className="w-3 h-3" />
+          Download
+        </button>
+        <button
+          onClick={handleShare}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-text-muted hover:text-text transition-all"
+          title="Share"
+        >
+          {copied ? <Check className="w-3 h-3 text-green-400" /> : <Share2 className="w-3 h-3" />}
+          {copied ? "Copied!" : "Share"}
+        </button>
+      </div>
     </Card>
   );
 }
@@ -280,14 +331,103 @@ function ImageGrid({ title, payload }: { title: string; payload: Record<string, 
 }
 
 function VideoPreview({ title, payload }: { title: string; payload: Record<string, any> }) {
+  const videoUrl = payload.url || payload.video_url || "";
+  const thumbnailUrl = payload.thumbnail_url || "";
+  const [copied, setCopied] = useState(false);
+
+  const handleDownload = async () => {
+    try {
+      const res = await fetch(videoUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = (payload.title || title || "video").replace(/[^a-z0-9]/gi, "_") + ".mp4";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      // Fallback: open in new tab
+      window.open(videoUrl, "_blank");
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: payload.title || title || "Generated video", url: videoUrl });
+      } else {
+        await navigator.clipboard.writeText(videoUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {}
+  };
+
+  const handleFullscreen = () => {
+    const v = document.querySelector(`video[src="${videoUrl}"]`) as HTMLVideoElement | null;
+    if (v) {
+      if (v.requestFullscreen) v.requestFullscreen();
+      else if ((v as any).webkitRequestFullscreen) (v as any).webkitRequestFullscreen();
+    }
+  };
+
+  if (videoUrl) {
+    return (
+      <Card className="p-2 group relative overflow-hidden">
+        <video
+          src={videoUrl}
+          poster={thumbnailUrl || undefined}
+          controls
+          className="rounded-lg w-full max-h-80 object-contain bg-black"
+          preload="metadata"
+        />
+        <div className="flex items-center justify-between mt-2 px-1">
+          <span className="text-xs font-medium truncate flex-1">{payload.title || title}</span>
+          {payload.duration && <span className="text-[10px] text-text-muted ml-2 shrink-0">{payload.duration}</span>}
+        </div>
+        {/* Gemini-style action bar */}
+        <div className="flex items-center gap-1.5 mt-2 px-1">
+          <button
+            onClick={handleDownload}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-text-muted hover:text-text transition-all"
+            title="Download"
+          >
+            <Download className="w-3 h-3" />
+            Download
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-text-muted hover:text-text transition-all"
+            title="Share"
+          >
+            {copied ? <Check className="w-3 h-3 text-green-400" /> : <Share2 className="w-3 h-3" />}
+            {copied ? "Copied!" : "Share"}
+          </button>
+          <button
+            onClick={handleFullscreen}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium bg-white/[0.06] hover:bg-white/[0.12] text-text-muted hover:text-text transition-all ml-auto"
+            title="Fullscreen"
+          >
+            <Maximize2 className="w-3 h-3" />
+          </button>
+        </div>
+      </Card>
+    );
+  }
+
+  // Fallback: thumbnail only (no video URL)
   return (
     <Card className="p-2 relative">
-      <img
-        src={payload.thumbnail_url}
-        alt={payload.title || title}
-        className="rounded-lg w-full max-h-48 object-cover"
-        loading="lazy"
-      />
+      {thumbnailUrl && (
+        <img
+          src={thumbnailUrl}
+          alt={payload.title || title}
+          className="rounded-lg w-full max-h-48 object-cover"
+          loading="lazy"
+        />
+      )}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
           <span className="text-white text-xl">▶</span>
@@ -664,6 +804,7 @@ function AlertArtefact({ title, payload, onAction }: { title: string; payload: R
   };
   const icons = { info: Info, warning: AlertTriangle, critical: AlertTriangle };
   const Icon = icons[severity as keyof typeof icons] || Info;
+  const authUrl = payload.auth_url || "";
   return (
     <Card className={cn("border-l-2", colors[severity as keyof typeof colors])}>
       <div className="flex items-start gap-2">
@@ -671,7 +812,17 @@ function AlertArtefact({ title, payload, onAction }: { title: string; payload: R
         <div className="flex-1">
           <div className="text-sm font-semibold">{payload.title || title}</div>
           <p className="text-xs text-text-secondary mt-1">{payload.detail}</p>
-          {payload.action && onAction && (
+          {authUrl && (
+            <a
+              href={authUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-accent mt-2 hover:text-accent/80 font-medium"
+            >
+              {payload.action || "Connect"} →
+            </a>
+          )}
+          {!authUrl && payload.action && onAction && (
             <button
               onClick={() => onAction(payload.action)}
               className="text-xs text-accent mt-2 hover:text-accent/80"
