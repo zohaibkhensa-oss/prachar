@@ -234,33 +234,35 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
 
   return (
     <>
-      {/* Desktop sidebar */}
+      {/* Desktop sidebar — sticky in flow, only at lg+ */}
       <aside
         className={cn(
-          "hidden lg:flex fixed lg:sticky top-0 z-40 h-screen bg-bg-surface border-r border-white/[0.04] flex-col transition-all duration-300 ease-out-quart",
+          "hidden lg:flex sticky top-0 z-30 h-screen bg-bg-surface border-r border-white/[0.04] flex-col transition-all duration-300 ease-out-quart shrink-0",
           collapsed ? "w-[60px]" : "w-[240px]",
         )}
       >
         {sidebarContent}
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Mobile drawer — overlay above everything */}
       <AnimatePresence>
         {mobileOpen && (
           <>
+            {/* Backdrop — below drawer, above all app content + bottom nav */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onMobileClose}
-              className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              className="lg:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
             />
+            {/* Drawer — above backdrop */}
             <motion.aside
-              initial={{ x: -280 }}
+              initial={{ x: "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: -280 }}
+              exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 left-0 z-50 h-screen w-[260px] bg-bg-surface border-r border-white/[0.06] flex flex-col"
+              className="lg:hidden fixed top-0 left-0 z-[70] h-screen w-[280px] max-w-[85vw] bg-bg-surface border-r border-white/[0.06] flex flex-col overflow-y-auto"
             >
               {sidebarContent}
             </motion.aside>

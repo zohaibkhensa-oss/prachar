@@ -44,7 +44,7 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 lg:left-[60px] right-0 z-50 h-16 bg-bg-surface/90 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-center overflow-hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-30 h-16 bg-bg-surface/90 backdrop-blur-lg border-t border-white/[0.04] flex items-center justify-center overflow-hidden">
       {/* Left items (2) */}
       <div className="flex items-center flex-1 justify-end gap-1 pr-2 sm:pr-4">
         {DOCK_ITEMS.slice(0, 2).map((item) => {

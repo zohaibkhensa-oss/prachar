@@ -144,7 +144,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex">
+    <div className="min-h-screen bg-bg flex overflow-x-hidden">
       <CommandPalette />
       <ProactiveNotifications open={notifOpen} onClose={() => setNotifOpen(false)} />
 
@@ -152,7 +152,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar mobileOpen={sidebarOpen} onMobileClose={handleMobileClose} />
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16">
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 relative">
         <TopBar
           onSearchClick={() => {
             const event = new KeyboardEvent("keydown", { key: "k", metaKey: true });
@@ -174,10 +174,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {children}
           </motion.div>
         </main>
-      </div>
 
-      {/* Bottom AI Dock */}
-      <AIDock onOrbClick={handleOrbClick} />
+        {/* Bottom AI Dock — inside main content so it respects sidebar width */}
+        <AIDock onOrbClick={handleOrbClick} />
+      </div>
 
       {/* Floating AI Orb Panel — real runtime integration */}
       <AnimatePresence>
