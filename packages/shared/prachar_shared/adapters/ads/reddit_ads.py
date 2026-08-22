@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+import httpx
 
 from ...contracts import (
     AudienceSpec,
@@ -23,11 +24,12 @@ logger = logging.getLogger(__name__)
 
 _REDDIT_HEADLINE_LIMIT = 100
 _REDDIT_BODY_LIMIT = 300
+_REDDIT_API_BASE = "https://ads-api.reddit.com/api/v3"
 
 
 @register_ads
 class RedditAdsAdapter(AdNetworkAdapter):
-    """Reddit Ads API adapter (spec 06 networks table P2 — US/tech)."""
+    """Reddit Ads API v3 adapter (spec 06 networks table P2 — US/tech)."""
 
     network = "reddit_ads"
 
@@ -55,54 +57,133 @@ class RedditAdsAdapter(AdNetworkAdapter):
             payload["lookalike_seed"] = spec.lookalike_seed
         return NativeTargeting(network=self.network, payload=payload)
 
+    @staticmethod
+    def _get_account_id(tokens: TokenSet) -> str:
+        """Extract Reddit ad account ID from token scopes or metadata."""
+        for scope in tokens.scopes:
+            if scope.startswith("account:"):
+                return scope.split(":", 1)[1]
+        return tokens.access_token.split(":")[0] if ":" in tokens.access_token else ""
+
+    @staticmethod
+    def _headers(tokens: TokenSet) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {tokens.access_token}",
+            "Content-Type": "application/json",
+        }
+
     # ----- campaign lifecycle -----
-    def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
-        raw = repr(sorted(campaign.items()))
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        campaign_id = f"rdads-{digest}"
-        logger.info("reddit_ads.create_campaign stub -> %s", campaign_id)
-        return campaign_id
+    async def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
+        account_id = self._get_account_id(tokens)
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{_REDDIT_API_BASE}/accounts/{account_id}/campaigns",
+                    headers=self._headers(tokens),
+                    json={
+                        "name": campaign.get("name", "CURV AI Campaign"),
+                        "objective": campaign.get("objective", "AWARENESS"),
+                        "budget": int(campaign.get("budget_daily", 100) * 100),  # cents
+                        "pacing_type": "standard",
+                        "start_time": campaign.get("start_time", datetime.now(UTC).isoformat()),
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return str(data.get("data", {}).get("id", ""))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reddit_ads.create_campaign failed: %s", exc)
+            return ""
 
-    def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
-        raw = repr(sorted(creative.payload.items())) + creative.channel + creative.locale
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        creative_id = f"rdads-creative-{digest}"
-        logger.info("reddit_ads.upload_creative stub -> %s", creative_id)
-        return creative_id
+    async def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
+        account_id = self._get_account_id(tokens)
+        try:
+            payload = creative.payload or {}
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{_REDDIT_API_BASE}/accounts/{account_id}/creatives",
+                    headers=self._headers(tokens),
+                    json={
+                        "headline": payload.get("headline", ""),
+                        "body": payload.get("body", payload.get("text", "")),
+                        "image_url": payload.get("image_url", ""),
+                        "link_url": payload.get("link_url", ""),
+                        "creative_type": "text",
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                return str(data.get("data", {}).get("id", ""))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reddit_ads.upload_creative failed: %s", exc)
+            return ""
 
-    def set_budget_bid(
+    async def set_budget_bid(
         self, tokens: TokenSet, campaign_id: str, budget: float, bid: dict[str, Any]
     ) -> None:
-        idem = f"{campaign_id}:set_budget_bid"
-        logger.info(
-            "reddit_ads.set_budget_bid stub campaign=%s budget=%s bid=%s idem=%s",
-            campaign_id, budget, bid, idem,
-        )
-
-    def pause(self, tokens: TokenSet, campaign_id: str) -> None:
-        idem = f"{campaign_id}:pause"
-        logger.info("reddit_ads.pause stub campaign=%s idem=%s", campaign_id, idem)
-
-    def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
-        events: list[MetricEvent] = []
-        base = max(since, datetime.now(UTC) - timedelta(days=3))
-        seed = int(hashlib.sha256(campaign_id.encode("utf-8")).hexdigest()[:8], 16)
-        for d in range(3):
-            ts = base + timedelta(days=d)
-            for metric, base_val in (
-                ("impressions", 400.0), ("clicks", 12.0), ("cost", 4.0), ("conversions", 0.5),
-            ):
-                events.append(
-                    MetricEvent(
-                        channel=self.network,
-                        entity_type="campaign",
-                        entity_id=campaign_id,
-                        metric=metric,
-                        value=round(base_val + (seed % 9) * (d + 1) * 0.1, 4),
-                        ts=ts,
-                    )
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                await client.patch(
+                    f"{_REDDIT_API_BASE}/campaigns/{campaign_id}",
+                    headers=self._headers(tokens),
+                    json={
+                        "budget": int(budget * 100),  # cents
+                        "bid": bid,
+                    },
                 )
-        return events
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reddit_ads.set_budget_bid failed: %s", exc)
+
+    async def pause(self, tokens: TokenSet, campaign_id: str) -> None:
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                await client.patch(
+                    f"{_REDDIT_API_BASE}/campaigns/{campaign_id}",
+                    headers=self._headers(tokens),
+                    json={"status": "PAUSED"},
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reddit_ads.pause failed: %s", exc)
+
+    async def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
+        end_date = datetime.now(UTC).date().isoformat()
+        start_date = since.date().isoformat()
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.post(
+                    f"{_REDDIT_API_BASE}/reports",
+                    headers=self._headers(tokens),
+                    json={
+                        "campaign_ids": [campaign_id],
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "granularity": "DAY",
+                        "metrics": ["impressions", "clicks", "spend", "conversions"],
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+            events: list[MetricEvent] = []
+            for row in data.get("data", []):
+                ts_str = row.get("date", end_date)
+                try:
+                    ts = datetime.fromisoformat(ts_str)
+                except (ValueError, TypeError):
+                    ts = datetime.now(UTC)
+                for metric in ("impressions", "clicks", "spend", "conversions"):
+                    if metric in row:
+                        events.append(MetricEvent(
+                            channel=self.network,
+                            entity_type="campaign",
+                            entity_id=campaign_id,
+                            metric=metric,
+                            value=float(row[metric] or 0),
+                            ts=ts,
+                        ))
+            return events
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("reddit_ads.stats failed: %s", exc)
+            return []
 
     # ----- policy -----
     def policy_precheck(self, creative: CreativeAsset) -> PolicyResult:

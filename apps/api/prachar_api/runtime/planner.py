@@ -122,7 +122,7 @@ class ExecutionPlan:
 
 
 INTENT_PROMPT = """\
-You are PRACHAR AI. Classify the user's message into an intent and mode.
+You are CURV AI. Classify the user's message into an intent and mode.
 
 Available intents (choose the closest match):
 - conversation: general chat, questions, greetings
@@ -246,7 +246,7 @@ class IntentEngine:
 
 
 PLANNER_PROMPT = """\
-You are the PRACHAR AI Planner. Given a user's intent, brand context, and \
+You are the CURV AI Planner. Given a user's intent, brand context, and \
 available tools, produce an execution plan as a directed acyclic graph (DAG) \
 of tool calls.
 

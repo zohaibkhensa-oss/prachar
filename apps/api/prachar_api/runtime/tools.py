@@ -53,7 +53,7 @@ log = logging.getLogger("prachar.runtime.tools")
 
 @register_tool(ToolManifest(
     name="chat.respond",
-    display_name="PRACHAR AI Chat",
+    display_name="CURV AI Chat",
     description="Conversational response to user messages. Use for general questions, greetings, and simple queries.",
     category=ToolCategory.CONVERSATION,
     input_schema={"message": "string", "brand_id": "uuid"},

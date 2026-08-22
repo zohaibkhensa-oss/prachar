@@ -1,4 +1,4 @@
-"""Phase 2 Tool Registrations — new orb tools for the PRACHAR AI runtime.
+"""Phase 2 Tool Registrations — new orb tools for the CURV AI runtime.
 
 Registers additional tools that the orb can call, building on the existing
 tool set in ``tools.py``. Each tool follows the same manifest + decorator

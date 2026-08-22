@@ -624,7 +624,7 @@ class Runtime:
                 except Exception as exc:
                     log.warning("Context evaluation failed: %s", exc)
 
-            # Phase E1.2: Include health warnings in the response so PRACHAR AI
+            # Phase E1.2: Include health warnings in the response so CURV AI
             # can say "Publishing is temporarily unavailable. I've prepared everything else."
             if state.decision.health_warnings:
                 response["health_warnings"] = state.decision.health_warnings

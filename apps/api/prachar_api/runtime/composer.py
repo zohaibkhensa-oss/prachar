@@ -1,10 +1,10 @@
 """Response Composer — composes conversational response from tool outputs.
 
-Constitution Rule 9: PRACHAR AI owns the conversation. Internal engines are invisible.
-Users never see "CampaignBrain" or "Agency Council". They see PRACHAR AI.
+Constitution Rule 9: CURV AI owns the conversation. Internal engines are invisible.
+Users never see "CampaignBrain" or "Agency Council". They see CURV AI.
 
 The Composer takes all tool outputs and produces a natural-language response
-as if PRACHAR AI did everything itself.
+as if CURV AI did everything itself.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ log = logging.getLogger("prachar.runtime.composer")
 
 
 COMPOSER_PROMPT = """\
-You are PRACHAR AI. You just completed a task for the user. Compose a \
+You are CURV AI. You just completed a task for the user. Compose a \
 natural, conversational response summarising what you did.
 
 You are NOT a system reporter. You are a helpful AI marketing partner who \
@@ -54,7 +54,7 @@ Respond as JSON with keys "reply", "summary", and "suggested_actions".
 class ResponseComposer:
     """Composes a conversational response from tool outputs.
 
-    The user never sees tool names. They see PRACHAR AI speaking naturally.
+    The user never sees tool names. They see CURV AI speaking naturally.
     """
 
     def __init__(self, gateway: AIGateway) -> None:

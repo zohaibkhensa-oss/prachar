@@ -1,4 +1,4 @@
-"""PRACHAR AI Runtime — the single public AI entry point.
+"""CURV AI Runtime — the single public AI entry point.
 
 Architecture Freeze v2.0 — see V2_AI_ORCHESTRATOR_SPEC.md and RUNTIME_CONSTITUTION.md.
 
@@ -34,6 +34,22 @@ from .metrics import RuntimeMetrics, ToolMetrics
 # Import tools to register them in the Tool Registry
 from . import tools  # noqa: F401 — side effect: registers all tools
 from . import tools_phase2  # noqa: F401 — side effect: registers Phase 2 tools
+# L1–L8 capability tools (were only imported in tests; now auto-registered)
+from . import tools_landing  # noqa: F401
+from . import tools_calendar  # noqa: F401
+from . import tools_seo  # noqa: F401
+from . import tools_email  # noqa: F401
+from . import tools_website  # noqa: F401
+from . import tools_whatsapp  # noqa: F401
+from . import tools_collab  # noqa: F401
+from . import tools_crm  # noqa: F401
+# New wiring tools — connect channel adapters, loop, knowledge CRUD, integrations
+from . import tools_channels  # noqa: F401
+from . import tools_loop  # noqa: F401
+from . import tools_knowledge  # noqa: F401
+from . import tools_integrations  # noqa: F401
+from . import tools_admin  # noqa: F401
+from . import tools_ads  # noqa: F401
 
 __all__ = [
     # Context

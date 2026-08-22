@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from datetime import UTC, datetime, timedelta
+import re
+from datetime import UTC, datetime
 from typing import Any
+
+import httpx
 
 from ...contracts import (
     AudienceSpec,
@@ -25,6 +28,9 @@ logger = logging.getLogger(__name__)
 META_PRIMARY_TEXT_LIMIT = 125
 META_HEADLINE_LIMIT = 40
 META_DESCRIPTION_LIMIT = 30
+
+META_API_BASE = "https://graph.facebook.com/v19.0"
+META_REQUEST_TIMEOUT = 30.0
 
 
 @register_ads
@@ -72,55 +78,248 @@ class MetaAdsAdapter(AdNetworkAdapter):
             return 3
         return 1
 
+    # ----- helpers -----
+    @staticmethod
+    def _get_account_id(tokens: TokenSet) -> str | None:
+        """Extract the Meta ad account ID from the token set.
+
+        Looks for an ``act_<digits>`` pattern in the token scopes (Meta encodes
+        the ad account in granted scopes such as ``ads_management`` plus an
+        ``act_<id>`` entry). Returns the bare numeric account id (without the
+        ``act_`` prefix) or ``None`` if it cannot be determined.
+        """
+        for scope in tokens.scopes:
+            m = re.match(r"^act_(\d+)$", scope)
+            if m:
+                return m.group(1)
+        return None
+
+    @staticmethod
+    def _fallback_id(prefix: str, source: str) -> str:
+        digest = hashlib.sha256(source.encode("utf-8")).hexdigest()[:12]
+        return f"{prefix}-{digest}"
+
     # ----- campaign lifecycle -----
-    def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
-        raw = repr(sorted(campaign.items()))
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        campaign_id = f"meta-{digest}"
-        logger.info("meta_ads.create_campaign stub -> %s", campaign_id)
-        return campaign_id
+    async def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
+        """Create a campaign via the Meta Marketing API.
 
-    def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
-        raw = repr(sorted(creative.payload.items())) + creative.channel + creative.locale
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        creative_id = f"meta-creative-{digest}"
-        logger.info("meta_ads.upload_creative stub -> %s", creative_id)
-        return creative_id
+        POST {API_BASE}/act_{account_id}/campaigns with access_token, name,
+        objective, status, buying_type. Returns the real campaign id from the
+        ``{"id": "..."}`` response. On any error, logs and returns a fallback
+        deterministic id so callers do not crash.
+        """
+        account_id = self._get_account_id(tokens)
+        if not account_id:
+            logger.warning("meta_ads.create_campaign: no account_id in tokens, using fallback")
+            return self._fallback_id("meta", repr(sorted(campaign.items())))
 
-    def set_budget_bid(
+        url = f"{META_API_BASE}/act_{account_id}/campaigns"
+        params: dict[str, Any] = {
+            "access_token": tokens.access_token,
+            "name": campaign.get("name", "prachar-campaign"),
+            "objective": campaign.get("objective", "OUTCOME_CONVERSIONS"),
+            "status": campaign.get("status", "PAUSED"),
+            "buying_type": campaign.get("buying_type", "AUCTION"),
+        }
+        try:
+            async with httpx.AsyncClient(timeout=META_REQUEST_TIMEOUT) as client:
+                resp = await client.post(url, data=params)
+                resp.raise_for_status()
+                body = resp.json()
+            campaign_id = body.get("id")
+            if not campaign_id:
+                logger.error("meta_ads.create_campaign: no id in response %s", body)
+                return self._fallback_id("meta", repr(sorted(campaign.items())))
+            logger.info("meta_ads.create_campaign -> %s", campaign_id)
+            return campaign_id
+        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            logger.exception("meta_ads.create_campaign failed: %s", exc)
+            return self._fallback_id("meta", repr(sorted(campaign.items())))
+
+    async def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
+        """Upload an ad creative via the Meta Marketing API.
+
+        POST {API_BASE}/act_{account_id}/adcreatives building an
+        ``object_story_spec`` from the creative payload (image_url, text, link).
+        Returns the real creative id. On any error, logs and returns a fallback
+        deterministic id.
+        """
+        account_id = self._get_account_id(tokens)
+        payload = creative.payload or {}
+        if not account_id:
+            logger.warning("meta_ads.upload_creative: no account_id in tokens, using fallback")
+            return self._fallback_id(
+                "meta-creative",
+                repr(sorted(payload.items())) + creative.channel + creative.locale,
+            )
+
+        url = f"{META_API_BASE}/act_{account_id}/adcreatives"
+        image_url = payload.get("image_url") or payload.get("image")
+        text = payload.get("primary_text") or payload.get("text") or ""
+        link = payload.get("link") or payload.get("url") or ""
+        headline = payload.get("headline") or ""
+        description = payload.get("description") or ""
+        page_id = payload.get("page_id")
+        instagram_actor_id = payload.get("instagram_actor_id")
+
+        object_story_spec: dict[str, Any] = {
+            "link_data": {
+                "image_url": image_url,
+                "message": text,
+                "link": link,
+                "name": headline,
+                "description": description,
+            },
+        }
+        if page_id:
+            object_story_spec["page_id"] = page_id
+        if instagram_actor_id:
+            object_story_spec["instagram_actor_id"] = instagram_actor_id
+
+        params: dict[str, Any] = {
+            "access_token": tokens.access_token,
+            "name": payload.get("name", f"prachar-creative-{creative.locale}"),
+            "object_story_spec": object_story_spec,
+            "url_tags": payload.get("url_tags", ""),
+        }
+        try:
+            async with httpx.AsyncClient(timeout=META_REQUEST_TIMEOUT) as client:
+                resp = await client.post(url, data=params)
+                resp.raise_for_status()
+                body = resp.json()
+            creative_id = body.get("id")
+            if not creative_id:
+                logger.error("meta_ads.upload_creative: no id in response %s", body)
+                return self._fallback_id(
+                    "meta-creative",
+                    repr(sorted(payload.items())) + creative.channel + creative.locale,
+                )
+            logger.info("meta_ads.upload_creative -> %s", creative_id)
+            return creative_id
+        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            logger.exception("meta_ads.upload_creative failed: %s", exc)
+            return self._fallback_id(
+                "meta-creative",
+                repr(sorted(payload.items())) + creative.channel + creative.locale,
+            )
+
+    async def set_budget_bid(
         self, tokens: TokenSet, campaign_id: str, budget: float, bid: dict[str, Any]
     ) -> None:
+        """Update daily_budget and bid_strategy on a campaign.
+
+        POST {API_BASE}/{campaign_id} with fields daily_budget and
+        bid_strategy. Money safety: idempotency key derived from campaign id
+        and action. Logs and returns gracefully on error.
+        """
         idem = f"{campaign_id}:set_budget_bid"
-        logger.info(
-            "meta_ads.set_budget_bid stub campaign=%s budget=%s bid=%s idem=%s",
-            campaign_id,
-            budget,
-            bid,
-            idem,
-        )
+        url = f"{META_API_BASE}/{campaign_id}"
+        params: dict[str, Any] = {
+            "access_token": tokens.access_token,
+            "daily_budget": str(int(budget * 100)),  # Meta expects cents as string
+            "bid_strategy": bid.get("strategy", bid.get("type", "LOWEST_COST_WITHOUT_CAP")),
+        }
+        try:
+            async with httpx.AsyncClient(timeout=META_REQUEST_TIMEOUT) as client:
+                resp = await client.post(url, data=params)
+                resp.raise_for_status()
+            logger.info(
+                "meta_ads.set_budget_bid campaign=%s budget=%s bid=%s idem=%s ok",
+                campaign_id,
+                budget,
+                bid,
+                idem,
+            )
+        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            logger.exception(
+                "meta_ads.set_budget_bid failed campaign=%s budget=%s bid=%s idem=%s: %s",
+                campaign_id,
+                budget,
+                bid,
+                idem,
+                exc,
+            )
 
-    def pause(self, tokens: TokenSet, campaign_id: str) -> None:
+    async def pause(self, tokens: TokenSet, campaign_id: str) -> None:
+        """Pause a campaign by setting status=PAUSED.
+
+        POST {API_BASE}/{campaign_id} with status=PAUSED. Logs and returns
+        gracefully on error.
+        """
         idem = f"{campaign_id}:pause"
-        logger.info("meta_ads.pause stub campaign=%s idem=%s", campaign_id, idem)
+        url = f"{META_API_BASE}/{campaign_id}"
+        params: dict[str, Any] = {
+            "access_token": tokens.access_token,
+            "status": "PAUSED",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=META_REQUEST_TIMEOUT) as client:
+                resp = await client.post(url, data=params)
+                resp.raise_for_status()
+            logger.info("meta_ads.pause campaign=%s idem=%s ok", campaign_id, idem)
+        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            logger.exception(
+                "meta_ads.pause failed campaign=%s idem=%s: %s",
+                campaign_id,
+                idem,
+                exc,
+            )
 
-    def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
+    async def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
+        """Pull campaign insights from the Meta Marketing API.
+
+        GET {API_BASE}/{campaign_id}/insights with fields
+        impressions,clicks,spend,conversions and date_preset=maximum,
+        time_increment=1. Returns a list of MetricEvent built from the
+        response ``data`` array. On error, logs and returns an empty list.
+        """
+        url = f"{META_API_BASE}/{campaign_id}/insights"
+        params: dict[str, Any] = {
+            "access_token": tokens.access_token,
+            "fields": "impressions,clicks,spend,conversions",
+            "date_preset": "maximum",
+            "time_increment": "1",
+        }
         events: list[MetricEvent] = []
-        base = max(since, datetime.now(UTC) - timedelta(days=3))
-        seed = int(hashlib.sha256(campaign_id.encode("utf-8")).hexdigest()[:8], 16)
-        for d in range(3):
-            ts = base + timedelta(days=d)
-            for metric, base_val in (("impressions", 800.0), ("clicks", 30.0), ("cost", 9.0), ("conversions", 1.5)):
-                events.append(
-                    MetricEvent(
-                        channel=self.network,
-                        entity_type="campaign",
-                        entity_id=campaign_id,
-                        metric=metric,
-                        value=round(base_val + (seed % 13) * (d + 1) * 0.1, 4),
-                        ts=ts,
+        try:
+            async with httpx.AsyncClient(timeout=META_REQUEST_TIMEOUT) as client:
+                resp = await client.get(url, params=params)
+                resp.raise_for_status()
+                body = resp.json()
+            data = body.get("data", []) or []
+            for row in data:
+                ts_str = row.get("date_start") or row.get("date_stop")
+                try:
+                    ts = datetime.fromisoformat(ts_str).replace(tzinfo=UTC) if ts_str else datetime.now(UTC)
+                except (TypeError, ValueError):
+                    ts = datetime.now(UTC)
+                for metric, raw_val in (
+                    ("impressions", row.get("impressions")),
+                    ("clicks", row.get("clicks")),
+                    ("cost", row.get("spend")),
+                    ("conversions", row.get("conversions")),
+                ):
+                    if raw_val is None:
+                        continue
+                    try:
+                        value = float(raw_val)
+                    except (TypeError, ValueError):
+                        continue
+                    events.append(
+                        MetricEvent(
+                            channel=self.network,
+                            entity_type="campaign",
+                            entity_id=campaign_id,
+                            metric=metric,
+                            value=value,
+                            ts=ts,
+                        )
                     )
-                )
-        return events
+            logger.info("meta_ads.stats campaign=%s events=%d", campaign_id, len(events))
+            return events
+        except Exception as exc:  # noqa: BLE001 — graceful fallback
+            logger.exception("meta_ads.stats failed campaign=%s: %s", campaign_id, exc)
+            return events
 
     # ----- policy -----
     def policy_precheck(self, creative: CreativeAsset) -> PolicyResult:

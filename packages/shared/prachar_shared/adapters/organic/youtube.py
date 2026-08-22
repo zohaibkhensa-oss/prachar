@@ -30,6 +30,7 @@ _YT_ANALYTICS_API = "https://youtubeanalytics.googleapis.com/v2/reports"
 _YT_SCOPES = [
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
+    "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
 ]
 _MAX_RETRIES = 3
 _RETRY_STATUS = {401, 403, 429}
@@ -285,7 +286,14 @@ class YouTubeAdapter(ChannelAdapter):
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
         end = datetime.now(UTC).date().isoformat()
         start = since.astimezone(UTC).date().isoformat()
-        metrics_str = "views,impressions,impressionsCtr,estimatedWatchTimeMinutes"
+        # Include revenue metrics (estimatedRevenue, grossRevenue) — requires
+        # the yt-analytics-monetary.readonly scope. If the channel isn't
+        # monetised or the scope wasn't granted, the API returns 0 / omits
+        # the columns and we gracefully skip them.
+        metrics_str = (
+            "views,impressions,impressionsCtr,estimatedWatchTimeMinutes,"
+            "estimatedRevenue,grossRevenue,subscribersGained,subscribersLost"
+        )
         params = {
             "ids": "channel==MINE",
             "startDate": start,
@@ -313,9 +321,13 @@ class YouTubeAdapter(ChannelAdapter):
                 "impressions": "impressions",
                 "impressionsCtr": "ctr",
                 "estimatedWatchTimeMinutes": "watch_time_minutes",
+                "estimatedRevenue": "estimated_revenue",
+                "grossRevenue": "gross_revenue",
+                "subscribersGained": "subscribers_gained",
+                "subscribersLost": "subscribers_lost",
             }
             for raw, canonical in metric_names.items():
-                if raw in mapping:
+                if raw in mapping and mapping[raw] is not None:
                     events.append(
                         MetricEvent(
                             channel=self.channel,

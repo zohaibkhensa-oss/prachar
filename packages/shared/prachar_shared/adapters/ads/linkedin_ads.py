@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
+
+import httpx
 
 from ...contracts import (
     AudienceSpec,
@@ -20,6 +21,9 @@ from .audience_translation import translate_taxonomy_sync
 from .base import AdNetworkAdapter
 
 logger = logging.getLogger(__name__)
+
+_LINKEDIN_API_BASE = "https://api.linkedin.com/v2"
+_LINKEDIN_TIMEOUT = 30.0
 
 # LinkedIn Ads copy char limits (spec 06 §Creatives).
 LI_INTRO_TEXT_LIMIT = 150
@@ -94,59 +98,221 @@ class LinkedInAdsAdapter(AdNetworkAdapter):
             }
         return NativeTargeting(network=self.network, payload=payload)
 
+    # ----- LinkedIn Marketing API helpers -----
+    @staticmethod
+    def _auth_headers(tokens: TokenSet) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {tokens.access_token}",
+            "Content-Type": "application/json",
+            "X-Restli-Protocol-Version": "2.0.0",
+        }
+
+    async def _get_account_urn(self, tokens: TokenSet) -> str:
+        """Resolve the sponsored account URN for the authenticated user.
+
+        GET /v2/adAccounts?q=search returns the ad accounts the token can
+        access; we pick the first usable account and return its URN.
+        """
+        headers = self._auth_headers(tokens)
+        async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+            resp = await client.get(
+                f"{_LINKEDIN_API_BASE}/adAccounts",
+                params={"q": "search", "start": 0, "count": 1},
+                headers=headers,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        elements = data.get("elements", [])
+        if not elements:
+            raise RuntimeError("linkedin_ads: no ad accounts available for token")
+        account_id = elements[0]["id"]
+        return f"urn:li:sponsoredAccount:{account_id}"
+
     # ----- campaign lifecycle -----
-    def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
-        raw = repr(sorted(campaign.items()))
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        campaign_id = f"liads-{digest}"
-        logger.info("linkedin_ads.create_campaign stub -> %s", campaign_id)
+    async def create_campaign(self, tokens: TokenSet, campaign: dict[str, Any]) -> str:
+        """POST /v2/adCampaignsV2 — create a campaign, return native id."""
+        account_urn = campaign.get("account") or await self._get_account_urn(tokens)
+        body: dict[str, Any] = {
+            "account": account_urn,
+            "name": campaign["name"],
+            "status": campaign.get("status", "ACTIVE"),
+            "objective": campaign.get("objective", "AWARENESS"),
+            "type": campaign.get("type", "TEXT_AD"),
+            "dailyBudget": {
+                "currencyCode": campaign.get("currency", "USD"),
+                "amount": str(campaign.get("daily_budget", campaign.get("dailyBudget", 50.0))),
+            },
+        }
+        headers = self._auth_headers(tokens)
+        try:
+            async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+                resp = await client.post(
+                    f"{_LINKEDIN_API_BASE}/adCampaignsV2",
+                    json=body,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                payload = resp.json()
+        except httpx.HTTPError as exc:
+            logger.error("linkedin_ads.create_campaign failed: %s", exc)
+            raise
+        campaign_id = str(payload["id"])
+        logger.info("linkedin_ads.create_campaign -> %s", campaign_id)
         return campaign_id
 
-    def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
-        raw = repr(sorted(creative.payload.items())) + creative.channel + creative.locale
-        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
-        creative_id = f"liads-creative-{digest}"
-        logger.info("linkedin_ads.upload_creative stub -> %s", creative_id)
+    async def upload_creative(self, tokens: TokenSet, creative: CreativeAsset) -> str:
+        """POST /v2/adCreativesV2 — create a creative with text/image/destination."""
+        payload = creative.payload or {}
+        text = payload.get("intro_text") or payload.get("text") or payload.get("primary_text", "")
+        headline = payload.get("headline", "")
+        destination_url = payload.get("destination_url") or payload.get("landing_url", "")
+        image_url = payload.get("image_url") or payload.get("s3_url")
+
+        body: dict[str, Any] = {
+            "type": payload.get("creative_type", "TEXT_AD"),
+            "status": payload.get("status", "ACTIVE"),
+            "content": {"text": text},
+            "reference": {"destinationUrl": destination_url},
+        }
+        if headline:
+            body["content"]["headline"] = headline
+        if image_url:
+            body["content"]["media"] = [{"id": image_url, "type": "IMAGE"}]
+
+        headers = self._auth_headers(tokens)
+        try:
+            async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+                resp = await client.post(
+                    f"{_LINKEDIN_API_BASE}/adCreativesV2",
+                    json=body,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as exc:
+            logger.error("linkedin_ads.upload_creative failed: %s", exc)
+            raise
+        creative_id = str(data["id"])
+        logger.info("linkedin_ads.upload_creative -> %s", creative_id)
         return creative_id
 
-    def set_budget_bid(
+    async def set_budget_bid(
         self, tokens: TokenSet, campaign_id: str, budget: float, bid: dict[str, Any]
     ) -> None:
-        idem = f"{campaign_id}:set_budget_bid"
+        """PATCH /v2/adCampaignsV2/{id} — update dailyBudget and bidType."""
+        body: dict[str, Any] = {
+            "dailyBudget": {
+                "currencyCode": bid.get("currency", "USD"),
+                "amount": str(budget),
+            },
+        }
+        if "bid_type" in bid:
+            body["bidType"] = bid["bid_type"]
+        if "bid_amount" in bid:
+            body["bidAmount"] = {
+                "currencyCode": bid.get("currency", "USD"),
+                "amount": str(bid["bid_amount"]),
+            }
+        headers = self._auth_headers(tokens)
+        headers["X-HTTP-Method-Override"] = "PATCH"
+        try:
+            async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+                resp = await client.post(
+                    f"{_LINKEDIN_API_BASE}/adCampaignsV2/{campaign_id}",
+                    json=body,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.error("linkedin_ads.set_budget_bid failed campaign=%s: %s", campaign_id, exc)
+            raise
         logger.info(
-            "linkedin_ads.set_budget_bid stub campaign=%s budget=%s bid=%s idem=%s",
+            "linkedin_ads.set_budget_bid campaign=%s budget=%s bid=%s",
             campaign_id,
             budget,
             bid,
-            idem,
         )
 
-    def pause(self, tokens: TokenSet, campaign_id: str) -> None:
-        idem = f"{campaign_id}:pause"
-        logger.info("linkedin_ads.pause stub campaign=%s idem=%s", campaign_id, idem)
-
-    def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
-        events: list[MetricEvent] = []
-        base = max(since, datetime.now(UTC) - timedelta(days=3))
-        seed = int(hashlib.sha256(campaign_id.encode("utf-8")).hexdigest()[:8], 16)
-        for d in range(3):
-            ts = base + timedelta(days=d)
-            for metric, base_val in (
-                ("impressions", 600.0),
-                ("clicks", 18.0),
-                ("cost", 15.0),
-                ("conversions", 0.8),
-            ):
-                events.append(
-                    MetricEvent(
-                        channel=self.network,
-                        entity_type="campaign",
-                        entity_id=campaign_id,
-                        metric=metric,
-                        value=round(base_val + (seed % 19) * (d + 1) * 0.1, 4),
-                        ts=ts,
-                    )
+    async def pause(self, tokens: TokenSet, campaign_id: str) -> None:
+        """PATCH /v2/adCampaignsV2/{id} — set status=PAUSED."""
+        headers = self._auth_headers(tokens)
+        headers["X-HTTP-Method-Override"] = "PATCH"
+        try:
+            async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+                resp = await client.post(
+                    f"{_LINKEDIN_API_BASE}/adCampaignsV2/{campaign_id}",
+                    json={"status": "PAUSED"},
+                    headers=headers,
                 )
+                resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            logger.error("linkedin_ads.pause failed campaign=%s: %s", campaign_id, exc)
+            raise
+        logger.info("linkedin_ads.pause campaign=%s", campaign_id)
+
+    async def stats(self, tokens: TokenSet, campaign_id: str, since: datetime) -> list[MetricEvent]:
+        """GET /v2/adAnalytics — pull real campaign metrics since `since`."""
+        start = since.astimezone(UTC)
+        end = datetime.now(UTC)
+        date_range = {
+            "start": {"month": start.month, "day": start.day, "year": start.year},
+            "end": {"month": end.month, "day": end.day, "year": end.year},
+        }
+        params = {
+            "q": "analytics",
+            "pivot": "CAMPAIGN",
+            "campaigns": f"urn:li:sponsoredCampaign:{campaign_id}",
+            "dateRange": date_range,
+            "fields": "impressions,clicks,costInUsd,conversions",
+        }
+        headers = self._auth_headers(tokens)
+        events: list[MetricEvent] = []
+        try:
+            async with httpx.AsyncClient(timeout=_LINKEDIN_TIMEOUT) as client:
+                resp = await client.get(
+                    f"{_LINKEDIN_API_BASE}/adAnalytics",
+                    params=params,
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except httpx.HTTPError as exc:
+            logger.error("linkedin_ads.stats failed campaign=%s: %s", campaign_id, exc)
+            return events
+
+        for element in data.get("elements", []):
+            ts_str = element.get("date") or element.get("timeBucket")
+            try:
+                if isinstance(ts_str, dict):
+                    ts = datetime(
+                        ts_str.get("year", end.year),
+                        ts_str.get("month", end.month),
+                        ts_str.get("day", end.day),
+                        tzinfo=UTC,
+                    )
+                elif isinstance(ts_str, str):
+                    ts = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                else:
+                    ts = end
+            except (ValueError, TypeError):
+                ts = end
+            for metric, key in (
+                ("impressions", "impressions"),
+                ("clicks", "clicks"),
+                ("cost", "costInUsd"),
+                ("conversions", "conversions"),
+            ):
+                if key in element:
+                    events.append(
+                        MetricEvent(
+                            channel=self.network,
+                            entity_type="campaign",
+                            entity_id=campaign_id,
+                            metric=metric,
+                            value=float(element[key]),
+                            ts=ts,
+                        )
+                    )
         return events
 
     # ----- policy -----
