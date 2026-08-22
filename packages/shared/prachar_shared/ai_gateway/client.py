@@ -380,7 +380,7 @@ class AIGateway:
         
         # Detect if the model name belongs to a different provider and remap
         is_gemini_model = "gemini" in model
-        is_groq_model = "llama" in model or "mixtral" in model or "gemma" in model
+        is_groq_model = "llama" in model or "mixtral" in model or "gemma" in model or "gpt-oss" in model or "compound" in model or "qwen" in model or "allam" in model
         is_anthropic_model = "claude" in model
         is_openai_model = "gpt" in model
         
@@ -390,9 +390,9 @@ class AIGateway:
                 return model
             # Map non-Groq models to Groq equivalents
             if "pro" in model or "large" in model or "sonnet" in model or "gpt-4o" == model:
-                return s.ai_large_model if "llama" in s.ai_large_model else "llama-3.3-70b-versatile"
+                return s.ai_large_model if ("llama" in s.ai_large_model or "gpt-oss" in s.ai_large_model) else "openai/gpt-oss-120b"
             # Small/default models
-            return s.ai_small_model if "llama" in s.ai_small_model else "llama-3.1-8b-instant"
+            return s.ai_small_model if ("llama" in s.ai_small_model or "gpt-oss" in s.ai_small_model) else "groq/compound-mini"
             
         if provider == "gemini":
             # If model is already a Gemini model, use it directly
