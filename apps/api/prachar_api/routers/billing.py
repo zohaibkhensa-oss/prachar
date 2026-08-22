@@ -237,7 +237,7 @@ async def _stripe_checkout(
                 line_items=[{
                     "price_data": {
                         "currency": "usd",
-                        "product_data": {"name": f"PRACHAR {plan.name} (monthly)"},
+                        "product_data": {"name": f"CURV AI {plan.name} (monthly)"},
                         "unit_amount": plan.price_usd * 100,  # cents
                         "recurring": {"interval": "month"},
                     },
@@ -310,7 +310,7 @@ async def _razorpay_checkout(
             link = client.payment_link.create({
                 "amount": amount_paise,
                 "currency": "INR",
-                "description": f"PRACHAR {plan.name} — monthly subscription",
+                "description": f"CURV AI {plan.name} — monthly subscription",
                 "callback_url": success_url,
                 "callback_method": "get",
                 "notes": {
@@ -715,10 +715,10 @@ def _generate_invoice_pdf(
 
     c.setFillColor(HexColor("#ffffff"))
     c.setFont("Helvetica-Bold", 24)
-    c.drawString(20 * mm, height - 18 * mm, "PRACHAR")
+    c.drawString(20 * mm, height - 18 * mm, "CURV AI")
     c.setFont("Helvetica", 9)
     c.drawString(20 * mm, height - 24 * mm, "AI-Driven Advertising Platform")
-    c.drawString(20 * mm, height - 29 * mm, "hello@prachar.app | www.prachar.app")
+    c.drawString(20 * mm, height - 29 * mm, "hello@curv.app | www.curv.app")
 
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(width - 20 * mm, height - 18 * mm, "TAX INVOICE")
@@ -748,7 +748,7 @@ def _generate_invoice_pdf(
     y_from -= 6 * mm
     c.setFont("Helvetica", 9)
     c.setFillColor(HexColor("#555555"))
-    c.drawRightString(width - 20 * mm, y_from, "PRACHAR AI Technologies")
+    c.drawRightString(width - 20 * mm, y_from, "CURV AI Technologies")
     y_from -= 5 * mm
     c.drawRightString(width - 20 * mm, y_from, "GSTIN: 29ABCDE1234F1Z5")
     y_from -= 5 * mm
@@ -768,7 +768,7 @@ def _generate_invoice_pdf(
     y -= 15 * mm
     c.setFont("Helvetica", 9)
     c.setFillColor(HexColor("#333333"))
-    plan_label = f"PRACHAR {plan_key.upper()} — Monthly Subscription"
+    plan_label = f"CURV AI {plan_key.upper()} — Monthly Subscription"
     c.drawString(22 * mm, y, plan_label)
     c.drawString(110 * mm, y, "1")
     c.drawString(130 * mm, y, f"Rs. {base_amount:,}")
@@ -811,7 +811,7 @@ def _generate_invoice_pdf(
     y -= 5 * mm
     c.drawString(20 * mm, y, f"Invoice #{invoice_number} | Generated on {now.strftime('%d %b %Y at %H:%M UTC')}")
     y -= 5 * mm
-    c.drawString(20 * mm, y, "PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India")
+    c.drawString(20 * mm, y, "CURV AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India")
 
     c.showPage()
     c.save()

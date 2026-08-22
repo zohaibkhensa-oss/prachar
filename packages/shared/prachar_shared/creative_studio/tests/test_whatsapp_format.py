@@ -1,6 +1,6 @@
 """Tests for the WhatsApp creative format generator (formats/whatsapp.py).
 
-Part P2.8 of the PRACHAR roadmap. Verifies that ``generate_whatsapp``:
+Part P2.8 of the CURV AI roadmap. Verifies that ``generate_whatsapp``:
   - returns a dict with status_text, status_image_brief, broadcast_message,
   - parses the AIGateway JSON response via extract_json,
   - falls back gracefully to an empty-shaped dict on failure,

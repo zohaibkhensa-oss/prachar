@@ -304,7 +304,7 @@ class Mailchimp(MarketingIntegration):
             "settings": {
                 "subject_line": payload.get("subject", ""),
                 "preview_text": payload.get("preview_text", ""),
-                "from_name": payload.get("from_name", "PRACHAR"),
+                "from_name": payload.get("from_name", "CURV AI"),
                 "reply_to": payload.get("reply_to", ""),
             },
         }

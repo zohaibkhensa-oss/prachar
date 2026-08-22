@@ -200,6 +200,6 @@ def check_output_for_leaks(output: str, *, system_prompt: str = "") -> bool:
 
 BLOCKED_RESPONSE = (
     "I can't process that request — it appears to contain instructions that "
-    "attempt to override my safety guidelines. I'm here to help with PRACHAR "
+    "attempt to override my safety guidelines. I'm here to help with CURV AI "
     "platform questions and advertising expertise. How can I assist you today?"
 )

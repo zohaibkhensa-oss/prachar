@@ -202,7 +202,7 @@ class AIGateway:
         if user_input and comp.text:
             if not check_output_for_leaks(comp.text):
                 logger.warning("output leak detected for request %s", request_id)
-                comp.text = "I can only help with PRACHAR platform questions and advertising expertise."
+                comp.text = "I can only help with CURV AI platform questions and advertising expertise."
                 comp.confidence = 0.0
 
         # Estimate confidence based on response quality signals
@@ -276,7 +276,7 @@ class AIGateway:
         if task == "chat":
             return Completion(
                 text=(
-                    "Hey! I'm PRACHAR AI running in demo mode. To get full AI responses, "
+                    "Hey! I'm CURV AI running in demo mode. To get full AI responses, "
                     "set the ANTHROPIC_API_KEY or OPENAI_API_KEY in your .env file. "
                     "In the meantime, I can still help you navigate the platform — "
                     "try asking me to take you to campaigns, analytics, or creative AI!"

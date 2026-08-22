@@ -1,6 +1,6 @@
 """Facebook creative format spec + generator.
 
-Part P2.9 of the PRACHAR roadmap. Defines the Facebook format spec (copy ≤500
+Part P2.9 of the CURV AI roadmap. Defines the Facebook format spec (copy ≤500
 chars, image_brief, link_description) and a ``generate_facebook`` function that
 builds a prompt, calls the AIGateway with ``Tier.large``, parses the response via
 ``extract_json``, and returns a dict. Falls back to an empty dict on any failure

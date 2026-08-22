@@ -1,11 +1,11 @@
-"""PRACHAR AI Chat integration helpers for the Agency Council.
+"""CURV AI Chat integration helpers for the Agency Council.
 
-PRACHAR AI never exposes raw Director discussions. PRACHAR AI summarises *why* the Council
+CURV AI never exposes raw Director discussions. CURV AI summarises *why* the Council
 made the decision in conversational language.
 
 This module provides:
 - is_council_review_request(): Detects when a user is asking for a council review
-- summarise_council_decision(): Converts a ConsensusDecision into a PRACHAR AI-voiced summary
+- summarise_council_decision(): Converts a ConsensusDecision into a CURV AI-voiced summary
 """
 from __future__ import annotations
 
@@ -41,16 +41,16 @@ def is_council_review_request(message: str) -> bool:
 
 
 def summarise_council_decision(decision: ConsensusDecision | dict[str, Any]) -> str:
-    """Convert a ConsensusDecision into a PRACHAR AI-voiced summary.
+    """Convert a ConsensusDecision into a CURV AI-voiced summary.
 
-    PRACHAR AI never exposes raw Director discussions. This function produces a
+    CURV AI never exposes raw Director discussions. This function produces a
     conversational summary that explains *why* the Council made the decision.
 
     Args:
         decision: A ConsensusDecision object or dict.
 
     Returns:
-        A user-friendly summary string in PRACHAR AI's voice.
+        A user-friendly summary string in CURV AI's voice.
     """
     if isinstance(decision, dict):
         approval_status = decision.get("approval_status", "pending")

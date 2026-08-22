@@ -1,8 +1,8 @@
 """Campaign Brain — the orchestrator.
 
-PRACHAR AI never directly answers marketing questions. It first asks the
+CURV AI never directly answers marketing questions. It first asks the
 Campaign Brain. The Campaign Brain runs all intelligence engines in
-sequence and returns a structured strategy. PRACHAR AI converts it into
+sequence and returns a structured strategy. CURV AI converts it into
 conversational language.
 
 The Campaign Brain is the single entry point for full campaign generation.
@@ -244,12 +244,12 @@ class CampaignBrain:
     # ─── Public API (Phase 4: Architecture Stabilisation) ───────────────────
     #
     # These methods form the CANONICAL public API of CampaignBrain.
-    # External callers (PRACHAR AI chat, API routers, workers, future services) MUST
+    # External callers (CURV AI chat, API routers, workers, future services) MUST
     # use these methods — never the private engine runners below.
     #
     # The public API methods are:
     #   analyse()           — business + audience + competitor analysis
-    #   consult()           — focused strategy for a specific question (PRACHAR AI)
+    #   consult()           — focused strategy for a specific question (CURV AI)
     #   generate_strategy() — objective + campaign strategy
     #   generate_campaign() — full campaign (all 9 engines)
     #   generate_media_plan() — media plan only
@@ -329,7 +329,7 @@ class CampaignBrain:
     ) -> dict[str, Any]:
         """Answer a strategic question using focused analysis.
 
-        This is the PRACHAR AI entry point. PRACHAR AI never directly answers marketing
+        This is the CURV AI entry point. CURV AI never directly answers marketing
         questions — it calls consult() and converts the structured strategy
         into conversational language.
 
@@ -704,7 +704,7 @@ class CampaignBrain:
         # Load RAW live performance data from CampaignPerformance for the
         # brand's recent campaigns (last 30 days, all channels). This is
         # SEPARATE from the P4.6 feedback loop above (which uses summarized
-        # learnings). This gives PRACHAR AI real-time data to reason from.
+        # learnings). This gives CURV AI real-time data to reason from.
         # Graceful — empty when no live data or no session factory.
         live_context = await self._load_live_performance_context(brand_id)
         if live_context:
@@ -1060,7 +1060,7 @@ class CampaignBrain:
 
         The brain depends only on the Council interface (ConsensusEngine),
         not on concrete director implementations. This is the core IP of
-        PRACHAR — no single AI agent makes the final decision.
+        CURV AI — no single AI agent makes the final decision.
 
         Args:
             campaign: A FullCampaign object or dict to review. If None,

@@ -1,6 +1,6 @@
 """A/B Concept Generator — produces 6 A/B variants (3 directions × 2 variants).
 
-Part P1.9 of the PRACHAR roadmap. For each creative direction (from P1.1),
+Part P1.9 of the CURV AI roadmap. For each creative direction (from P1.1),
 generates an A/B variant with a different hook/angle. Variant A is the
 original direction's angle; variant B is an alternative angle.
 

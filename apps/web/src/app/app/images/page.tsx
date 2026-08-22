@@ -72,7 +72,7 @@ export default function ImageStudioPage() {
           body: JSON.stringify({
             messages: [{
               role: "user",
-              content: `You are an AI image prompt engineer for PRACHAR. The user wants a ${style} image in ${ratio} format. Their prompt: "${prompt}". ${negativePrompt ? `Exclude: ${negativePrompt}.` : ""} Generate ${variations} enhanced, detailed image generation prompts (each on a new line, numbered 1-${variations}). Include lighting, composition, mood, and style details.`,
+              content: `You are an AI image prompt engineer for CURV AI. The user wants a ${style} image in ${ratio} format. Their prompt: "${prompt}". ${negativePrompt ? `Exclude: ${negativePrompt}.` : ""} Generate ${variations} enhanced, detailed image generation prompts (each on a new line, numbered 1-${variations}). Include lighting, composition, mood, and style details.`,
             }],
           }),
           signal: AbortSignal.timeout(20000),

@@ -1,4 +1,4 @@
-# PRACHAR AI — Launch Readiness Gate
+# CURV AI — Launch Readiness Gate
 
 **Architecture status:** FROZEN (v1) — declared 2026-08-02. No new foundational abstractions.
 **Product completion:** ~90%. Remaining work is feature implementation, not architecture.

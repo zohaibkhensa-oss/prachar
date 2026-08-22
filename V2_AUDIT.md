@@ -1,4 +1,4 @@
-# PRACHAR Frontend V2 — Feature Audit & Build Plan
+# CURV AI Frontend V2 — Feature Audit & Build Plan
 
 ## V1 Feature Inventory (must all exist in V2)
 
@@ -70,7 +70,7 @@
 - [ ] Sidebar navigation (collapsible, domain-based)
 - [ ] Top bar (search ⌘K, notifications, avatar)
 - [ ] VoiceAssistant (floating orb, wake word, Web Speech API, 30+ KB)
-- [ ] ProactiveNotifications (PRACHAR AI messages, launch recommendations)
+- [ ] ProactiveNotifications (CURV AI messages, launch recommendations)
 - [ ] CommandPalette (⌘K)
 
 ### Lib Files (16) — all must be ported

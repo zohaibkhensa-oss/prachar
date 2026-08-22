@@ -1,6 +1,6 @@
 """Local Marketing Generator — produces 3-5 local marketing ideas per campaign.
 
-Part P1.7 of the PRACHAR roadmap. Generates local marketing ideas for
+Part P1.7 of the CURV AI roadmap. Generates local marketing ideas for
 location-based businesses (business, restaurant, clinic). Creators don't have
 a local presence, so the creator pack's ``local_prompt`` is empty and this
 generator returns [] for creators.

@@ -1,6 +1,6 @@
 """Poster creative format spec + generator.
 
-Part P2.4 of the PRACHAR roadmap. The spec (``POSTER``) describes the poster
+Part P2.4 of the CURV AI roadmap. The spec (``POSTER``) describes the poster
 format's output schema and prompt template. The ``generate_poster`` function
 is the generation layer — it builds a domain-aware prompt from the spec,
 calls the AIGateway, parses the JSON response via ``extract_json``, and

@@ -15,9 +15,9 @@ log = logging.getLogger("prachar.api")
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="PRACHAR API",
+        title="CURV AI API",
         version="1.0.0",
-        description="""# PRACHAR AI API
+        description="""# CURV AI API
 
 AI-driven global advertising agency platform.
 
@@ -65,13 +65,13 @@ See `docs/adr/` for Architecture Decision Records.
 See `LAUNCH_READINESS.md` for the feature matrix.
 """,
         contact={
-            "name": "PRACHAR AI Support",
-            "url": "https://prachar.ai/support",
-            "email": "support@prachar.ai",
+            "name": "CURV AI Support",
+            "url": "https://curv.ai/support",
+            "email": "support@curv.ai",
         },
         license_info={
             "name": "Proprietary",
-            "url": "https://prachar.ai/terms",
+            "url": "https://curv.ai/terms",
         },
         openapi_tags=[
             {"name": "meta", "description": "Health checks and metrics"},

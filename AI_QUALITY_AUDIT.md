@@ -1,4 +1,4 @@
-# PRACHAR — AI Quality Audit Report
+# CURV AI — AI Quality Audit Report
 
 **Date:** 2026-07-25
 **Auditor:** Chief Technology Officer

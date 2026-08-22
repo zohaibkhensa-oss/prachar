@@ -1,6 +1,6 @@
 """Landing Page creative format spec + generator.
 
-Part P2.12 of the PRACHAR roadmap. Defines the ``landing_page`` creative
+Part P2.12 of the CURV AI roadmap. Defines the ``landing_page`` creative
 format — a high-converting landing page with a hero section, exactly 3
 benefit points, a social proof section, an FAQ list, a primary CTA, and the
 form fields to collect — plus a ``generate_landing_page`` function that

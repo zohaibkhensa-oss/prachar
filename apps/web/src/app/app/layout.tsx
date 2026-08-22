@@ -107,7 +107,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       router.replace("/onboarding");
       return;
     }
-    setEmail(window.localStorage.getItem("prachar_email") ?? "you@prachar.app");
+    setEmail(window.localStorage.getItem("prachar_email") ?? "you@curv.app");
     setCustomerType(window.localStorage.getItem("prachar_customer_type") === "creator" ? "creator" : "business");
     setReady(true);
   }, [router]);

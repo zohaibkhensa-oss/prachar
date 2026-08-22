@@ -277,7 +277,7 @@ export default function CreativeAIPage() {
                     className={cn(
                       "px-2.5 py-1 rounded-full text-xs font-medium transition-all",
                       selectedChannels.includes(ch)
-                        ? "bg-accent text-bg"
+                        ? "bg-accent text-white"
                         : "bg-white/[0.04] text-text-secondary hover:text-text",
                     )}
                   >

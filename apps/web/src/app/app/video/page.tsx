@@ -255,7 +255,7 @@ export default function VideoStudioPage() {
           body: JSON.stringify({
             messages: [{
               role: "user",
-              content: `You are an AI video script writer for PRACHAR. Write a ${duration} ${selectedStyle} video script for ${selectedPlatform}. Prompt: "${prompt}". Include scene-by-scene breakdown with timestamps, visual descriptions, and voiceover text.`,
+              content: `You are an AI video script writer for CURV AI. Write a ${duration} ${selectedStyle} video script for ${selectedPlatform}. Prompt: "${prompt}". Include scene-by-scene breakdown with timestamps, visual descriptions, and voiceover text.`,
             }],
           }),
           signal: AbortSignal.timeout(30000),

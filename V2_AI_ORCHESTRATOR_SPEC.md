@@ -1,4 +1,4 @@
-# PRACHAR V2 — AI Runtime Specification (Architecture Freeze v2.0)
+# CURV AI V2 — AI Runtime Specification (Architecture Freeze v2.0)
 
 > **FROZEN** — Approved with 8 amendments. No further architectural changes.
 > The Orb never talks to Chat, CampaignBrain, Council, or Creative directly.
@@ -12,7 +12,7 @@
 ```
 User
  ↓
-PRACHAR AI Orb
+CURV AI Orb
  ↓
 AI Runtime
  ↓
@@ -778,16 +778,16 @@ interface IntentResult {
 
 ---
 
-## 9. Amendment 8 — Long-Term Vision (PRACHAR AI)
+## 9. Amendment 8 — Long-Term Vision (CURV AI)
 
 ### The Goal
 
-Users never see "CampaignBrain", "Agency Council", "Creative Studio". They see **PRACHAR AI**.
+Users never see "CampaignBrain", "Agency Council", "Creative Studio". They see **CURV AI**.
 
 ```
 User: "Create a Diwali campaign"
   ↓
-PRACHAR AI: "I'll handle that. Analysing your business... Researching competitors...
+CURV AI: "I'll handle that. Analysing your business... Researching competitors...
          Defining strategy... Creating visual direction... Planning media...
          Estimating budget... Reviewing with my team of 9 specialists...
          They approved it 8.5/10. 10 creative formats are ready.
@@ -795,7 +795,7 @@ PRACHAR AI: "I'll handle that. Analysing your business... Researching competitor
   ↓
 User: "Yes"
   ↓
-PRACHAR AI: "Published to Instagram, Facebook, and Google. I'll monitor
+CURV AI: "Published to Instagram, Facebook, and Google. I'll monitor
          performance and let you know how it's doing."
 ```
 
@@ -899,7 +899,7 @@ POST /timeline/{id}/replay
 - [x] Event Taxonomy (13 standardised namespaces)
 - [x] Workspace Timeline (single source of truth, replayable)
 - [x] Runtime Modes (8 modes, Planner behaviour changes)
-- [x] PRACHAR AI vision (tools are internal, users see PRACHAR AI)
+- [x] CURV AI vision (tools are internal, users see CURV AI)
 - [x] Orb State Machine (13 states)
 - [x] Dashboard Composition (one endpoint)
 - [x] **Approved and frozen**
@@ -1030,7 +1030,7 @@ If all 10 are YES, the Runtime is coherent. If any is NO, that's a gap to close 
 | Event Taxonomy (A5) | ✅ Approved |
 | Workspace Timeline as Source of Truth (A6) | ✅ Approved |
 | Runtime Modes (A7) | ✅ Approved |
-| PRACHAR AI Vision (A8) | ✅ Approved |
+| CURV AI Vision (A8) | ✅ Approved |
 
 **Overall: 10/10. Architecture frozen. No further architectural changes.**
 

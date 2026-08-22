@@ -60,7 +60,7 @@ const CHANNELS: Channel[] = [
     icon: Search,
     color: "#3B82F6",
     status: "connected",
-    account: "aurora@prachar.app",
+    account: "aurora@curv.app",
     spend30d: 184200,
     reach: 1240000,
     followers: 0,
@@ -298,7 +298,7 @@ export default function ChannelsPage() {
             className={cn(
               "px-3.5 py-1.5 rounded-full text-xs font-medium transition-all",
               filter === f.id
-                ? "bg-accent text-bg"
+                ? "bg-accent text-white"
                 : "bg-white/[0.04] text-text-secondary hover:text-text",
             )}
           >

@@ -1,6 +1,6 @@
 """Video Script creative format spec + generator.
 
-Part P2.5 of the PRACHAR roadmap. Declares the ``video_script`` format spec
+Part P2.5 of the CURV AI roadmap. Declares the ``video_script`` format spec
 (scenes, music_mood, total_duration) and a domain-specific generator that
 calls the AIGateway to produce a scene-by-scene short-form video script.
 

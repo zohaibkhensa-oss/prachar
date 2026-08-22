@@ -1,6 +1,6 @@
 """SMS creative format spec + generator.
 
-Part P2.13 of the PRACHAR roadmap.
+Part P2.13 of the CURV AI roadmap.
 
 The SMS format produces exactly 2 message variants (each with a character
 count) plus the standard opt-out language required for compliance. SMS is

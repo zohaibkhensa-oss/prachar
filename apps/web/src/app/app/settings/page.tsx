@@ -109,7 +109,7 @@ export default function SettingsPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                 tab === t.id
-                  ? "bg-accent text-bg"
+                  ? "bg-accent text-white"
                   : "text-text-secondary hover:text-text hover:bg-white/[0.03]",
               )}
             >

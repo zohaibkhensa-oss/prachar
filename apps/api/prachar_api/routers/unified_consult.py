@@ -108,7 +108,7 @@ async def consult(
     """Universal consult endpoint. Works for ANY domain.
 
     Takes a free-text description + domain id and returns:
-    - A conversational reply from PRACHAR AI
+    - A conversational reply from CURV AI
     - Domain-specific understanding (business / creator profile / etc.)
     - Growth opportunities
     - A 30-day plan

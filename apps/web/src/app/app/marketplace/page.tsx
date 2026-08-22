@@ -86,7 +86,7 @@ export default function MarketplacePage() {
             Marketplace
           </h1>
           <p className="text-sm text-text-secondary">
-            Extend PRACHAR with channels, AI models, and creative tools.
+            Extend CURV AI with channels, AI models, and creative tools.
           </p>
         </div>
         <div className="relative w-full lg:w-80">
@@ -143,7 +143,7 @@ export default function MarketplacePage() {
             className={cn(
               "px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
               c === category
-                ? "bg-accent text-bg"
+                ? "bg-accent text-white"
                 : "bg-white/[0.04] text-text-secondary hover:text-text hover:bg-white/[0.08]",
             )}
           >

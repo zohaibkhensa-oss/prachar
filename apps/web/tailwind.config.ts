@@ -30,9 +30,9 @@ const config: Config = {
           muted: "#475569",
         },
         accent: {
-          DEFAULT: "#FFD400",
-          dark: "#E6C000",
-          glow: "rgba(255,212,0,0.15)",
+          DEFAULT: "#8B5CF6",
+          dark: "#7C3AED",
+          glow: "rgba(139,92,246,0.15)",
         },
         success: "#22C55E",
         danger: "#EF4444",
@@ -41,7 +41,7 @@ const config: Config = {
         // Legacy aliases for backward compat
         ink: { DEFAULT: "#0B0F14" },
         paper: { DEFAULT: "#0B0F14" },
-        yellow: { DEFAULT: "#FFD400", dark: "#E6C000" },
+        yellow: { DEFAULT: "#8B5CF6", dark: "#7C3AED" },
         blue: "#3B82F6",
       },
       fontFamily: {
@@ -79,7 +79,7 @@ const config: Config = {
         "3d": "0 8px 24px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2)",
         "3d-lg": "0 16px 48px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3)",
         "3d-xl": "0 32px 64px rgba(0,0,0,0.6), 0 8px 32px rgba(0,0,0,0.4)",
-        glow: "0 0 24px rgba(255,212,0,0.2)",
+        glow: "0 0 24px rgba(139,92,246,0.2)",
         "glow-blue": "0 0 24px rgba(59,130,246,0.2)",
         "glow-green": "0 0 24px rgba(34,197,94,0.2)",
         "glow-red": "0 0 24px rgba(239,68,68,0.2)",
@@ -88,10 +88,10 @@ const config: Config = {
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic": "conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))",
-        "gradient-mesh": "radial-gradient(at 0% 0%, rgba(59,130,246,0.08) 0%, transparent 50%), radial-gradient(at 100% 0%, rgba(255,212,0,0.06) 0%, transparent 50%), radial-gradient(at 50% 100%, rgba(34,197,94,0.05) 0%, transparent 50%)",
+        "gradient-mesh": "radial-gradient(at 0% 0%, rgba(59,130,246,0.08) 0%, transparent 50%), radial-gradient(at 100% 0%, rgba(139,92,246,0.06) 0%, transparent 50%), radial-gradient(at 50% 100%, rgba(34,197,94,0.05) 0%, transparent 50%)",
         "gradient-surface": "linear-gradient(145deg, #161B22 0%, #111827 100%)",
         "gradient-card": "linear-gradient(145deg, rgba(28,35,51,0.6) 0%, rgba(17,24,39,0.6) 100%)",
-        "gradient-accent": "linear-gradient(135deg, #FFD400 0%, #E6C000 100%)",
+        "gradient-accent": "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
         "gradient-dark": "linear-gradient(180deg, #0B0F14 0%, #111827 100%)",
       },
       keyframes: {
@@ -112,8 +112,8 @@ const config: Config = {
           "100%": { backgroundPosition: "1000px 0" },
         },
         "glow-pulse": {
-          "0%, 100%": { boxShadow: "0 0 20px rgba(255,212,0,0.1)" },
-          "50%": { boxShadow: "0 0 40px rgba(255,212,0,0.25)" },
+          "0%, 100%": { boxShadow: "0 0 20px rgba(139,92,246,0.1)" },
+          "50%": { boxShadow: "0 0 40px rgba(139,92,246,0.25)" },
         },
         "ai-thinking": {
           "0%, 100%": { opacity: "0.3" },

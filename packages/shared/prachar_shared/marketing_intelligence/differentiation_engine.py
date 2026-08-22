@@ -1,6 +1,6 @@
 """Competitor Differentiation Generator — produces 3-5 differentiation entries.
 
-Part P1.8 of the PRACHAR roadmap. Generates a differentiation matrix that
+Part P1.8 of the CURV AI roadmap. Generates a differentiation matrix that
 identifies what competitors claim and how this brand can counter those claims
 with evidence-backed positioning.
 

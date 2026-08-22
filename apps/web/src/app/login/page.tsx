@@ -31,7 +31,7 @@ export default function LoginPage() {
       window.localStorage.setItem("prachar_password", password);
       router.push("/app");
     } catch {
-      setError("Invalid credentials. Try demo@prachar.app / prachar123");
+      setError("Invalid credentials. Try demo@curv.app / prachar123");
     } finally {
       setLoading(false);
     }
@@ -136,7 +136,7 @@ export default function LoginPage() {
               <span className="font-mono text-[10px] uppercase tracking-wider text-accent">Demo Access</span>
             </div>
             <p className="font-mono text-xs text-text-secondary">
-              demo@prachar.app · prachar123
+              demo@curv.app · prachar123
             </p>
           </div>
 

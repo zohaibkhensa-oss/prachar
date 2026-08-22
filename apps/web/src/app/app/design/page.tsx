@@ -75,7 +75,7 @@ export default function DesignPage() {
         body: JSON.stringify({
           messages: [{
             role: "user",
-            content: `You are an AI design assistant for PRACHAR, an AI advertising platform. The user wants to create a "${designType}" in a "${style}" style. Their prompt: "${prompt}". Generate 4 distinct design concepts. For each, provide a vivid visual description (colors, layout, typography, imagery) in 1-2 sentences. Format as a numbered list 1-4. Be specific and creative.`,
+            content: `You are an AI design assistant for CURV AI, an AI advertising platform. The user wants to create a "${designType}" in a "${style}" style. Their prompt: "${prompt}". Generate 4 distinct design concepts. For each, provide a vivid visual description (colors, layout, typography, imagery) in 1-2 sentences. Format as a numbered list 1-4. Be specific and creative.`,
           }],
         }),
         signal: AbortSignal.timeout(20000),

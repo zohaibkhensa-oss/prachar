@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { X, Send, Mic, Volume2, Sparkles, Brain, Zap } from "lucide-react";
 
-// ─── PRACHAR Knowledge Base ─────────────────────────────────────────────────
+// ─── CURV AI Knowledge Base ─────────────────────────────────────────────────
 
 interface KBEntry {
   keywords: string[];
@@ -18,7 +18,7 @@ interface KBEntry {
 const KNOWLEDGE_BASE: KBEntry[] = [
   {
     keywords: ["what is prachar", "about prachar", "tell me about", "what does prachar do", "overview"],
-    response: "PRACHAR is an AI-driven global advertising operating system. You upload your brand once, and PRACHAR runs an autonomous weekly loop — measuring, diagnosing, generating content, publishing, optimizing budgets, and reporting across 16+ platforms worldwide. Think of it as having a full ad agency running 24/7, powered by AI, at SMB pricing.",
+    response: "CURV AI is an AI-driven global advertising operating system. You upload your brand once, and CURV AI runs an autonomous weekly loop — measuring, diagnosing, generating content, publishing, optimizing budgets, and reporting across 16+ platforms worldwide. Think of it as having a full ad agency running 24/7, powered by AI, at SMB pricing.",
   },
   {
     keywords: ["mission control", "dashboard", "home", "main page", "overview page"],
@@ -37,7 +37,7 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   },
   {
     keywords: ["creative", "creative ai", "generate ad", "ad copy", "headline", "generate creative", "make ad"],
-    response: "Creative AI is one of PRACHAR's most powerful features. You describe what you want in the prompt box, select a brand and channel, and the AI generates multiple ad variants — headlines, copy, and visual descriptions. Each variant gets a confidence score and predicted CTR. You can approve, reject, or edit any variant. The system also evolves creatives automatically — winners get mutated children, losers get retired.",
+    response: "Creative AI is one of CURV AI's most powerful features. You describe what you want in the prompt box, select a brand and channel, and the AI generates multiple ad variants — headlines, copy, and visual descriptions. Each variant gets a confidence score and predicted CTR. You can approve, reject, or edit any variant. The system also evolves creatives automatically — winners get mutated children, losers get retired.",
     navigate: "/app/creative",
   },
   {
@@ -66,23 +66,23 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   },
   {
     keywords: ["weekly loop", "autonomous loop", "ai loop", "what does the loop do", "automation", "automatic"],
-    response: "The Weekly Loop is PRACHAR's core engine. Every week, for each brand, it runs a 7-step chain: 1) Measure — pull metrics from all connected channels. 2) Diagnose — AI analyzes gaps and computes your visibility score. 3) Regenerate — AI creates new content for each channel and locale. 4) Policy Check — claims gate and channel-specific rules. 5) Publish — push content to channels (Reddit requires human approval). 6) Budget Realloc — softmax reallocation with 20% safety clamps. 7) Report — generate PDF and schedule next loop.",
+    response: "The Weekly Loop is CURV AI's core engine. Every week, for each brand, it runs a 7-step chain: 1) Measure — pull metrics from all connected channels. 2) Diagnose — AI analyzes gaps and computes your visibility score. 3) Regenerate — AI creates new content for each channel and locale. 4) Policy Check — claims gate and channel-specific rules. 5) Publish — push content to channels (Reddit requires human approval). 6) Budget Realloc — softmax reallocation with 20% safety clamps. 7) Report — generate PDF and schedule next loop.",
   },
   {
     keywords: ["budget", "spend", "money", "cost", "allocator", "reallocate", "cap", "spend cap"],
-    response: "PRACHAR has multiple money safety features. The budget allocator uses softmax reallocation — it shifts budget toward better-performing networks with a 20% daily clamp to prevent wild swings. Spend caps are checked before every budget or bid call. There's also idempotency keys to prevent duplicate charges, and a dry-run mode that's on by default for the first 7 days.",
+    response: "CURV AI has multiple money safety features. The budget allocator uses softmax reallocation — it shifts budget toward better-performing networks with a 20% daily clamp to prevent wild swings. Spend caps are checked before every budget or bid call. There's also idempotency keys to prevent duplicate charges, and a dry-run mode that's on by default for the first 7 days.",
   },
   {
     keywords: ["ai", "artificial intelligence", "how does ai work", "ai engine", "model", "gpt", "claude", "anthropic", "openai"],
-    response: "PRACHAR uses a provider-abstraction layer called the AI Gateway. It primarily uses Anthropic Claude (Haiku for small tasks, Sonnet for medium, Opus for complex) with OpenAI GPT-4o as fallback. The gateway handles tiering (picking the right model for each task), caching (skip if same prompt was asked before), budgeting (per-tenant token limits), and JSON schema enforcement for structured outputs.",
+    response: "CURV AI uses a provider-abstraction layer called the AI Gateway. It primarily uses Anthropic Claude (Haiku for small tasks, Sonnet for medium, Opus for complex) with OpenAI GPT-4o as fallback. The gateway handles tiering (picking the right model for each task), caching (skip if same prompt was asked before), budgeting (per-tenant token limits), and JSON schema enforcement for structured outputs.",
   },
   {
     keywords: ["claims gate", "policy", "compliance", "blocked", "rejected", "guaranteed"],
-    response: "The claims gate is PRACHAR's compliance engine. It automatically strips or blocks claims like 'guaranteed number one', 'guaranteed results', medical claims, and financial promises. Every piece of generated content passes through the claims gate before publishing. This protects your brand from policy violations on ad platforms.",
+    response: "The claims gate is CURV AI's compliance engine. It automatically strips or blocks claims like 'guaranteed number one', 'guaranteed results', medical claims, and financial promises. Every piece of generated content passes through the claims gate before publishing. This protects your brand from policy violations on ad platforms.",
   },
   {
     keywords: ["attribution", "pixel", "tracking", "conversion", "gclid", "fbclid", "first party"],
-    response: "PRACHAR includes a first-party attribution pixel. You install a JavaScript snippet on your website. It captures UTMs and click IDs like gclid for Google, fbclid for Meta, and ttclid for TikTok. When a conversion happens, it uses position-based attribution — 40% to first touch, 40% to last touch, and 20% spread across middle touches. You'll see both network-reported and pixel-verified CPA.",
+    response: "CURV AI includes a first-party attribution pixel. You install a JavaScript snippet on your website. It captures UTMs and click IDs like gclid for Google, fbclid for Meta, and ttclid for TikTok. When a conversion happens, it uses position-based attribution — 40% to first touch, 40% to last touch, and 20% spread across middle touches. You'll see both network-reported and pixel-verified CPA.",
   },
   {
     keywords: ["creative evolution", "evolution", "a/b test", "variant", "winner", "loser"],
@@ -105,24 +105,24 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   },
   {
     keywords: ["locale", "region", "language", "multi-region", "country", "geo targeting", "international"],
-    response: "PRACHAR supports 14 locales including English (US, GB, IN, AU), Hindi, Arabic, Spanish, Portuguese, Indonesian, Japanese, Korean, German, French, and Russian. Each locale has its own cultural register, posting times, hashtag style, and recommended channels. The region router automatically picks the right channels — for example, India gets WhatsApp and Instagram, Korea gets Kakao and Naver, Japan gets LINE.",
+    response: "CURV AI supports 14 locales including English (US, GB, IN, AU), Hindi, Arabic, Spanish, Portuguese, Indonesian, Japanese, Korean, German, French, and Russian. Each locale has its own cultural register, posting times, hashtag style, and recommended channels. The region router automatically picks the right channels — for example, India gets WhatsApp and Instagram, Korea gets Kakao and Naver, Japan gets LINE.",
   },
   {
     keywords: ["reddit", "human approval", "approve", "manual review"],
-    response: "Reddit is special — PRACHAR never auto-publishes to Reddit. All Reddit content goes to a human approval queue. The policy gate always returns 'needs human approval' for Reddit. This is because Reddit has strict anti-promotion rules and values authentic engagement. You'll need to manually approve each post before it goes live.",
+    response: "Reddit is special — CURV AI never auto-publishes to Reddit. All Reddit content goes to a human approval queue. The policy gate always returns 'needs human approval' for Reddit. This is because Reddit has strict anti-promotion rules and values authentic engagement. You'll need to manually approve each post before it goes live.",
   },
   {
     keywords: ["login", "sign in", "credentials", "password", "demo", "access", "how to login"],
-    response: "You can log in with your email and password. For demo access, use demo@prachar.app with password prachar123. If you don't have an account, click Register to create one — it's free for 14 days, no credit card required.",
+    response: "You can log in with your email and password. For demo access, use demo@curv.app with password prachar123. If you don't have an account, click Register to create one — it's free for 14 days, no credit card required.",
     navigate: "/login",
   },
   {
     keywords: ["price", "pricing", "plan", "cost", "how much", "subscription", "tier"],
-    response: "PRACHAR has 3 plans. Starter is 499 rupees per month — 1 brand, 3 channels, weekly loop. Growth is 2,999 rupees — 5 brands, all channels, paid plus organic, audits and reports. Agency is 9,999 rupees — unlimited brands, multi-tenant, API access, and white-label PDF reports.",
+    response: "CURV AI has 3 plans. Starter is 499 rupees per month — 1 brand, 3 channels, weekly loop. Growth is 2,999 rupees — 5 brands, all channels, paid plus organic, audits and reports. Agency is 9,999 rupees — unlimited brands, multi-tenant, API access, and white-label PDF reports.",
   },
   {
     keywords: ["hello", "hi", "hey", "greetings", "good morning", "good evening", "namaste"],
-    response: "Hello! I'm PRACHAR's AI assistant. I know everything about the platform — features, channels, campaigns, creative AI, analytics, the weekly loop, and more. What would you like to know? You can type or speak to me.",
+    response: "Hello! I'm CURV AI's assistant. I know everything about the platform — features, channels, campaigns, creative AI, analytics, the weekly loop, and more. What would you like to know? You can type or speak to me.",
   },
   {
     keywords: ["thank", "thanks", "thank you", "great", "awesome", "nice", "cool"],
@@ -135,7 +135,7 @@ const KNOWLEDGE_BASE: KBEntry[] = [
 ];
 
 const SUGGESTED_QUESTIONS = [
-  "What is PRACHAR?",
+  "What is CURV AI?",
   "How does the weekly loop work?",
   "What is a good ROAS?",
   "How do I improve my CTR?",
@@ -164,7 +164,7 @@ function findAnswer(query: string): KBEntry | null {
   return best?.entry ?? null;
 }
 
-const FALLBACK = "I'm not sure about that yet, but I'm always learning. Try asking me about brands, campaigns, creative AI, channels, analytics, the weekly loop, visibility scores, budget optimization, or any PRACHAR feature. You can also say 'take me to' followed by a page name to navigate.";
+const FALLBACK = "I'm not sure about that yet, but I'm always learning. Try asking me about brands, campaigns, creative AI, channels, analytics, the weekly loop, visibility scores, budget optimization, or any CURV AI feature. You can also say 'take me to' followed by a page name to navigate.";
 
 // ─── Speech types ───────────────────────────────────────────────────────────
 
@@ -182,7 +182,7 @@ export function VoiceAssistant() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", text: "Hi! I'm PRACHAR AI. I know everything about the platform. Ask me anything — type or speak. Try: 'What is the weekly loop?' or 'Take me to campaigns'", timestamp: Date.now() },
+    { role: "assistant", text: "Hi! I'm CURV AI. I know everything about the platform. Ask me anything — type or speak. Try: 'What is the weekly loop?' or 'Take me to campaigns'", timestamp: Date.now() },
   ]);
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
@@ -399,9 +399,9 @@ export function VoiceAssistant() {
     setSpeaking(false);
   }, []);
 
-  // ─── Wake word detection ("Hey Prachar") ───
+  // ─── Wake word detection ("Hey CURV") ───
   // Runs a continuous background SpeechRecognition that listens for the wake word.
-  // When "hey prachar" is detected, it opens the assistant and starts active listening.
+  // When "hey curv" is detected, it opens the assistant and starts active listening.
   const startWakeWordDetection = useCallback(() => {
     if (typeof window === "undefined") return;
     if (wakeEnabledRef.current) return; // already running
@@ -426,7 +426,7 @@ export function VoiceAssistant() {
       }
 
       // Check for wake word
-      const wakeWords = ["hey prachar", "hey prachar ai", "hay prachar", "a prachar", "hey prachar a i", "hey pracher", "hey prasher"];
+      const wakeWords = ["hey curv", "hey curv ai", "hay curv", "a curv", "hey curv a i", "hey curv", "hey curv"];
       const detected = wakeWords.some((w) => transcript.includes(w));
 
       if (detected && !activeListeningRef.current && !open) {
@@ -442,12 +442,12 @@ export function VoiceAssistant() {
 
         // Acknowledge with voice
         const greetings = [
-          "Hi! I'm PRACHAR AI. What do you need?",
+          "Hi! I'm CURV AI. What do you need?",
           "Hey! What's up? Ask me anything.",
           "I'm listening. What do you want to know?",
           "Yes! I'm ready. What can I help you with?",
         ];
-        const greeting = greetings[Math.floor(Math.random() * greetings.length)] ?? "Hi! I'm PRACHAR AI. What do you need?";
+        const greeting = greetings[Math.floor(Math.random() * greetings.length)] ?? "Hi! I'm CURV AI. What do you need?";
 
         const aiMsg: Message = { role: "assistant", text: greeting, timestamp: Date.now() };
         setMessages((prev) => [...prev, aiMsg]);
@@ -551,7 +551,7 @@ export function VoiceAssistant() {
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
             onClick={() => setOpen(true)}
             className="fixed bottom-6 right-6 z-[90] group"
-            aria-label="Open PRACHAR AI Assistant"
+            aria-label="Open CURV AI Assistant"
           >
             {/* Glow rings */}
             <motion.div
@@ -614,7 +614,7 @@ export function VoiceAssistant() {
               className="absolute right-full mr-3 top-1/2 -translate-y-1/2 glass-strong rounded-lg px-3 py-2 whitespace-nowrap pointer-events-none"
             >
               <span className="font-mono text-xs text-text">
-                {wakeActive ? "Say \"Hey Prachar\" or click" : "Ask PRACHAR AI"}
+                {wakeActive ? "Say \"Hey CURV\" or click" : "Ask CURV AI"}
               </span>
             </motion.div>
           </motion.button>
@@ -653,9 +653,9 @@ export function VoiceAssistant() {
                   )} />
                 </div>
                 <div>
-                  <div className="font-display text-sm font-semibold text-text">PRACHAR AI</div>
+                  <div className="font-display text-sm font-semibold text-text">CURV AI</div>
                   <div className="font-mono text-[10px] text-text-muted">
-                    {speaking ? "Speaking..." : listening ? "Listening..." : thinking ? "Thinking..." : wakeActive ? 'Say "Hey Prachar"' : "Ready to help"}
+                    {speaking ? "Speaking..." : listening ? "Listening..." : thinking ? "Thinking..." : wakeActive ? 'Say "Hey CURV"' : "Ready to help"}
                   </div>
                 </div>
               </div>
@@ -807,7 +807,7 @@ export function VoiceAssistant() {
                       processQuery(input);
                     }
                   }}
-                  placeholder={listening ? "Listening..." : "Ask anything about PRACHAR..."}
+                  placeholder={listening ? "Listening..." : "Ask anything about CURV AI..."}
                   className="flex-1 input-field py-2 text-sm"
                   disabled={listening}
                 />
@@ -840,7 +840,7 @@ export function VoiceAssistant() {
               <div className="flex items-center justify-center gap-1.5 mt-2">
                 <Sparkles className="w-3 h-3 text-accent/40" />
                 <span className="font-mono text-[9px] text-text-muted">
-                  Voice powered · Say "Hey Prachar" to summon · Click mic to speak
+                  Voice powered · Say "Hey CURV" to summon · Click mic to speak
                 </span>
               </div>
             </div>

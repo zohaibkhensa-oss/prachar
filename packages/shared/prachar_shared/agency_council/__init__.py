@@ -1,11 +1,11 @@
-"""Agency Council — the core IP of PRACHAR.
+"""Agency Council — the core IP of CURV AI.
 
 Every campaign is reviewed by multiple specialist AI Directors before a
 final recommendation is produced. No single AI agent is allowed to make
 the final campaign decision.
 
 Architecture:
-    PRACHAR AI → Campaign Brain → Agency Council → Consensus Engine
+    CURV AI → Campaign Brain → Agency Council → Consensus Engine
         → Creative Orchestrator → Workers → Publishing → Learning
 
 The Council consists of 9 independent AI Directors:
@@ -122,7 +122,7 @@ __all__ = [
     "identify_missing_information",
     "generate_suggested_revisions",
     "compute_confidence_interval",
-    # PRACHAR AI integration
+    # CURV AI integration
     "is_council_review_request",
     "summarise_council_decision",
     "COUNCIL_REVIEW_KEYWORDS",

@@ -36,7 +36,7 @@ const FEATURED = [
   {
     id: "f1",
     title: "Getting Started with AI Advertising",
-    excerpt: "Learn how PRACHAR's AI engine optimizes your campaigns end-to-end — from audience discovery to creative generation.",
+    excerpt: "Learn how CURV AI's engine optimizes your campaigns end-to-end — from audience discovery to creative generation.",
     category: "Getting Started",
     readTime: "8 min",
     author: "Aarav Mehta",
@@ -46,7 +46,7 @@ const FEATURED = [
   {
     id: "f2",
     title: "Understanding Visibility Score",
-    excerpt: "Deep dive into how PRACHAR calculates your brand's visibility score across channels and what moves the needle.",
+    excerpt: "Deep dive into how CURV AI calculates your brand's visibility score across channels and what moves the needle.",
     category: "Analytics",
     readTime: "12 min",
     author: "Priya Sharma",
@@ -56,7 +56,7 @@ const FEATURED = [
   {
     id: "f3",
     title: "Mastering the Weekly Loop",
-    excerpt: "The weekly optimization loop is PRACHAR's secret weapon. Here's how to set it up and get the most out of it.",
+    excerpt: "The weekly optimization loop is CURV AI's secret weapon. Here's how to set it up and get the most out of it.",
     category: "Best Practices",
     readTime: "15 min",
     author: "Rohan Kapoor",
@@ -70,10 +70,10 @@ const ARTICLES = [
   { id: "a2", title: "Writing Prompts for Creative AI", excerpt: "Best practices for crafting prompts that generate high-converting ad creative.", category: "Creative AI", readTime: "7 min", author: "Aarav Mehta" },
   { id: "a3", title: "Setting CPA Targets by Channel", excerpt: "How to configure max CPA per channel and let AI manage within bounds.", category: "Campaigns", readTime: "6 min", author: "Priya Sharma" },
   { id: "a4", title: "Reading the Performance Funnel", excerpt: "Understand each stage of the funnel and where to optimize for max impact.", category: "Analytics", readTime: "9 min", author: "Rohan Kapoor" },
-  { id: "a5", title: "Webhooks & Real-time Events", excerpt: "Integrate PRACHAR events into your stack with webhook subscriptions.", category: "API Reference", readTime: "11 min", author: "Vikram Nair" },
+  { id: "a5", title: "Webhooks & Real-time Events", excerpt: "Integrate CURV AI events into your stack with webhook subscriptions.", category: "API Reference", readTime: "11 min", author: "Vikram Nair" },
   { id: "a6", title: "Audience Lookalike Seeds Explained", excerpt: "How lookalike modeling works and which seed audiences perform best.", category: "Best Practices", readTime: "8 min", author: "Sara Khan" },
   { id: "a7", title: "Multi-region Campaign Strategy", excerpt: "Run coordinated campaigns across India, SEA, and MENA with localized creative.", category: "Campaigns", readTime: "13 min", author: "Aarav Mehta" },
-  { id: "a8", title: "Budget Pacing & AI Reallocation", excerpt: "How PRACHAR paces spend and reallocates budget across channels automatically.", category: "Best Practices", readTime: "10 min", author: "Priya Sharma" },
+  { id: "a8", title: "Budget Pacing & AI Reallocation", excerpt: "How CURV AI paces spend and reallocates budget across channels automatically.", category: "Best Practices", readTime: "10 min", author: "Priya Sharma" },
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -106,7 +106,7 @@ export default function KnowledgePage() {
             Knowledge Base
           </h1>
           <p className="text-sm text-text-secondary">
-            Guides, tutorials, and references to master PRACHAR.
+            Guides, tutorials, and references to master CURV AI.
           </p>
         </div>
         <div className="relative w-full lg:w-96">
@@ -248,7 +248,7 @@ export default function KnowledgePage() {
             </div>
             <div>
               <p className="font-display text-sm font-medium text-text">AI Assistant</p>
-              <p className="text-[10px] text-text-muted">Ask anything about PRACHAR</p>
+              <p className="text-[10px] text-text-muted">Ask anything about CURV AI</p>
             </div>
           </div>
           <div className="relative">

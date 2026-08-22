@@ -1,4 +1,4 @@
-# PRACHAR — Marketing Intelligence Engine
+# CURV AI — Marketing Intelligence Engine
 
 **The brain of PRACHAR. Thinks before it creates.**
 

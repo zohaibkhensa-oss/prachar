@@ -189,7 +189,7 @@ function NotificationCard({
         </span>
       </div>
 
-      {/* PRACHAR AI message */}
+      {/* CURV AI message */}
       <p className="text-sm text-text leading-relaxed">{message.prachar_message}</p>
 
       {/* Creative directions preview */}
@@ -240,7 +240,7 @@ function EmptyState() {
       </div>
       <p className="text-sm text-text font-medium mb-1">All clear</p>
       <p className="text-xs text-text-muted max-w-[240px]">
-        No notifications — PRACHAR AI is watching your campaigns and will ping you if anything needs attention.
+        No notifications — CURV AI is watching your campaigns and will ping you if anything needs attention.
       </p>
     </div>
   );

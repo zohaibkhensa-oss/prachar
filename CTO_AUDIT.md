@@ -1,4 +1,4 @@
-# PRACHAR — Official CTO Production Readiness Audit
+# CURV AI — Official CTO Production Readiness Audit
 
 **Date:** 2026-07-25
 **Auditor:** Chief Technology Officer

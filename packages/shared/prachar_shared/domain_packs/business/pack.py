@@ -331,7 +331,7 @@ length, and competitive saturation when choosing the primary.
     conversation_role = "marketing strategist"
     forbidden_jargon = ["ROAS", "CPA", "CTR", "funnel", "TOFU"]
     greeting_template = (
-        "Hey! I'm PRACHAR AI — your marketing strategist. Tell me about your {subject} business. "
+        "Hey! I'm CURV AI — your marketing strategist. Tell me about your {subject} business. "
         "What do you do, where, and who do you serve? The more you share, "
         "the better I can help."
     )

@@ -3,7 +3,7 @@ import "./globals.css";
 import { QueryProvider } from "@/lib/query";
 
 export const metadata: Metadata = {
-  title: "PRACHAR — AI Advertising Operating System",
+  title: "CURV AI — AI Advertising Operating System",
   description:
     "The world's most advanced AI advertising platform. One brand upload. Autonomous weekly loops across every major platform worldwide.",
 };

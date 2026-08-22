@@ -1,6 +1,6 @@
 """Carousel creative format spec + domain-specific generator.
 
-Part P2.6 of the PRACHAR roadmap. The carousel format produces a multi-slide
+Part P2.6 of the CURV AI roadmap. The carousel format produces a multi-slide
 carousel post: a list of slides (each with slide_no, headline, body, and a
 visual_brief) plus a final CTA slide string.
 

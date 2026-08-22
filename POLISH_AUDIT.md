@@ -1,4 +1,4 @@
-# PRACHAR UX Polish Audit (Phase A — A.0.1)
+# CURV AI UX Polish Audit (Phase A — A.0.1)
 
 > **Mandatory document.** No code changes until this audit is complete and reviewed.
 >

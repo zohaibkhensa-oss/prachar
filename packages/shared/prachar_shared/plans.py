@@ -1,4 +1,4 @@
-"""PRACHAR subscription plans — single source of truth for pricing & deliverables.
+"""CURV AI subscription plans — single source of truth for pricing & deliverables.
 
 Nothing in the app hardcodes plan prices or features. Everything reads from this
 module, which itself reads numeric values from Settings (env-driven). This lets

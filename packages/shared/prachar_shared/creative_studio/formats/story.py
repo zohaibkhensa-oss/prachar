@@ -1,6 +1,6 @@
 """Story creative format spec + generator.
 
-Part P2.7 of the PRACHAR roadmap. Defines the Instagram Story format spec
+Part P2.7 of the CURV AI roadmap. Defines the Instagram Story format spec
 and a ``generate_story`` function that produces a sequence of interactive
 frames (poll / question / quiz / text) via the AIGateway.
 """

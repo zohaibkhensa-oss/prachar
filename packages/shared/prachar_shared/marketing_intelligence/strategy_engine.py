@@ -388,11 +388,11 @@ OUTPUT: JSON matching the schema. Include "reasoning", "confidence", "recommenda
 
 # ─── Multi-Strategy Engine (B.1.1 + B.1.2) ────────────────────────────────────
 #
-# PRACHAR AI thinks like a strategist: instead of generating ONE campaign per request,
+# CURV AI thinks like a strategist: instead of generating ONE campaign per request,
 # it generates 3 genuinely different strategies (primary, alternative, contrarian)
 # and then explains WHY it chose the primary over the others.
 #
-# This is the core IP that makes PRACHAR hard to copy — the "why A not B" layer.
+# This is the core IP that makes CURV AI hard to copy — the "why A not B" layer.
 
 
 # Valid strategy types — the 3 strategies must each be one of these.
@@ -528,7 +528,7 @@ def _parse_strategies(raw: Any) -> list[Strategy]:
 class StrategyEngine:
     """Generates 3 distinct marketing strategies and explains the choice.
 
-    PRACHAR AI thinks like a strategist: instead of one campaign, it proposes three
+    CURV AI thinks like a strategist: instead of one campaign, it proposes three
     genuinely different approaches — a primary (recommended), an alternative
     (different valid lever), and a contrarian (unconventional but viable) —
     then explains why the primary was chosen over the others.
@@ -619,7 +619,7 @@ class StrategyEngine:
     ) -> dict[str, Any]:
         """Explain why the primary strategy was chosen over the alternatives.
 
-        The "Why A not B" layer — the core IP that makes PRACHAR hard to copy.
+        The "Why A not B" layer — the core IP that makes CURV AI hard to copy.
         Considers brand context, audience, budget, and past campaign
         performance (from the P4.6 feedback loop / BusinessMemoryStore).
 

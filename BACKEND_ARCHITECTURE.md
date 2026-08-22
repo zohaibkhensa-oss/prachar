@@ -1,4 +1,4 @@
-# PRACHAR — Full Backend Architecture & Frontend Integration Guide
+# CURV AI — Full Backend Architecture & Frontend Integration Guide
 
 > Complete reference for frontend v2 to integrate with the backend.
 > 87 endpoints · 30+ database tables · 10 AI engines · 9 AI directors · 26 channel adapters
@@ -255,7 +255,7 @@ CouncilSession (1) ──< (1) CouncilLearningRecord   (persistent learnings)
 | GET | `/proactive/notifications` | Pending anomalies + AI recommendations |
 | POST | `/proactive/{id}/launch` | One-click launch (returns pre-fill) |
 
-### Chat (1) — PRACHAR AI assistant
+### Chat (1) — CURV AI assistant
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | `/chat` | Voice assistant chat (Siri-like, advertising expert) |
@@ -417,7 +417,7 @@ Each pack defines: consult prompts, campaign template, tools, sidebar navigation
 
 For each anomaly, generates: what_to_do, why, 3 creative_directions, expected_impact.
 
-### 5.6 Chat (PRACHAR AI)
+### 5.6 Chat (CURV AI)
 
 **Persona**: Siri-like voice assistant specialized in advertising + PRACHAR platform.
 

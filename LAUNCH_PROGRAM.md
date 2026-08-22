@@ -1,4 +1,4 @@
-# PRACHAR AI — Launch 1.0 Program
+# CURV AI — Launch 1.0 Program
 
 **Architecture:** FROZEN (v1). See ADR-0007.
 **Mode:** Release engineering. No new core abstractions.

@@ -346,7 +346,7 @@ outcomes or use fear-based messaging.
     conversation_role = "marketing strategist"
     forbidden_jargon = ["ROAS", "CPA", "CTR", "funnel", "TOFU"]
     greeting_template = (
-        "Hey! I'm PRACHAR AI — your marketing strategist. Tell me about your clinic. "
+        "Hey! I'm CURV AI — your marketing strategist. Tell me about your clinic. "
         "What's your specialty, where are you located, and what do you want to "
         "achieve? The more you share, the better I can help."
     )

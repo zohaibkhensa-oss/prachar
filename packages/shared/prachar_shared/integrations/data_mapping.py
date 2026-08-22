@@ -1,14 +1,14 @@
-"""Data Mapping — semantic mapping between external systems and PRACHAR's internal model.
+"""Data Mapping — semantic mapping between external systems and CURV AI's internal model.
 
 This prevents every module from needing provider-specific logic. Instead of
 each engine knowing that HubSpot calls it "lifecyclestage" and Shopify calls
-it "tags", they all work with PRACHAR's canonical fields.
+it "tags", they all work with CURV AI's canonical fields.
 
 Example mappings:
-    HubSpot "lifecyclestage" → PRACHAR "lead_stage"
-    Shopify "tags"           → PRACHAR "audience_segments"
-    GA4 "conversions"        → PRACHAR "campaign_kpi.conversions"
-    Mailchimp "open_rate"    → PRACHAR "email_metrics.open_rate"
+    HubSpot "lifecyclestage" → CURV AI "lead_stage"
+    Shopify "tags"           → CURV AI "audience_segments"
+    GA4 "conversions"        → CURV AI "campaign_kpi.conversions"
+    Mailchimp "open_rate"    → CURV AI "email_metrics.open_rate"
 
 Mappings are:
 1. Per-integration (each integration maps its fields to canonical fields)
@@ -22,9 +22,9 @@ from dataclasses import dataclass, field
 from typing import Any, Callable
 
 
-# ─── Canonical PRACHAR Field Definitions ────────────────────────────────────
+# ─── Canonical CURV AI Field Definitions ─────────────────────────────────────
 
-# These are the canonical field names that PRACHAR's engines and tools use.
+# These are the canonical field names that CURV AI's engines and tools use.
 # External systems map their fields to these.
 
 CANONICAL_FIELDS: dict[str, dict[str, str]] = {
@@ -173,7 +173,7 @@ class FieldMapping:
 
     Attributes:
         external_field: The field name in the external system (e.g. "lifecyclestage")
-        canonical_field: The PRACHAR canonical field name (e.g. "lead_stage")
+        canonical_field: The CURV AI canonical field name (e.g. "lead_stage")
         transform: Optional function to transform the value
         reverse_transform: Optional function for write-back (canonical → external)
         default: Default value if external field is missing
@@ -204,7 +204,7 @@ class DataMapping:
     """A collection of field mappings for a specific integration.
 
     Each integration defines its own DataMapping that translates between
-    its field names and PRACHAR's canonical fields. Users can override
+    its field names and CURV AI's canonical fields. Users can override
     or add custom mappings.
     """
     integration: str
@@ -227,7 +227,7 @@ class DataMapping:
         return self.mappings.get(external_field)
 
     def to_canonical(self, external_data: dict[str, Any]) -> dict[str, Any]:
-        """Convert a dict of external data to canonical PRACHAR format.
+        """Convert a dict of external data to canonical CURV AI format.
 
         Example:
             mapping.to_canonical({"lifecyclestage": "subscriber"})
@@ -244,7 +244,7 @@ class DataMapping:
         return result
 
     def to_external(self, canonical_data: dict[str, Any]) -> dict[str, Any]:
-        """Convert canonical PRACHAR data to external format (for write-back).
+        """Convert canonical CURV AI data to external format (for write-back).
 
         Example:
             mapping.to_external({"lead_stage": "customer"})
@@ -283,7 +283,7 @@ class DataMapping:
 
 
 def _hubspot_lifecycle_to_lead_stage(v: str) -> str:
-    """Map HubSpot lifecycle stages to PRACHAR lead stages."""
+    """Map HubSpot lifecycle stages to CURV AI lead stages."""
     mapping = {
         "subscriber": "lead",
         "lead": "lead",

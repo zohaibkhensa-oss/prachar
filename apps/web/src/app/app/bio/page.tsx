@@ -205,7 +205,7 @@ export default function BioPage() {
                       </motion.button>
                     ))}
                   </div>
-                  <div className="mt-auto pt-4 text-[9px] opacity-40">Powered by PRACHAR</div>
+                  <div className="mt-auto pt-4 text-[9px] opacity-40">Powered by CURV AI</div>
                 </div>
               </div>
             </div>

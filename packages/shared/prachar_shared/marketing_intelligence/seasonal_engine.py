@@ -1,6 +1,6 @@
 """Seasonal Ideas Generator — produces campaign ideas for the current + next 2 months.
 
-Part P1.6 of the PRACHAR roadmap. Generates seasonal marketing ideas tied to
+Part P1.6 of the CURV AI roadmap. Generates seasonal marketing ideas tied to
 the current month and the following two months, leveraging festivals, holidays,
 weather shifts, and domain-specific seasonal moments.
 

@@ -1,4 +1,4 @@
-# PRACHAR — AI Trust Sprint Report
+# CURV AI — AI Trust Sprint Report
 
 **Date:** 2026-07-25
 **Sprint:** AI Trust & Reliability Hardening

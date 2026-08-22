@@ -1,6 +1,6 @@
 """Offer Engineering Generator — produces 3 engineered offers per campaign.
 
-Part P1.4 of the PRACHAR roadmap. Builds on the creative directions (P1.1),
+Part P1.4 of the CURV AI roadmap. Builds on the creative directions (P1.1),
 hook patterns (P1.2), and audience psychology (P1.3) by generating 3
 psychologically-engineered offers that leverage pricing psychology techniques
 such as anchoring, scarcity, bundling, loss-aversion, and decoy pricing.

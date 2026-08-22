@@ -191,7 +191,7 @@ class DomainPack(Protocol):
     # ─── Conversation ───
     conversation_role: str                 # "marketing strategist" | "creator strategist"
     forbidden_jargon: list[str]
-    greeting_template: str                 # PRACHAR AI's opening message template
+    greeting_template: str                 # CURV AI's opening message template
 
     # ─── Sidebar ───
     nav_sections: list[NavSectionSpec]
@@ -252,7 +252,7 @@ class BaseDomainPack:
     conversation_role: str = "marketing strategist"
     forbidden_jargon: list[str] = ["ROAS", "CPA", "CTR", "funnel", "TOFU"]
     greeting_template: str = (
-        "Hey! I'm PRACHAR AI — your {role}. Tell me about your {subject}. "
+        "Hey! I'm CURV AI — your {role}. Tell me about your {subject}. "
         "What do you do, where, and who do you serve? The more you share, "
         "the better I can help."
     )

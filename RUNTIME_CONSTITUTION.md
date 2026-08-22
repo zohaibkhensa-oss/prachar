@@ -1,4 +1,4 @@
-# PRACHAR AI Runtime Constitution
+# CURV AI Runtime Constitution
 
 > The behavioural contract of the Runtime. Every engineer follows it.
 > Architecture Freeze v2.0 — APPROVED. Do not change unless a fundamental flaw is found.
@@ -59,9 +59,9 @@ Everything emits Runtime Events. No silent execution.
 
 ---
 
-## Rule 9 — PRACHAR AI Owns the Conversation
+## Rule 9 — CURV AI Owns the Conversation
 
-Internal engines are invisible. Users never see CampaignBrain, Council, or Creative. They only see PRACHAR AI.
+Internal engines are invisible. Users never see CampaignBrain, Council, or Creative. They only see CURV AI.
 
 ---
 

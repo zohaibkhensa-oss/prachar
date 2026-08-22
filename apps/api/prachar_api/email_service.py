@@ -102,13 +102,13 @@ def verification_email_html(verify_url: str, user_name: str = "") -> str:
     return f"""
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">PRACHAR</h1>
+        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">CURV AI</h1>
         <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Your AI marketing agency</p>
       </div>
       <h2 style="color: #111827; font-size: 22px;">Verify your email</h2>
       <p style="color: #374151; font-size: 16px; line-height: 1.6;">
         Hi {name},<br><br>
-        Welcome to PRACHAR! Please verify your email address to activate your account and start creating AI-powered marketing campaigns.
+        Welcome to CURV AI! Please verify your email address to activate your account and start creating AI-powered marketing campaigns.
       </p>
       <div style="text-align: center; margin: 32px 0;">
         <a href="{verify_url}"
@@ -124,7 +124,7 @@ def verification_email_html(verify_url: str, user_name: str = "") -> str:
         This link expires in 24 hours. If you didn't create an account, you can safely ignore this email.
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">© 2026 PRACHAR. All rights reserved.</p>
+      <p style="color: #9ca3af; font-size: 12px;">© 2026 CURV AI. All rights reserved.</p>
     </div>
     """
 
@@ -134,13 +134,13 @@ def password_reset_email_html(reset_url: str, user_name: str = "") -> str:
     return f"""
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">PRACHAR</h1>
+        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">CURV AI</h1>
         <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Your AI marketing agency</p>
       </div>
       <h2 style="color: #111827; font-size: 22px;">Reset your password</h2>
       <p style="color: #374151; font-size: 16px; line-height: 1.6;">
         Hi {name},<br><br>
-        We received a request to reset your PRACHAR password. Click the button below to choose a new password.
+        We received a request to reset your CURV AI password. Click the button below to choose a new password.
       </p>
       <div style="text-align: center; margin: 32px 0;">
         <a href="{reset_url}"
@@ -156,7 +156,7 @@ def password_reset_email_html(reset_url: str, user_name: str = "") -> str:
         This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email — your password won't be changed.
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
-      <p style="color: #9ca3af; font-size: 12px;">© 2026 PRACHAR. All rights reserved.</p>
+      <p style="color: #9ca3af; font-size: 12px;">© 2026 CURV AI. All rights reserved.</p>
     </div>
     """
 
@@ -164,10 +164,10 @@ def password_reset_email_html(reset_url: str, user_name: str = "") -> str:
 def verification_success_html() -> str:
     return """
     <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px; text-align: center;">
-      <h1 style="color: #6366f1;">PRACHAR</h1>
+      <h1 style="color: #6366f1;">CURV AI</h1>
       <h2 style="color: #16a34a;">✓ Email verified!</h2>
-      <p style="color: #374151; font-size: 16px;">Your email has been verified. You can now log in to your PRACHAR account.</p>
-      <a href="/" style="display: inline-block; margin-top: 24px; background: #6366f1; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Go to PRACHAR</a>
+      <p style="color: #374151; font-size: 16px;">Your email has been verified. You can now log in to your CURV AI account.</p>
+      <a href="/" style="display: inline-block; margin-top: 24px; background: #6366f1; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none;">Go to CURV AI</a>
     </div>
     """
 
@@ -177,7 +177,7 @@ def invoice_email_html(invoice_number: str, plan_name: str, total_inr: int, user
     return f"""
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">PRACHAR</h1>
+        <h1 style="color: #6366f1; font-size: 28px; margin: 0;">CURV AI</h1>
         <p style="color: #6b7280; font-size: 14px; margin-top: 4px;">Your AI marketing agency</p>
       </div>
       <h2 style="color: #111827; font-size: 22px;">Payment Receipt</h2>
@@ -202,11 +202,11 @@ def invoice_email_html(invoice_number: str, plan_name: str, total_inr: int, user
         </table>
       </div>
       <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-        Your GST-compliant invoice is attached to this email as a PDF. You can also download it anytime from your <a href="https://app.prachar.app/app/settings" style="color: #6366f1;">Settings &rarr; Billing</a> page.
+        Your GST-compliant invoice is attached to this email as a PDF. You can also download it anytime from your <a href="https://app.curv.app/app/settings" style="color: #6366f1;">Settings &rarr; Billing</a> page.
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
       <p style="color: #9ca3af; font-size: 12px;">
-        © 2026 PRACHAR AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India<br>
+        © 2026 CURV AI Technologies | GSTIN: 29ABCDE1234F1Z5 | Bengaluru, India<br>
         This is an automated email. Please do not reply.
       </p>
     </div>

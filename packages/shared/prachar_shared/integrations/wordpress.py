@@ -45,7 +45,7 @@ class WordPress(MarketingIntegration):
             display_name="WordPress",
             category="cms",
             icon="📝",
-            description="Connect WordPress to publish blog posts, create landing pages, update SEO metadata, and manage media — all from PRACHAR.",
+            description="Connect WordPress to publish blog posts, create landing pages, update SEO metadata, and manage media — all from CURV AI.",
             capabilities=(
                 IntegrationCapability.AUTHENTICATE
                 | IntegrationCapability.PUBLISH

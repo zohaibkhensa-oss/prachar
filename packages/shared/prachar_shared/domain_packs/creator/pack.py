@@ -476,7 +476,7 @@ Never use business jargon like "ROAS", "CPA", "conversions".
     conversation_role = "creator strategist"
     forbidden_jargon = ["ROAS", "CPA", "conversions", "customers", "funnel"]
     greeting_template = (
-        "Hey! I'm PRACHAR AI — your strategist for {subject} growth. Tell me about your channel. "
+        "Hey! I'm CURV AI — your strategist for {subject} growth. Tell me about your channel. "
         "What's your niche, where do you post, who's your audience, and where do you "
         "want to be in 6 months? The more you share, the better I can help."
     )

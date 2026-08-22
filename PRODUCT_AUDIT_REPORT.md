@@ -1,4 +1,4 @@
-# PRACHAR — Product Audit Report
+# CURV AI — Product Audit Report
 
 > **Sprint goal:** A first-time customer must experience an immediate "wow" moment.
 

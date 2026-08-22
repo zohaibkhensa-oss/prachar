@@ -91,7 +91,7 @@ class CreatorWeekPlan(BaseModel):
 class CreatorConsultResponse(BaseModel):
     """The full creator consultation response."""
 
-    reply: str = Field(..., description="PRACHAR AI's conversational response")
+    reply: str = Field(..., description="CURV AI's conversational response")
     profile: CreatorProfile = Field(default_factory=CreatorProfile)
     position: CreatorPosition = Field(default_factory=CreatorPosition)
     plan: list[CreatorWeekPlan] = Field(default_factory=list)
@@ -551,7 +551,7 @@ async def creator_consult(
     """The creator conversational onboarding endpoint.
 
     Takes a free-text channel description and returns:
-    - A conversational reply from PRACHAR AI
+    - A conversational reply from CURV AI
     - A Creator Profile (niche, platforms, audience, growth stage, monetisation)
     - Current Position (strengths, weaknesses, opportunities, content gaps)
     - A 30-day creator growth plan (videos, shorts, reels, community posts, etc.)

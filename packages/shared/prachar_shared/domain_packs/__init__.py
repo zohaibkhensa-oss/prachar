@@ -1,4 +1,4 @@
-"""Domain Pack Architecture — plug-in domain packs for PRACHAR.
+"""Domain Pack Architecture — plug-in domain packs for CURV AI.
 
 A Domain Pack defines the domain-specific behaviour for a customer segment
 (Business, Creator, Restaurant, Clinic, etc.). The universal pipeline never

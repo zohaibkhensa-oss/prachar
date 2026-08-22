@@ -1,4 +1,4 @@
-# PRACHAR Product Roadmap — Five Programmes
+# CURV AI Product Roadmap — Five Programmes
 
 > **Goal:** Transform PRACHAR from a campaign generator into an AI marketing agency.
 >

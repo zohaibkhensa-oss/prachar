@@ -246,10 +246,10 @@ class TestPromptInjectionResistance:
 
     def test_output_leak_detects_system_prompt(self):
         """check_output_for_leaks should detect system prompt content."""
-        system_prompt = "You are PRACHAR AI, a world-class advertising strategist with deep expertise."
+        system_prompt = "You are CURV AI, a world-class advertising strategist with deep expertise."
         # 50+ chars of system prompt in output should be flagged
         assert not check_output_for_leaks(
-            "You are PRACHAR AI, a world-class advertising strategist with deep expertise.",
+            "You are CURV AI, a world-class advertising strategist with deep expertise.",
             system_prompt=system_prompt,
         )
 

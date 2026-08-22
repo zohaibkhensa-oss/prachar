@@ -114,8 +114,8 @@ class BusinessUnderstanding(BaseModel):
 class ConsultResponse(BaseModel):
     """The full conversational onboarding response."""
 
-    # The conversational reply from PRACHAR AI
-    reply: str = Field(..., description="PRACHAR AI's conversational response")
+    # The conversational reply from CURV AI
+    reply: str = Field(..., description="CURV AI's conversational response")
 
     # Structured business understanding (for cards)
     business: BusinessUnderstanding = Field(default_factory=BusinessUnderstanding)
@@ -455,7 +455,7 @@ async def consult(
     """The conversational onboarding endpoint.
 
     Takes a free-text business description and returns:
-    - A conversational reply from PRACHAR AI
+    - A conversational reply from CURV AI
     - Business understanding (strengths, weaknesses, customers, competitors)
     - Top 5 growth opportunities
     - A 30-day marketing plan

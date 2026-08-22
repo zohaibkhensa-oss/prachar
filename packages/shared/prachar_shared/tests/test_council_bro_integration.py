@@ -1,9 +1,9 @@
-"""Tests for PRACHAR AI chat integration with the Agency Council.
+"""Tests for CURV AI chat integration with the Agency Council.
 
 Tests:
 - is_council_review_request() detection
-- summarise_council_decision() produces PRACHAR AI-voiced summaries
-- PRACHAR AI never exposes raw director discussions
+- summarise_council_decision() produces CURV AI-voiced summaries
+- CURV AI never exposes raw director discussions
 """
 from __future__ import annotations
 
@@ -157,7 +157,7 @@ class TestCouncilDecisionSummary:
         assert "3 rounds" in summary
 
     def test_summary_does_not_include_raw_director_discussions(self) -> None:
-        """PRACHAR AI must never expose raw director discussions."""
+        """CURV AI must never expose raw director discussions."""
         decision = ConsensusDecision(
             approval_status="approved",
             confidence=0.8,

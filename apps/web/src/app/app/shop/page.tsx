@@ -77,7 +77,7 @@ export default function ShopPage() {
         body: JSON.stringify({
           messages: [{
             role: "user",
-            content: `You are an AI advertising copywriter for PRACHAR. Generate social media content for the product "${selectedProduct.name}" ($${selectedProduct.price}, category: ${selectedProduct.category}). Generate 4 posts in this exact format:\n\nINSTAGRAM: [engaging caption with emojis and hashtags]\n\nFACEBOOK: [detailed post with CTA]\n\nTIKTOK: [short punchy script with trending hashtags]\n\nGOOGLE: [concise shopping ad copy with price]\n\nKeep each platform's style appropriate for its format.`,
+            content: `You are an AI advertising copywriter for CURV AI. Generate social media content for the product "${selectedProduct.name}" ($${selectedProduct.price}, category: ${selectedProduct.category}). Generate 4 posts in this exact format:\n\nINSTAGRAM: [engaging caption with emojis and hashtags]\n\nFACEBOOK: [detailed post with CTA]\n\nTIKTOK: [short punchy script with trending hashtags]\n\nGOOGLE: [concise shopping ad copy with price]\n\nKeep each platform's style appropriate for its format.`,
           }],
         }),
         signal: AbortSignal.timeout(20000),

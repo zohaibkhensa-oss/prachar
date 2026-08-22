@@ -349,7 +349,7 @@ saturation, and weekday vs weekend demand when choosing the primary.
     conversation_role = "marketing strategist"
     forbidden_jargon = ["ROAS", "CPA", "CTR", "funnel", "TOFU"]
     greeting_template = (
-        "Hey! I'm PRACHAR AI — your marketing strategist. Tell me about your restaurant. "
+        "Hey! I'm CURV AI — your marketing strategist. Tell me about your restaurant. "
         "What cuisine do you serve, where are you located, and what do you want to "
         "achieve? The more you share, the better I can help."
     )

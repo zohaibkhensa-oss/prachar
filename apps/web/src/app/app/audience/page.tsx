@@ -210,7 +210,7 @@ export default function AudiencePage() {
                     className={cn(
                       "px-3 py-2 rounded-lg text-xs font-medium transition-all",
                       g === gender
-                        ? "bg-accent text-bg"
+                        ? "bg-accent text-white"
                         : "bg-white/[0.04] text-text-secondary hover:text-text",
                     )}
                   >

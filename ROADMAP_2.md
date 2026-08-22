@@ -1,4 +1,4 @@
-# PRACHAR Roadmap 2 — Polish, AI Quality, Integrations
+# CURV AI Roadmap 2 — Polish, AI Quality, Integrations
 
 > **Goal:** Transform PRACHAR from "feature-complete" to "feels like a senior marketing agency partner".
 >

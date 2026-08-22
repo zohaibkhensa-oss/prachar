@@ -1,6 +1,6 @@
 """Review Suggestion Engine — produces 3-5 AI-powered improvement suggestions.
 
-Part P3.3 of the PRACHAR roadmap. Given a draft campaign/creative, the engine
+Part P3.3 of the CURV AI roadmap. Given a draft campaign/creative, the engine
 asks the AI to review it and suggest concrete improvements. Each suggestion
 tells the human reviewer:
 

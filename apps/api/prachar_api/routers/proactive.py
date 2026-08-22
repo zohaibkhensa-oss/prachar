@@ -118,7 +118,7 @@ class LaunchResponse(BaseModel):
     what_to_do: str = ""
     why: str = ""
     expected_impact: str = ""
-    prachar_message: str = Field(description="PRACHAR AI summary of the recommendation")
+    prachar_message: str = Field(description="CURV AI summary of the recommendation")
     prefill: dict[str, Any] = Field(
         default_factory=dict,
         description="Pre-filled fields for the campaign creation form",
@@ -170,7 +170,7 @@ async def launch_recommendation(
     The notification ID encodes ``brand_id:campaign_id:metric`` (as produced
     by ``GET /chat/proactive``).  This endpoint looks up the stored anomaly,
     generates a fresh recommendation if needed, and returns a pre-filled
-    campaign creation request in PRACHAR AI's voice.
+    campaign creation request in CURV AI's voice.
 
     **No campaign is created or published.**  The user reviews the pre-filled
     form and approves manually (human-in-the-loop from P3).

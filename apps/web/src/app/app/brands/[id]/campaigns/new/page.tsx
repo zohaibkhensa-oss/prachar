@@ -93,7 +93,7 @@ function NewCampaignPageInner({
         budget: `₹${budget.toLocaleString("en-IN")}/month`,
         save: true,
         ...(creativeDirections.length > 0
-          ? { additional_context: `Creative directions from PRACHAR AI: ${creativeDirections.join(", ")}` }
+          ? { additional_context: `Creative directions from CURV AI: ${creativeDirections.join(", ")}` }
           : {}),
       });
       setResult(res);
@@ -138,7 +138,7 @@ function NewCampaignPageInner({
               </p>
             </div>
 
-            {/* PRACHAR AI recommendation banner (P5.5 pre-fill) */}
+            {/* CURV AI recommendation banner (P5.5 pre-fill) */}
             {hasPrefill && prefillPracharMessage && (
               <motion.div
                 initial={{ opacity: 0, y: 8 }}
@@ -151,7 +151,7 @@ function NewCampaignPageInner({
                   </div>
                   <div className="flex-1 min-w-0">
                     <span className="font-mono text-[10px] uppercase tracking-wider text-accent block mb-1.5">
-                      PRACHAR AI's recommendation
+                      CURV AI's recommendation
                     </span>
                     <p className="text-sm text-text leading-relaxed">{prefillPracharMessage}</p>
                     {creativeDirections.length > 0 && (

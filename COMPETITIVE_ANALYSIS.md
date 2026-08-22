@@ -1,4 +1,4 @@
-# PRACHAR Competitive Analysis — 2025
+# CURV AI Competitive Analysis — 2025
 
 ## Executive Summary
 

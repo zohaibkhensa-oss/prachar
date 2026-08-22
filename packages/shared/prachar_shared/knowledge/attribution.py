@@ -1,6 +1,6 @@
 """Source attribution and workspace isolation for the Business Knowledge Hub.
 
-Every important AI answer in PRACHAR must be traceable back to the source
+Every important AI answer in CURV AI must be traceable back to the source
 documents that informed it. When CampaignBrain, Creative Studio, the SEO
 engine, or any other AI engine retrieves knowledge from the hub, it records
 an :class:`AttributionRecord` via :class:`AttributionTracker`. This creates

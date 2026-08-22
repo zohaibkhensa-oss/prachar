@@ -1,6 +1,6 @@
 """WhatsApp creative format spec + generator.
 
-Part P2.8 of the PRACHAR roadmap. Defines the declarative WhatsApp
+Part P2.8 of the CURV AI roadmap. Defines the declarative WhatsApp
 ``CreativeFormatSpec`` (status text, status image brief, compliance-aware
 broadcast message) and a standalone ``generate_whatsapp`` generator that
 builds the prompt, calls the AIGateway, parses the JSON response via

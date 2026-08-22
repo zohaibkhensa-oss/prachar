@@ -72,7 +72,7 @@ class HubSpot(MarketingIntegration):
             display_name="HubSpot",
             category="crm",
             icon="🎯",
-            description="Connect HubSpot to sync contacts, companies, and deals. Update the CRM pipeline from PRACHAR campaigns. Track deal revenue and conversion. Webhooks for real-time CRM events.",
+            description="Connect HubSpot to sync contacts, companies, and deals. Update the CRM pipeline from CURV AI campaigns. Track deal revenue and conversion. Webhooks for real-time CRM events.",
             capabilities=(
                 IntegrationCapability.AUTHENTICATE
                 | IntegrationCapability.READ_METRICS

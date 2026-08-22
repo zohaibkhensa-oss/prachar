@@ -17,7 +17,7 @@ export function Logo({ size = "md", className = "", href }: LogoProps) {
   const img = (
     <Image
       src="/prachar-logo.png"
-      alt="PRACHAR"
+      alt="CURV AI"
       width={dims.width}
       height={dims.height}
       className={`object-contain ${className}`}

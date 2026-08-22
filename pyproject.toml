@@ -1,7 +1,7 @@
 [project]
 name = "prachar-monorepo"
 version = "0.1.0"
-description = "PRACHAR — AI-driven global ad agency platform"
+description = "CURV AI — AI-driven global ad agency platform"
 requires-python = ">=3.12"
 
 [tool.ruff]

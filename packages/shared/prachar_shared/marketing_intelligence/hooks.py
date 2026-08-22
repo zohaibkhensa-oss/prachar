@@ -1,6 +1,6 @@
 """Hook Pattern Generator — produces 5 hook patterns per campaign.
 
-Part P1.2 of the PRACHAR roadmap. Builds on the creative directions module
+Part P1.2 of the CURV AI roadmap. Builds on the creative directions module
 (P1.1) by generating 5 psychologically-grounded hook patterns that can be
 used across ad copy, video intros, and post openers.
 

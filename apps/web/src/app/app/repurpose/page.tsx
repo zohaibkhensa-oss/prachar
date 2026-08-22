@@ -166,7 +166,7 @@ export default function RepurposePage() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-4"
           >
-            {/* PRACHAR AI's reply */}
+            {/* CURV AI's reply */}
             {response.reply && (
               <div className="glass-strong rounded-2xl p-5 border-l-2 border-l-accent/50">
                 <div className="flex items-start gap-3">

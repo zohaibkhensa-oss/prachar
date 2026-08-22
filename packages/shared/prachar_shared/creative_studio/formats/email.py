@@ -1,6 +1,6 @@
 """Email creative format spec + generator.
 
-Part P2.11 of the PRACHAR roadmap. The Email format produces:
+Part P2.11 of the CURV AI roadmap. The Email format produces:
   - subject_lines:   exactly 3 A/B/n subject line variants
   - preview_text:    the preheader / preview text line
   - body_html_brief: a description of the email layout and key sections

@@ -1,4 +1,4 @@
-# PRACHAR — Agent Notes
+# CURV AI — Agent Notes
 
 AI-driven premium advertising agency platform. One brand upload → organic + paid visibility across every major platform worldwide, on a weekly autonomous loop, at SMB pricing.
 
@@ -55,7 +55,7 @@ make up            # docker-compose up (if Docker installed)
 - Money mutations: idempotency keys, dry-run default ON first 7 days, hard cap table checked in DB tx before every budget/bid call.
 
 ## Architecture Freeze (v1 — declared 2026-08-02)
-**PRACHAR AI v1 architecture is FROZEN.** No new foundational abstractions. The question is no longer "what architecture remains?" but "what prevents launch?" See `LAUNCH_READINESS.md` for the feature matrix and sign-off criteria. See `LAUNCH_PROGRAM.md` for the 8-phase launch plan (A-H).
+**CURV AI v1 architecture is FROZEN.** No new foundational abstractions. The question is no longer "what architecture remains?" but "what prevents launch?" See `LAUNCH_READINESS.md` for the feature matrix and sign-off criteria. See `LAUNCH_PROGRAM.md` for the 8-phase launch plan (A-H).
 
 ### No New Core Abstractions rule
 Any proposed feature MUST plug into one of these existing systems. A new core abstraction requires explicit justification that the feature cannot fit into any of these:

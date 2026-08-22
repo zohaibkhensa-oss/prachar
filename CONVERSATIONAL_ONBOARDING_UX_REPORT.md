@@ -1,4 +1,4 @@
-# PRACHAR — Conversational Onboarding UX Report
+# CURV AI — Conversational Onboarding UX Report
 
 > **Sprint goal:** A first-time business owner describes their business in plain English and within 60 seconds thinks: *"This AI already understands my business."*
 

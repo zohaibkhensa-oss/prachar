@@ -132,7 +132,7 @@ export default function LandingPage() {
                   <div className="w-3 h-3 rounded-full bg-warning/40" />
                   <div className="w-3 h-3 rounded-full bg-success/40" />
                 </div>
-                <span className="font-mono text-xs text-text-muted ml-2">prachar.app/dashboard</span>
+                <span className="font-mono text-xs text-text-muted ml-2">curv.app/dashboard</span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="card-3d rounded-xl p-4 flex flex-col items-center">

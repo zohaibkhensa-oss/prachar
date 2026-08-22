@@ -41,9 +41,9 @@ services:
       - key: AI_DEFAULT_PROVIDER
         value: groq
       - key: EMAIL_FROM
-        value: noreply@prachar.app
+        value: noreply@curv.app
       - key: EMAIL_FROM_NAME
-        value: PRACHAR
+        value: CURV AI
       # ─── Social Login (backend verification) ───
       - key: GOOGLE_SIGN_IN_CLIENT_ID
         sync: false  # set in dashboard from Google Cloud Console

@@ -157,7 +157,7 @@ class ProactiveEngine:
             - expected_impact:      a description of the expected outcome.
 
         When ``live_context`` is provided (a concise live performance summary
-        from C.2.1), it is included in the prompt so PRACHAR AI can reference real
+        from C.2.1), it is included in the prompt so CURV AI can reference real
         data in its recommendation.
 
         Falls back to an empty dict on any failure (so the proactive
@@ -354,7 +354,7 @@ class ProactiveEngine:
     ) -> str:
         """Assemble the recommendation prompt from an anomaly.
 
-        When ``live_context`` is provided, it is included so PRACHAR AI can reference
+        When ``live_context`` is provided, it is included so CURV AI can reference
         real live performance data in its recommendation.
         """
         direction_desc = {
@@ -472,7 +472,7 @@ class ProactiveEngine:
         return daily
 
 
-# ─── PRACHAR AI message formatting (P5.3) ──────────────────────────────────────
+# ─── CURV AI message formatting (P5.3) ───────────────────────────────────────
 
 
 # Human-friendly labels for the metrics we track.
@@ -497,16 +497,16 @@ def format_as_prachar_message(
     *,
     live_context: str = "",
 ) -> str:
-    """Format an anomaly (+ optional recommendation) into a PRACHAR AI message.
+    """Format an anomaly (+ optional recommendation) into a CURV AI message.
 
-    PRACHAR AI voice characteristics:
+    CURV AI voice characteristics:
       * Friendly, direct, conversational — like a knowledgeable friend.
       * No marketing jargon (no "ROAS", "CPA", "funnel optimisation").
       * Uses "I noticed", "I recommend", "Here's what I'd do".
       * References live performance data when available.
       * Ends with the three creative directions when available.
 
-    When ``live_context`` is provided, PRACHAR AI references the live data in
+    When ``live_context`` is provided, CURV AI references the live data in
     its message — e.g. "Your Instagram reached 12K people last week with 3%
     engagement. I recommend doubling down on Reels."
 

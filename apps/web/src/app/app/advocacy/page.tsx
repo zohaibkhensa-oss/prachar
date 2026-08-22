@@ -35,11 +35,11 @@ const CONTENT_LIBRARY = [
   { id: 1, title: "Q3 Product Launch Announcement", excerpt: "We're thrilled to announce our new AI-powered coffee recommendation engine...", platform: "linkedin", category: "Product Update", shares: 42, reach: 12000, image: "🚀" },
   { id: 2, title: "Company Culture: Remote First", excerpt: "Why we chose remote-first and how it's transformed our team...", platform: "linkedin", category: "Culture", shares: 38, reach: 9500, image: "🏠" },
   { id: 3, title: "Industry Report: Coffee Trends 2026", excerpt: "Our analysis of the top 10 coffee trends shaping the industry this year...", platform: "twitter", category: "Industry Insight", shares: 56, reach: 18000, image: "📊" },
-  { id: 4, title: "Customer Success Story", excerpt: "How BeanThere Cafe used PRACHAR to 3x their social engagement...", platform: "facebook", category: "Company News", shares: 31, reach: 7800, image: "⭐" },
+  { id: 4, title: "Customer Success Story", excerpt: "How BeanThere Cafe used CURV AI to 3x their social engagement...", platform: "facebook", category: "Company News", shares: 31, reach: 7800, image: "⭐" },
   { id: 5, title: "Sustainability Initiative Update", excerpt: "Our journey to 100% compostable packaging and what's next...", platform: "instagram", category: "Company News", shares: 47, reach: 15000, image: "🌱" },
   { id: 6, title: "Upcoming Webinar: AI in Advertising", excerpt: "Join us for a deep dive into how AI is transforming ad creative...", platform: "linkedin", category: "Event", shares: 29, reach: 6500, image: "📅" },
   { id: 7, title: "Blog Post: The Science of Cold Brew", excerpt: "Everything you need to know about the cold brew process...", platform: "twitter", category: "Blog Post", shares: 35, reach: 8200, image: "☕" },
-  { id: 8, title: "Team Spotlight: Engineering Team", excerpt: "Meet the engineers building PRACHAR's AI platform...", platform: "linkedin", category: "Culture", shares: 22, reach: 5400, image: "👨‍💻" },
+  { id: 8, title: "Team Spotlight: Engineering Team", excerpt: "Meet the engineers building CURV AI's platform...", platform: "linkedin", category: "Culture", shares: 22, reach: 5400, image: "👨‍💻" },
 ];
 
 const CAMPAIGNS = [
@@ -181,7 +181,7 @@ export default function AdvocacyPage() {
             <div className="space-y-2">
               {sorted.slice(0, 5).map((a, i) => (
                 <div key={a.id} className={cn("flex items-center gap-3 p-2 rounded-lg", i < 3 ? "bg-white/[0.04] border border-white/[0.06]" : "bg-white/[0.02]")}>
-                  <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0", i === 0 ? "bg-accent text-bg" : i === 1 ? "bg-text-muted text-bg" : i === 2 ? "bg-orange-700 text-white" : "bg-white/[0.06] text-text-muted")}>
+                  <div className={cn("w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0", i === 0 ? "bg-accent text-white" : i === 1 ? "bg-text-muted text-bg" : i === 2 ? "bg-orange-700 text-white" : "bg-white/[0.06] text-text-muted")}>
                     {i === 0 ? <Crown className="w-3.5 h-3.5" /> : i + 1}
                   </div>
                   <div className="flex-1 min-w-0">

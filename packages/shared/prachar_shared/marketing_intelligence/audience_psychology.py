@@ -1,6 +1,6 @@
 """Audience Psychology Generator — produces the psychology layer per campaign.
 
-Part P1.3 of the PRACHAR roadmap. Builds on the creative directions (P1.1) and
+Part P1.3 of the CURV AI roadmap. Builds on the creative directions (P1.1) and
 hook patterns (P1.2) by generating an audience psychology profile that
 captures *why* the target audience acts (motivations), *why* they might
 hesitate (objections), the emotional levers that move them (emotional

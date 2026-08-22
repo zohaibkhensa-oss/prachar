@@ -1,11 +1,11 @@
-"""Marketing Intelligence Engine — the strategic brain of PRACHAR.
+"""Marketing Intelligence Engine — the strategic brain of CURV AI.
 
 This package implements the "think before create" principle. Every campaign
 begins with strategy, not creative assets. The engine reasons like a senior
 advertising agency (McKinsey + WPP + OpenAI + Apple).
 
 Architecture:
-    PRACHAR AI (chat)
+    CURV AI (chat)
       ↓
     CampaignBrain (orchestrator)
       ↓

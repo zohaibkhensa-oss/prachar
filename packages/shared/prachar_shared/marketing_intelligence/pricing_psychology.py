@@ -1,6 +1,6 @@
 """Pricing Psychology Generator — produces 3 pricing presentations per campaign.
 
-Part P1.5 of the PRACHAR roadmap. Builds on the engineered offers (P1.4) by
+Part P1.5 of the CURV AI roadmap. Builds on the engineered offers (P1.4) by
 generating 3 pricing presentations that leverage specific pricing-psychology
 techniques: charm pricing, tiered pricing, bundling, anchoring, and loss-leader.
 

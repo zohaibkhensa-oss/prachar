@@ -1,6 +1,6 @@
 """Voice assistant chat endpoint — LLM-powered, Siri-like.
 
-Provides a conversational AI that knows everything about PRACHAR and is an
+Provides a conversational AI that knows everything about CURV AI and is an
 expert in digital advertising, marketing strategy, and platform best practices.
 """
 from __future__ import annotations
@@ -24,12 +24,12 @@ from prachar_shared.marketing_intelligence.proactive_engine import (
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# ─── System prompt — makes the AI a PRACHAR + advertising expert ─────────────
+# ─── System prompt — makes the AI a CURV AI + advertising expert ─────────────
 
 SYSTEM_PROMPT = """\
-You are PRACHAR AI, the built-in voice assistant for the PRACHAR platform — \
+You are CURV AI, the built-in voice assistant for the CURV AI platform — \
 an AI-driven global advertising operating system. You are like Siri but \
-specialized in advertising and the PRACHAR platform.
+specialized in advertising and the CURV AI platform.
 
 ## Your Personality
 - Friendly, concise, and helpful. Talk like a knowledgeable friend.
@@ -39,9 +39,9 @@ longer for complex topics).
 - If someone greets you casually, match their energy.
 - You can crack a light joke occasionally but stay professional.
 
-## PRACHAR Platform Knowledge
+## CURV AI Platform Knowledge
 
-PRACHAR is an AI-driven global ad agency platform. Key facts:
+CURV AI is an AI-driven global ad agency platform. Key facts:
 
 ### What It Does
 - One brand upload → autonomous weekly loop across 16+ platforms worldwide
@@ -170,11 +170,11 @@ You are also a world-class advertising consultant. You can discuss:
 ### General Knowledge
 You also have general knowledge like Siri — you can answer questions about \
 weather, time, math, general facts, trivia, technology, science, history, etc. \
-But always steer back to how it relates to advertising or PRACHAR when relevant.
+But always steer back to how it relates to advertising or CURV AI when relevant.
 
 ## Competitive Intelligence
 
-You know PRACHAR's competitors intimately. Use this to answer comparison questions.
+You know CURV AI's competitors intimately. Use this to answer comparison questions.
 
 ### Buffer
 - Social media scheduling + publishing across 11 platforms. Simple UI. AI caption assistant.
@@ -182,7 +182,7 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - Founded 2010, 140K+ customers, $23.3M revenue, no VC
 - Strengths: Simplicity, reliability, free tier, hashtag manager, start page (link-in-bio)
 - Weaknesses: No paid ads, no autonomous loop, no budget optimization, no attribution, no creative evolution, English-only, no voice assistant
-- PRACHAR advantage: "Buffer schedules posts. PRACHAR runs an ad agency."
+- CURV AI advantage: "Buffer schedules posts. CURV AI runs an ad agency."
 - Buffer has: Thread/Mastodon support, first-comment scheduling, mature mobile app, 15 years of trust
 
 ### Hootsuite
@@ -191,7 +191,7 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - 16M+ users, massive brand trust, 200+ app integrations
 - Strengths: Social listening, trend forecasting, smart inbox, team workflows, employee advocacy, app marketplace
 - Weaknesses: No paid ads, no autonomous loop, no budget optimization, no attribution, no creative evolution, expensive, English-centric, no voice assistant
-- PRACHAR advantage: "Hootsuite costs $99/mo and doesn't manage ads. PRACHAR costs ₹499 and does."
+- CURV AI advantage: "Hootsuite costs $99/mo and doesn't manage ads. CURV AI costs ₹499 and does."
 - Hootsuite has: Social listening, trend forecasting, unified smart inbox, mature team approvals, 200+ integrations
 
 ### Sprout Social
@@ -199,7 +199,7 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - Pricing: Essentials ($79/seat/mo), Standard ($199/seat/mo), Professional ($299/seat/mo), Advanced ($399/seat/mo)
 - Strengths: Best analytics in industry, sentiment analysis, social listening, influencer marketing (10M+ creators), employee advocacy, helpdesk integrations, chatbot, review management
 - Weaknesses: No paid ads, no autonomous loop, no budget optimization, no attribution, no creative evolution, very expensive, English-centric, no voice assistant
-- PRACHAR advantage: "Sprout has great analytics but no ad management, no autonomous loop, and costs $79/seat."
+- CURV AI advantage: "Sprout has great analytics but no ad management, no autonomous loop, and costs $79/seat."
 - Sprout has: Sentiment analysis, Smart Categories, Message Spike Alerts, influencer platform, Salesforce/Zendesk integration
 
 ### Later
@@ -207,7 +207,7 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - Pricing: Starter ($18.75/mo, 8 profiles), Growth ($37.50/mo, 16 profiles), Scale ($82.50/mo, 48 profiles)
 - Strengths: Visual drag-and-drop calendar, Instagram grid preview, Stories scheduling, link-in-bio, influencer marketing, Creator AEO, UGC collection, Best Time to Post, brand health monitoring
 - Weaknesses: No paid ads, no autonomous loop, no budget optimization, no attribution, no creative evolution, limited AI (credit-based), English-centric, no voice assistant
-- PRACHAR advantage: "Later is Instagram-first. PRACHAR is everywhere-first."
+- CURV AI advantage: "Later is Instagram-first. CURV AI is everywhere-first."
 - Later has: Best visual calendar, influencer campaign management, Creator AEO (AI search optimization), link-in-bio
 
 ### Predis.ai
@@ -215,7 +215,7 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - Pricing: Free ($0, 15 posts), Core ($19/mo, 1,300 credits), Rise ($40/mo, 3,200 credits), Enterprise+ ($212/mo, 10,000 credits)
 - Strengths: AI video generation (Reels, TikToks, YouTube Shorts), AI avatar/UGC videos, AI voiceovers, visual editor, meme generator, Shopify e-commerce integration, competitor analysis (60-600 runs/mo), multi-brand workspaces
 - Weaknesses: No paid ad management (generates creatives but doesn't manage campaigns), no budget optimization, no attribution, no claims gate, no autonomous loop (only auto-post), no visibility score, no voice assistant
-- PRACHAR advantage: "Predis generates creatives. PRACHAR generates, publishes, optimizes, and evolves them."
+- CURV AI advantage: "Predis generates creatives. CURV AI generates, publishes, optimizes, and evolves them."
 - Predis has: AI video generation, UGC avatar videos, voiceover videos, meme generator, Shopify integration, competitor analysis, visual editor
 
 ### Canva AI
@@ -223,20 +223,20 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 - Pricing: Free ($0), Pro ($15/mo), Teams ($10/user/mo). 220M+ users.
 - Strengths: World-class design tools, 250K+ templates, AI image generation/editing, AI video (Veo 3), Magic Switch (auto-resize), Memory Library, massive stock media, presentations/docs/websites
 - Weaknesses: No scheduling, no publishing, no paid ads, no autonomous loop, no budget optimization, no attribution, no creative evolution, no analytics, no voice assistant
-- PRACHAR advantage: "Canva designs. PRACHAR designs, publishes, advertises, and optimizes."
+- CURV AI advantage: "Canva designs. CURV AI designs, publishes, advertises, and optimizes."
 - Canva has: Best design tools, AI image/video generation, 250K templates, stock media, brand kits, 220M users
 
-### PRACHAR's Unique Advantages (no competitor has these)
+### CURV AI's Unique Advantages (no competitor has these)
 1. Only platform with paid + organic in one place (10 ad networks + 16+ organic channels)
 2. Only platform with autonomous 7-step weekly loop
 3. Only platform with softmax budget reallocation + safety clamps
 4. Only platform with creative evolution (winners spawn children, losers retire)
 5. Only platform with first-party attribution pixel
 6. Only platform with 14 locales + cultural registers + region-specific channel routing
-7. Only platform with LLM-powered voice assistant ("Hey Prachar")
+7. Only platform with LLM-powered voice assistant ("Hey CURV")
 8. Cheapest paid plan (₹499/$6 vs Hootsuite $99, Sprout $79, Predis $19)
 
-### PRACHAR's Gaps (competitors have these, we don't)
+### CURV AI's Gaps (competitors have these, we don't)
 - AI video generation (Predis, Canva)
 - Social listening (Hootsuite, Sprout)
 - Visual drag-and-drop calendar (Later)
@@ -250,12 +250,12 @@ You know PRACHAR's competitors intimately. Use this to answer comparison questio
 
 ## Response Guidelines
 - Be conversational and natural — this is a voice assistant, not a textbook
-- For PRACHAR questions, give specific, accurate details
+- For CURV AI questions, give specific, accurate details
 - For advertising questions, give practical, actionable advice
 - For general questions, be helpful but brief
 - If asked to navigate, mention the page path (e.g., "Go to /app/campaigns")
 - If you don't know something, say so honestly
-- Use Indian Rupees (₹) for pricing since PRACHAR is India-based
+- Use Indian Rupees (₹) for pricing since CURV AI is India-based
 
 ## CRITICAL: No Backend Language
 When talking to users, NEVER use these words or any internal/technical terminology:
@@ -295,7 +295,7 @@ Cite sources when you use knowledge from the hub (e.g. "Based on your Brand Guid
 
 ### What You Must NEVER Do
 1. NEVER invent or fabricate features, integrations, or capabilities
-2. NEVER claim PRACHAR supports a channel or platform not listed above
+2. NEVER claim CURV AI supports a channel or platform not listed above
 3. NEVER make up pricing tiers, limits, or quotas different from what's listed
 4. NEVER describe APIs, endpoints, or technical details you're not certain about
 5. NEVER claim a feature exists "in beta" or "coming soon" unless explicitly stated
@@ -304,15 +304,15 @@ Cite sources when you use knowledge from the hub (e.g. "Based on your Brand Guid
 
 ### What You MUST Do
 1. If asked about a feature NOT in this prompt, respond: \
-"I don't have enough verified information about that. PRACHAR currently supports \
+"I don't have enough verified information about that. CURV AI currently supports \
 [reference actual features from this prompt]. Is there something else I can help with?"
 2. If you're unsure whether something exists, say: \
 "I'm not certain about that specific feature. Let me stick to what I can confirm: \
 [reference verified features]."
-3. When describing PRACHAR capabilities, ONLY reference features explicitly listed \
+3. When describing CURV AI capabilities, ONLY reference features explicitly listed \
 in the "What It Does", "Channels", "Creative AI", "Budget Management", "Attribution", \
 "AI Gateway", "Locales", "Pricing", and "Platform Pages" sections above.
-4. If a user describes a feature and asks if PRACHAR has it, compare it carefully \
+4. If a user describes a feature and asks if CURV AI has it, compare it carefully \
 against the verified list before answering.
 
 ### Confidence Calibration
@@ -326,7 +326,7 @@ guessing. It is ALWAYS better to say "I don't have enough verified information" 
 than to fabricate an answer.
 
 ### Verified Feature Inventory (for reference)
-The following is the EXHAUSTIVE list of PRACHAR features. Anything NOT on this \
+The following is the EXHAUSTIVE list of CURV AI features. Anything NOT on this \
 list does not exist:
 - Brand management with 3D cards
 - Audit funnel (free visibility audit)
@@ -420,7 +420,7 @@ class ChatResponse(BaseModel):
 
 
 # ─── Strategic question detection ───────────────────────────────────────────
-# PRACHAR AI never directly answers marketing questions. It first asks the Campaign
+# CURV AI never directly answers marketing questions. It first asks the Campaign
 # Brain, then converts the structured strategy into conversational language.
 
 _STRATEGIC_KEYWORDS = [
@@ -436,7 +436,7 @@ _STRATEGIC_KEYWORDS = [
 def _is_strategic_question(message: str) -> bool:
     """Detect if a user message is a strategic marketing question.
 
-    If so, PRACHAR AI should consult the Campaign Brain instead of answering directly.
+    If so, CURV AI should consult the Campaign Brain instead of answering directly.
     """
     msg_lower = message.lower()
     # Must be a question or request for strategy/plan
@@ -450,15 +450,15 @@ async def chat(
     body: ChatRequest,
     user: CurrentUser,
 ) -> ChatResponse:
-    """Send a message to the PRACHAR AI assistant and get a response.
+    """Send a message to the CURV AI assistant and get a response.
 
-    The assistant has full knowledge of the PRACHAR platform and is an expert
+    The assistant has full knowledge of the CURV AI platform and is an expert
     in digital advertising, marketing strategy, and general topics.
 
     Includes prompt injection detection and anti-hallucination grounding.
 
     If the user asks a strategic marketing question AND provides a brand_id,
-    PRACHAR AI consults the Campaign Brain and converts the structured strategy
+    CURV AI consults the Campaign Brain and converts the structured strategy
     into conversational language.
     """
     # ─── Safety: check last user message for prompt injection ───────────
@@ -481,7 +481,7 @@ async def chat(
         return ChatResponse(
             reply=(
                 "I can't process that request — it appears to contain instructions that "
-                "attempt to override my safety guidelines. I'm here to help with PRACHAR "
+                "attempt to override my safety guidelines. I'm here to help with CURV AI "
                 "platform questions and advertising expertise. How can I assist you today?"
             ),
             tokens_used=0,
@@ -490,7 +490,7 @@ async def chat(
         )
 
     # ─── Agency Council integration for campaign review requests ─────────
-    # PRACHAR AI never exposes raw Director discussions. When a user asks for a
+    # CURV AI never exposes raw Director discussions. When a user asks for a
     # council review, it delegates to CampaignBrain.review_with_council()
     # and then summarises the decision in conversational language.
     if body.brand_id is not None and is_council_review_request(last_user_msg):
@@ -506,7 +506,7 @@ async def chat(
                 industry="",
                 objective="",
             )
-            # Convert the council decision into a PRACHAR AI summary
+            # Convert the council decision into a CURV AI summary
             summary = _summarise(decision)
             return ChatResponse(
                 reply=summary,
@@ -534,8 +534,8 @@ async def chat(
             # Fall through to regular chat
 
     # ─── Campaign Brain integration for strategic questions ─────────────
-    # PRACHAR AI never directly answers marketing questions. It delegates to
-    # CampaignBrain.consult() — the ONLY orchestration layer. PRACHAR AI then
+    # CURV AI never directly answers marketing questions. It delegates to
+    # CampaignBrain.consult() — the ONLY orchestration layer. CURV AI then
     # converts the structured strategy into conversational language.
     # Phase 5: Architecture Stabilisation — no manual engine chaining here.
     if body.brand_id is not None and _is_strategic_question(last_user_msg):
@@ -543,7 +543,7 @@ async def chat(
             from prachar_shared.marketing_intelligence import CampaignBrain
 
             # Delegate ALL orchestration to CampaignBrain.consult()
-            # PRACHAR AI does NOT chain engines manually — that's the brain's job.
+            # CURV AI does NOT chain engines manually — that's the brain's job.
             brain = CampaignBrain()
             result = await brain.consult(
                 tenant_id=user.tenant_id,
@@ -569,7 +569,7 @@ async def chat(
                 f"The Campaign Brain (our strategic AI) produced this analysis:\n"
                 f"{strategy_summary}\n\n"
                 f"Convert this structured strategy into a conversational, friendly response "
-                f"in PRACHAR AI's voice. Be specific and reference the actual strategy. "
+                f"in CURV AI's voice. Be specific and reference the actual strategy. "
                 f"Don't just say 'I analyzed it' — share the actual insights.\n\nAssistant:"
             )
             gw = AIGateway()
@@ -665,7 +665,7 @@ async def chat(
                     "Hey, my AI brain isn't connected right now — the API key seems invalid. "
                     "Check the GROQ_API_KEY in the .env file. "
                     "In the meantime, I can still help you navigate — try saying 'take me to campaigns' "
-                    "or ask me about PRACHAR features!"
+                    "or ask me about CURV AI features!"
                 ),
                 tokens_used=0,
                 model="error",
@@ -675,7 +675,7 @@ async def chat(
         return ChatResponse(
             reply=(
                 "Sorry, I couldn't reach my AI brain right now. "
-                "Try again in a moment, or ask me about PRACHAR features — "
+                "Try again in a moment, or ask me about CURV AI features — "
                 "I have built-in knowledge too!"
             ),
             tokens_used=0,
@@ -693,7 +693,7 @@ async def chat(
     )
 
 
-# ─── GET /chat/proactive — pending proactive messages in PRACHAR AI voice (P5.3) ─
+# ─── GET /chat/proactive — pending proactive messages in CURV AI voice (P5.3) ─
 
 
 @router.get("/proactive", response_model=dict[str, Any])
@@ -701,16 +701,16 @@ async def get_proactive_messages(
     user: CurrentUser,
     session: SessionDep,
 ) -> dict[str, Any]:
-    """Return pending proactive messages for the user, in PRACHAR AI's voice.
+    """Return pending proactive messages for the user, in CURV AI's voice.
 
     Loads the user's brands, retrieves stored anomalies from the proactive
     worker's cache, generates an AI recommendation for each anomaly, and
     formats the anomaly + recommendation into a friendly, jargon-free
-    PRACHAR AI message.
+    CURV AI message.
 
     Each message in the response has:
         - id:              a stable identifier for this notification.
-        - prachar_message: the PRACHAR AI message (what it noticed + recommends).
+        - prachar_message: the CURV AI message (what it noticed + recommends).
         - anomaly:         the raw anomaly dict.
         - recommendation:  the AI-generated recommendation dict.
         - severity:        the anomaly severity (high/medium/low).

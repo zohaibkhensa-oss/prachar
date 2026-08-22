@@ -1,6 +1,6 @@
 """LinkedIn creative format spec + generator.
 
-Part P2.10 of the PRACHAR roadmap. Declares the LinkedIn creative format spec
+Part P2.10 of the CURV AI roadmap. Declares the LinkedIn creative format spec
 (hook, body ≤3000 chars, cta, hashtags) and a ``generate_linkedin`` generator
 that builds a prompt, calls the AIGateway, parses the JSON response via
 ``extract_json``, and returns a dict. Falls back to an empty dict on failure.
