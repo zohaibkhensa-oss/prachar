@@ -87,7 +87,7 @@ export default function CampaignsPage() {
             Your first campaign is one click away
           </h2>
           <p className="text-sm text-text-secondary leading-relaxed max-w-md mx-auto mb-6">
-            Tell PRACHAR AI what you want to achieve. I&apos;ll build the strategy, pick the right
+            Tell CURV AI what you want to achieve. I&apos;ll build the strategy, pick the right
             channels, write the ads, and schedule the posts — you just review and approve.
           </p>
           <div className="flex flex-wrap gap-3 justify-center mb-6">

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { Home, Megaphone, BarChart3, User } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { AIOrb } from "./AIOrb";
+import { CurvOrb } from "./CurvOrb";
 
 const DOCK_ITEMS = [
   { label: "Home", href: "/app", icon: Home },
@@ -17,7 +17,7 @@ const DOCK_ITEMS = [
 
 /**
  * AIDock — persistent bottom navigation.
- * PRACHAR AI orb is the center item, always present, always glowing.
+ * CURV AI orb is the center item, always present, always glowing.
  */
 export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
   const pathname = usePathname();
@@ -74,8 +74,8 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
           style={{ width: 56, height: 56 }}
           animate={{
             boxShadow: [
-              "0 0 0 0px rgba(190,242,100,0.4)",
-              "0 0 0 8px rgba(190,242,100,0)",
+              "0 0 0 0px rgba(236,72,153,0.4)",
+              "0 0 0 8px rgba(139,92,246,0)",
             ],
           }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
@@ -85,11 +85,11 @@ export function AIDock({ onOrbClick }: { onOrbClick?: () => void }) {
           whileHover={{ scale: 1.12 }}
           whileTap={{ scale: 0.92 }}
           className="relative"
-          aria-label="Chat with PRACHAR AI"
+          aria-label="Chat with CURV AI"
         >
-          <AIOrb state="idle" size={52} />
+          <CurvOrb state="idle" size={52} />
         </motion.button>
-        <span className="text-[11px] font-semibold text-accent tracking-wide">
+        <span className="text-[11px] font-semibold tracking-wide" style={{ background: "linear-gradient(135deg, #8B5CF6, #EC4899, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
           TAP TO CHAT
         </span>
 

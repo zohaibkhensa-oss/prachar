@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getToken, clearToken } from "@/lib/auth";
 import { useRouter } from "next/navigation";
+import { CurvMark } from "./CurvMark";
 
 interface NavItem {
   label: string;
@@ -92,16 +93,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
       <div className="flex items-center justify-between p-3 border-b border-white/[0.04] h-14">
         {collapsed ? (
           <Link href="/app" className="mx-auto lg:mx-0">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-              <Zap className="w-4 h-4 text-accent" />
-            </div>
+            <CurvMark size={28} variant="mark" />
           </Link>
         ) : (
           <Link href="/app" className="flex items-center gap-2 overflow-hidden">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center">
-              <Zap className="w-4 h-4 text-bg" />
-            </div>
-            <span className="font-display text-sm font-bold text-gradient-accent">PRACHAR AI</span>
+            <CurvMark size={28} variant="mark" />
+            <span className="font-display text-sm font-bold" style={{ background: "linear-gradient(135deg, #8B5CF6, #EC4899, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CURV AI</span>
           </Link>
         )}
         <button
@@ -136,7 +133,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <div className="text-xs font-medium text-text truncate">My Workspace</div>
-                <div className="text-[10px] text-text-muted truncate">{email || "demo@prachar.app"}</div>
+                <div className="text-[10px] text-text-muted truncate">{email || "demo@curv.app"}</div>
               </div>
             </div>
           </motion.div>

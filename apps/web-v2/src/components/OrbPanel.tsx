@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { AIOrb } from "./AIOrb";
+import { CurvOrb } from "./CurvOrb";
 import { useRuntimeSession, type AIEvent } from "@/lib/runtime";
 import {
   type OrbState,
@@ -37,7 +37,7 @@ interface ChatMessage {
 }
 
 /**
- * OrbPanel — the full PRACHAR AI conversation interface.
+ * OrbPanel — the full CURV AI conversation interface.
  *
  * Replaces the placeholder in the app layout.
  * Handles: text input, voice input, SSE event streaming, approval dialogs,
@@ -337,9 +337,9 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-white/[0.04]">
         <div className="flex items-center gap-3">
-          <AIOrb state={orbState} size={36} showWaves={active} />
+          <CurvOrb state={orbState} size={36} showWaves={active} />
           <div>
-            <div className="text-sm font-semibold">PRACHAR AI</div>
+            <div className="text-sm font-semibold">CURV AI</div>
             <div className="text-[10px] text-text-muted">
               {ORB_STATE_DESCRIPTIONS[orbState]}
             </div>
@@ -368,7 +368,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
         {/* Messages */}
         {messages.length === 0 && !active && (
           <div className="flex flex-col items-center justify-center py-8">
-            <AIOrb state="idle" size={80} showWaves={false} />
+            <CurvOrb state="idle" size={80} showWaves={false} />
             <p className="mt-6 text-sm text-text-secondary text-center max-w-xs">
               What are we building today?
             </p>
@@ -400,7 +400,7 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
               className={cn(
                 "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm",
                 msg.role === "user"
-                  ? "bg-gradient-to-br from-accent to-accent-dark text-bg"
+                  ? "bg-gradient-to-br from-accent to-accent-dark text-white"
                   : "bg-white/[0.04] border border-white/[0.06] text-text",
                 msg.isClarifying && "border-amber-400/20 bg-amber-400/[0.04]"
               )}
@@ -540,14 +540,14 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
               sendMessage(input);
             }
           }}
-          placeholder={isListening ? "Listening..." : "Type or speak to PRACHAR AI..."}
+          placeholder={isListening ? "Listening..." : "Type or speak to CURV AI..."}
           disabled={active}
           className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-accent/30 transition-colors disabled:opacity-50"
         />
         <button
           onClick={() => sendMessage(input)}
           disabled={!input.trim() || active}
-          className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark text-bg flex items-center justify-center font-bold disabled:opacity-30 flex-shrink-0"
+          className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent-dark text-white flex items-center justify-center font-bold disabled:opacity-30 flex-shrink-0"
         >
           ↑
         </button>

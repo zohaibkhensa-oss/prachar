@@ -6,7 +6,7 @@
 export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
 export const ORB_STATE_LABELS: Record<OrbState, string> = {
-  idle: "PRACHAR AI",
+  idle: "CURV AI",
   listening: "Listening...",
   thinking: "Thinking...",
   speaking: "Speaking...",
@@ -29,16 +29,16 @@ export function isSpeechSynthesisAvailable(): boolean {
 }
 
 /**
- * Wake words for PRACHAR AI.
+ * Wake words for CURV AI.
  */
 export const WAKE_WORDS = [
-  "hey prachar",
-  "hey prachar ai",
-  "hay prachar",
-  "a prachar",
-  "hey prachar a i",
-  "hey pracher",
-  "hey prasher",
+  "hey curv",
+  "hey curv ai",
+  "hay curv",
+  "a curv",
+  "hey curv a i",
+  "hey curve",
+  "hey kurv",
 ];
 
 /**

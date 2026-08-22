@@ -255,7 +255,7 @@ export default function ChannelsPage() {
             className={cn(
               "px-3.5 py-2 min-h-[36px] rounded-full text-xs font-medium transition-all whitespace-nowrap",
               filter === f.id
-                ? "bg-accent text-bg"
+                ? "bg-accent text-white"
                 : "bg-white/[0.04] text-text-secondary hover:text-text",
             )}
           >
@@ -315,7 +315,7 @@ export default function ChannelsPage() {
           </p>
           <Link
             href="/app/integrations"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-bg text-sm font-medium hover:opacity-90 transition"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 transition"
           >
             Go to Integrations
           </Link>

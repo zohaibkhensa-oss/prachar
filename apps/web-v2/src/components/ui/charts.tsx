@@ -14,7 +14,7 @@ export function PerformanceRing({
   strokeWidth = 8,
   label,
   sublabel,
-  accent = "#BEF264",
+  accent = "#8B5CF6",
   className,
 }: {
   value: number;
@@ -78,7 +78,7 @@ export function Sparkline({
   data,
   width = 80,
   height = 24,
-  color = "#BEF264",
+  color = "#8B5CF6",
   className,
 }: {
   data: number[];

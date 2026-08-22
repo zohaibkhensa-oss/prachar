@@ -61,7 +61,7 @@ export default function ImageStudioPage() {
     const promptPromise = apiPost<{ reply: string }>("/chat", {
       messages: [{
         role: "user",
-        content: `You are an AI image prompt engineer for PRACHAR. The user wants a ${style} image in ${ratio} format. Their prompt: "${prompt}". ${negativePrompt ? `Exclude: ${negativePrompt}.` : ""} Generate ${variations} enhanced, detailed image generation prompts (each on a new line, numbered 1-${variations}). Include lighting, composition, mood, and style details.`,
+        content: `You are an AI image prompt engineer for CURV AI. The user wants a ${style} image in ${ratio} format. Their prompt: "${prompt}". ${negativePrompt ? `Exclude: ${negativePrompt}.` : ""} Generate ${variations} enhanced, detailed image generation prompts (each on a new line, numbered 1-${variations}). Include lighting, composition, mood, and style details.`,
       }],
     }).then(data => setAiPrompt(data.reply)).catch(() => {});
 
@@ -234,7 +234,7 @@ export default function ImageStudioPage() {
                             if (!img.imageUrl) return;
                             const a = document.createElement("a");
                             a.href = img.imageUrl;
-                            a.download = `prachar-image-${img.id}.png`;
+                            a.download = `curv-image-${img.id}.png`;
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);

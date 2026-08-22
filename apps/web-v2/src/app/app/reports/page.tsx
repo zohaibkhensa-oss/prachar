@@ -158,7 +158,7 @@ export default function ReportsPage() {
                 className={cn(
                   "px-3 py-2 min-h-[36px] rounded-md font-mono text-xs transition-all whitespace-nowrap",
                   t === range
-                    ? "bg-accent text-bg font-medium"
+                    ? "bg-accent text-white font-medium"
                     : "text-text-secondary hover:text-text",
                 )}
               >

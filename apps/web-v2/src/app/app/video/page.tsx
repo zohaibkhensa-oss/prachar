@@ -237,7 +237,7 @@ export default function VideoStudioPage() {
         const data = await apiPost<{ reply?: string; detail?: string }>("/chat", {
           messages: [{
             role: "user",
-            content: `You are an AI video script writer for PRACHAR. Write a ${duration} ${selectedStyle} video script for ${selectedPlatform}. Prompt: "${prompt}". Include scene-by-scene breakdown with timestamps, visual descriptions, and voiceover text.`,
+            content: `You are an AI video script writer for CURV AI. Write a ${duration} ${selectedStyle} video script for ${selectedPlatform}. Prompt: "${prompt}". Include scene-by-scene breakdown with timestamps, visual descriptions, and voiceover text.`,
           }],
         });
         const script = data.reply || "";
@@ -661,7 +661,7 @@ export default function VideoStudioPage() {
                               if (!vd.videoUrl) return;
                               const a = document.createElement("a");
                               a.href = vd.videoUrl;
-                              a.download = `prachar-video-${vd.id}.mp4`;
+                              a.download = `curv-video-${vd.id}.mp4`;
                               document.body.appendChild(a);
                               a.click();
                               document.body.removeChild(a);

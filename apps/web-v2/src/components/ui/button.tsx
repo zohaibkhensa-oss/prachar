@@ -12,13 +12,13 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const variants: Record<Variant, string> = {
   // New neon-black variants
   primary:
-    "bg-accent text-bg font-body font-semibold rounded-lg hover:shadow-glow hover:brightness-110 active:scale-[0.98]",
+    "bg-accent text-white font-body font-semibold rounded-lg hover:shadow-glow hover:brightness-110 active:scale-[0.98]",
   secondary:
     "bg-bg-elevated text-text font-body font-medium rounded-lg border border-white/[0.08] hover:bg-bg-hover hover:border-white/[0.12] active:scale-[0.98]",
   danger:
     "bg-danger/10 text-danger font-body font-medium rounded-lg border border-danger/20 hover:bg-danger/20 active:scale-[0.98]",
   // Legacy aliases (map to new styles)
-  yellow: "bg-accent text-bg font-body font-semibold rounded-lg hover:shadow-glow hover:brightness-110 active:scale-[0.98]",
+  yellow: "bg-accent text-white font-body font-semibold rounded-lg hover:shadow-glow hover:brightness-110 active:scale-[0.98]",
   ink: "bg-bg-elevated text-text font-body font-medium rounded-lg border border-white/[0.08] hover:bg-bg-hover hover:border-white/[0.12] active:scale-[0.98]",
   paper: "bg-bg-elevated text-text font-body font-medium rounded-lg border border-white/[0.08] hover:bg-bg-hover hover:border-white/[0.12] active:scale-[0.98]",
   ghost:

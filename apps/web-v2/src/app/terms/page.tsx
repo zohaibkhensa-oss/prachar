@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — PRACHAR",
-  description: "Terms of service for PRACHAR AI marketing platform.",
+  title: "Terms of Service — CURV AI",
+  description: "Terms of service for CURV AI marketing platform.",
 };
 
 export default function TermsPage() {
@@ -15,12 +15,12 @@ export default function TermsPage() {
         <div className="prose prose-invert max-w-none space-y-6 text-sm text-text-secondary leading-relaxed">
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">1. Acceptance of Terms</h2>
-            <p>By accessing or using PRACHAR (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Service.</p>
+            <p>By accessing or using CURV AI (&ldquo;the Service&rdquo;), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Service.</p>
           </section>
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">2. Description of Service</h2>
-            <p>PRACHAR is an AI-driven marketing platform that provides campaign planning, content generation, performance analytics, and multi-channel publishing for businesses.</p>
+            <p>CURV AI is an AI-driven marketing platform that provides campaign planning, content generation, performance analytics, and multi-channel publishing for businesses.</p>
           </section>
 
           <section>
@@ -41,7 +41,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">5. AI-Generated Content</h2>
-            <p>PRACHAR uses AI to generate marketing content. You are responsible for reviewing and approving all content before publication. We do not guarantee specific results or performance outcomes.</p>
+            <p>CURV AI uses AI to generate marketing content. You are responsible for reviewing and approving all content before publication. We do not guarantee specific results or performance outcomes.</p>
           </section>
 
           <section>
@@ -51,12 +51,12 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">7. Intellectual Property</h2>
-            <p>You retain ownership of content you upload. AI-generated content is licensed to you for commercial use. PRACHAR retains ownership of the platform, algorithms, and underlying technology.</p>
+            <p>You retain ownership of content you upload. AI-generated content is licensed to you for commercial use. CURV AI retains ownership of the platform, algorithms, and underlying technology.</p>
           </section>
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">8. Limitation of Liability</h2>
-            <p>PRACHAR is provided &ldquo;as is&rdquo; without warranties of any kind. We are not liable for indirect, incidental, or consequential damages arising from use of the Service.</p>
+            <p>CURV AI is provided &ldquo;as is&rdquo; without warranties of any kind. We are not liable for indirect, incidental, or consequential damages arising from use of the Service.</p>
           </section>
 
           <section>
@@ -66,7 +66,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">10. Contact</h2>
-            <p>For questions about these Terms, contact us at <a href="mailto:support@prachar.ai" className="text-accent hover:underline">support@prachar.ai</a>.</p>
+            <p>For questions about these Terms, contact us at <a href="mailto:support@curv.ai" className="text-accent hover:underline">support@curv.ai</a>.</p>
           </section>
         </div>
       </div>

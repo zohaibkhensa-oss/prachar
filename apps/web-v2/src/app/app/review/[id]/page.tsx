@@ -568,7 +568,7 @@ export default function ReviewDetailPage() {
               <h3 className="font-display text-lg font-semibold text-text">Request Changes</h3>
             </div>
             <p className="text-sm text-text-secondary">
-              Request changes to this campaign. Tell PRACHAR AI what to fix:
+              Request changes to this campaign. Tell CURV AI what to fix:
             </p>
             <textarea
               value={feedback}

@@ -372,7 +372,7 @@ export default function CalendarPage() {
           <button
             onClick={generateAIPlan}
             disabled={generatingPlan}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-bg text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
           >
             {generatingPlan ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
@@ -423,7 +423,7 @@ export default function CalendarPage() {
             onClick={() => setSelectedChannel(null)}
             className={cn(
               "px-3 py-2 min-h-[36px] rounded-full text-xs font-medium transition whitespace-nowrap",
-              !selectedChannel ? "bg-accent text-bg" : "bg-white/[0.04] text-text-secondary hover:text-text"
+              !selectedChannel ? "bg-accent text-white" : "bg-white/[0.04] text-text-secondary hover:text-text"
             )}
           >
             All Channels
@@ -468,13 +468,13 @@ export default function CalendarPage() {
           <div className="flex bg-white/[0.04] rounded-lg p-0.5">
             <button
               onClick={() => setViewMode("month")}
-              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "month" ? "bg-accent text-bg" : "text-text-secondary")}
+              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "month" ? "bg-accent text-white" : "text-text-secondary")}
             >
               Month
             </button>
             <button
               onClick={() => setViewMode("week")}
-              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "week" ? "bg-accent text-bg" : "text-text-secondary")}
+              className={cn("px-3 py-2 min-h-[32px] rounded-md text-xs font-medium transition", viewMode === "week" ? "bg-accent text-white" : "text-text-secondary")}
             >
               Week
             </button>

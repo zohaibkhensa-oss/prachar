@@ -23,8 +23,12 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PRACHAR AI — Your Autonomous Marketing Team",
+  title: "CURV AI — Your Autonomous Marketing Team",
   description: "AI-driven premium advertising agency platform. One brand upload → organic + paid visibility across every major platform.",
+  icons: {
+    icon: "/curv-logo.png",
+    apple: "/curv-logo.png",
+  },
 };
 
 export const viewport = {

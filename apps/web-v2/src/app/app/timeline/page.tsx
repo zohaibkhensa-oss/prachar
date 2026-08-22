@@ -28,7 +28,7 @@ const ENTRY_TYPE_ICONS: Record<string, string> = {
 
 const ACTOR_LABELS: Record<string, string> = {
   user: "You",
-  ai: "PRACHAR AI",
+  ai: "CURV AI",
   system: "System",
 };
 
@@ -78,7 +78,7 @@ export default function TimelinePage() {
         <div className="glass rounded-xl p-8 text-center">
           <div className="text-4xl mb-3">📋</div>
           <p className="text-sm text-text-secondary">
-            No activity yet. Start by creating a campaign or asking PRACHAR AI something.
+            No activity yet. Start by creating a campaign or asking CURV AI something.
           </p>
         </div>
       ) : (

@@ -287,7 +287,7 @@ export default function SettingsPage() {
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                 tab === t.id
-                  ? "bg-accent text-bg"
+                  ? "bg-accent text-white"
                   : "text-text-secondary hover:text-text hover:bg-white/[0.03]",
               )}
             >
@@ -631,7 +631,7 @@ export default function SettingsPage() {
               <Card hover={false}>
                 <SectionHeader
                   title="API Tokens"
-                  subtitle="Manage programmatic access to your PRACHAR data"
+                  subtitle="Manage programmatic access to your CURV AI data"
                   icon={<KeyRound className="w-4 h-4" />}
                 />
                 {subQuery.isLoading ? (
@@ -703,7 +703,7 @@ export default function SettingsPage() {
                       No API tokens yet
                     </h3>
                     <p className="text-sm text-text-secondary max-w-sm mx-auto mb-6">
-                      Create an API token to access PRACHAR programmatically.
+                      Create an API token to access CURV AI programmatically.
                     </p>
                     <button
                       disabled

@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — PRACHAR",
-  description: "Privacy policy for PRACHAR AI marketing platform.",
+  title: "Privacy Policy — CURV AI",
+  description: "Privacy policy for CURV AI marketing platform.",
 };
 
 export default function PrivacyPage() {
@@ -24,7 +24,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">2. How We Use Your Information</h2>
             <ul className="list-disc pl-5 space-y-1">
-              <li>To provide and improve the PRACHAR service</li>
+              <li>To provide and improve the CURV AI service</li>
               <li>To generate AI-powered marketing campaigns and content</li>
               <li>To analyse and report on campaign performance</li>
               <li>To send service notifications and updates</li>
@@ -60,7 +60,7 @@ export default function PrivacyPage() {
               <li><strong className="text-text">Export:</strong> download your data in JSON/CSV format</li>
               <li><strong className="text-text">Opt-out:</strong> unsubscribe from non-essential communications</li>
             </ul>
-            <p>To exercise these rights, contact <a href="mailto:privacy@prachar.ai" className="text-accent hover:underline">privacy@prachar.ai</a>.</p>
+            <p>To exercise these rights, contact <a href="mailto:privacy@curv.ai" className="text-accent hover:underline">privacy@curv.ai</a>.</p>
           </section>
 
           <section>
@@ -75,12 +75,12 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">9. Compliance</h2>
-            <p>We comply with GDPR, CCPA, and DPDP Act (India) requirements. For data protection inquiries, contact <a href="mailto:dpo@prachar.ai" className="text-accent hover:underline">dpo@prachar.ai</a>.</p>
+            <p>We comply with GDPR, CCPA, and DPDP Act (India) requirements. For data protection inquiries, contact <a href="mailto:dpo@curv.ai" className="text-accent hover:underline">dpo@curv.ai</a>.</p>
           </section>
 
           <section>
             <h2 className="font-display text-lg font-semibold text-text mb-2">10. Contact</h2>
-            <p>For privacy questions, contact <a href="mailto:privacy@prachar.ai" className="text-accent hover:underline">privacy@prachar.ai</a>.</p>
+            <p>For privacy questions, contact <a href="mailto:privacy@curv.ai" className="text-accent hover:underline">privacy@curv.ai</a>.</p>
           </section>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiPost } from "@/lib/api";
+import { CurvMark } from "@/components/CurvMark";
 import { setToken, getToken } from "@/lib/auth";
 import type {
   ConsultResponse,
@@ -53,9 +54,9 @@ type Phase =
   | "auth"        // Need to sign in first
   | "type_select" // "Tell me who you are" — Business or Creator?
   | "subtype_select" // Pick specific business/creator type
-  | "intro"       // PRACHAR AI's opening message
+  | "intro"       // CURV AI's opening message
   | "listening"   // User is typing their description
-  | "analysing"   // PRACHAR AI is analysing (loading)
+  | "analysing"   // CURV AI is analysing (loading)
   | "understanding" // Show understanding cards (business or creator)
   | "opportunities" // Show growth opportunities
   | "plan"        // Show 30-day plan
@@ -316,7 +317,7 @@ export default function ConversationalOnboardingPage() {
             Let's talk about you
           </h1>
           <p className="text-sm text-text-secondary mb-6">
-            Sign up to start your conversation with PRACHAR AI — your AI strategist for business or creator growth.
+            Sign up to start your conversation with CURV AI — your AI strategist for business or creator growth.
           </p>
           <div className="flex flex-col gap-2">
             <button
@@ -425,13 +426,13 @@ export default function ConversationalOnboardingPage() {
                     ? {
                         id: "intro",
                         role: "assistant",
-                        content: `Hey! I'm PRACHAR AI — your strategist for ${t.label.toLowerCase()} growth. Tell me about your channel. What's your niche, where do you post, who's your audience, and where do you want to be in 6 months? The more you share, the better I can help.`,
+                        content: `Hey! I'm CURV AI — your strategist for ${t.label.toLowerCase()} growth. Tell me about your channel. What's your niche, where do you post, who's your audience, and where do you want to be in 6 months? The more you share, the better I can help.`,
                         timestamp: Date.now(),
                       }
                     : {
                         id: "intro",
                         role: "assistant",
-                        content: `Hey! I'm PRACHAR AI — your marketing strategist. Tell me about your ${t.label.toLowerCase()} business. What do you do, where, and who do you serve? The more you share, the better I can help.`,
+                        content: `Hey! I'm CURV AI — your marketing strategist. Tell me about your ${t.label.toLowerCase()} business. What do you do, where, and who do you serve? The more you share, the better I can help.`,
                         timestamp: Date.now(),
                       };
                   setMessages([introMsg]);
@@ -456,10 +457,8 @@ export default function ConversationalOnboardingPage() {
       {/* ─── Header ─── */}
       <header className="border-b border-white/[0.04] px-4 lg:px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-accent" />
-          </div>
-          <span className="font-display text-sm font-semibold text-text">PRACHAR AI</span>
+          <CurvMark size={28} variant="mark" />
+          <span className="font-display text-sm font-semibold" style={{ background: "linear-gradient(135deg, #8B5CF6, #EC4899, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CURV AI</span>
           <span className="text-xs text-text-muted">
             · {customerType === "creator" ? "Your creator strategist" : "Your marketing strategist"}
           </span>
@@ -1038,7 +1037,7 @@ function CampaignDeck({
       exit={{ opacity: 0, y: -16 }}
       className="space-y-4 pb-4"
     >
-      {/* PRACHAR AI's pitch */}
+      {/* CURV AI's pitch */}
       {response.reply && (
         <div className="glass-strong rounded-2xl p-5 border-l-2 border-l-accent/50">
           <div className="flex items-start gap-3">

@@ -40,7 +40,7 @@ export const ORB_STATES: OrbState[] = [
 ];
 
 export const ORB_STATE_LABELS: Record<OrbState, string> = {
-  idle: "PRACHAR AI",
+  idle: "CURV AI",
   wake: "Waking up...",
   listening: "Listening...",
   transcribing: "Transcribing...",

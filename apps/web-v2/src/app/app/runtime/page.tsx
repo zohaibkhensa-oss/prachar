@@ -147,7 +147,7 @@ export default function RuntimeDashboardPage() {
               <div className="text-4xl mb-3">📋</div>
               <p className="text-sm text-text-secondary">No runtime sessions yet.</p>
               <p className="text-xs text-text-muted mt-1">
-                Invoke PRACHAR AI to create a session.
+                Invoke CURV AI to create a session.
               </p>
             </div>
           ) : (

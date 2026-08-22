@@ -258,7 +258,7 @@ export default function IntegrationsPage() {
               {showConnectModal.auth_type === "oauth" && (
                 <div className="space-y-3">
                   <p className="text-xs text-text-secondary">
-                    You'll be redirected to {showConnectModal.display_name} to authorize PRACHAR.
+                    You'll be redirected to {showConnectModal.display_name} to authorize CURV AI.
                   </p>
                   <input
                     type="text"

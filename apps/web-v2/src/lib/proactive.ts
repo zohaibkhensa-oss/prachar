@@ -74,7 +74,7 @@ export function getProactiveNotifications(): Promise<ProactiveNotificationsRespo
   return apiGet<ProactiveNotificationsResponse>("/proactive/notifications");
 }
 
-/** Fetch pending proactive messages from PRACHAR AI. */
+/** Fetch pending proactive messages from CURV AI. */
 export function getPracharMessages(): Promise<PracharMessagesResponse> {
   return apiGet<PracharMessagesResponse>("/chat/proactive");
 }

@@ -20,7 +20,7 @@ interface AIOrbProps {
 }
 
 /**
- * AIOrb — the floating PRACHAR AI sphere.
+ * AIOrb — the floating CURV AI sphere.
  * 13 states from Architecture Freeze v2.0.
  * Neon-lime theme. State is driven by runtime events.
  */
@@ -113,7 +113,7 @@ export function AIOrb({
                 ? "radial-gradient(circle, rgba(250,204,21,0.15) 0%, rgba(250,204,21,0.06) 40%, transparent 70%)"
                 : isCompleted
                 ? "radial-gradient(circle, rgba(34,197,94,0.12) 0%, rgba(34,197,94,0.04) 40%, transparent 70%)"
-                : "radial-gradient(circle, rgba(190,242,100,0.12) 0%, rgba(132,204,22,0.06) 40%, transparent 70%)",
+                : "radial-gradient(circle, rgba(139,92,246,0.12) 0%, rgba(124,58,237,0.06) 40%, transparent 70%)",
             }}
           />
         </motion.div>
@@ -163,12 +163,12 @@ export function AIOrb({
               : isCancelled
               ? "radial-gradient(circle at 38% 32%, rgba(200,200,210,0.9) 0%, rgba(120,120,140,0.7) 25%, rgba(80,80,100,0.5) 55%, rgba(40,40,60,0.25) 80%, rgba(15,15,25,0.08) 100%)"
               : state === "speaking"
-              ? "radial-gradient(circle at 38% 32%, rgba(240,255,220,1) 0%, rgba(190,242,100,0.95) 25%, rgba(132,204,22,0.75) 55%, rgba(100,160,30,0.45) 80%, rgba(50,80,20,0.2) 100%)"
+              ? "radial-gradient(circle at 38% 32%, rgba(240,230,255,1) 0%, rgba(139,92,246,0.95) 25%, rgba(124,58,237,0.75) 55%, rgba(124,58,237,0.45) 80%, rgba(76,29,149,0.2) 100%)"
               : state === "listening"
-              ? "radial-gradient(circle at 38% 32%, rgba(230,255,200,0.95) 0%, rgba(190,242,100,0.9) 25%, rgba(132,204,22,0.7) 55%, rgba(100,160,30,0.4) 80%, rgba(40,80,15,0.15) 100%)"
+              ? "radial-gradient(circle at 38% 32%, rgba(230,240,255,0.95) 0%, rgba(139,92,246,0.9) 25%, rgba(124,58,237,0.7) 55%, rgba(124,58,237,0.4) 80%, rgba(76,29,149,0.15) 100%)"
               : state === "generating"
-              ? "radial-gradient(circle at 38% 32%, rgba(245,255,230,1) 0%, rgba(210,250,120,0.95) 25%, rgba(163,230,53,0.8) 55%, rgba(130,180,40,0.5) 80%, rgba(60,100,25,0.2) 100%)"
-              : "radial-gradient(circle at 38% 32%, rgba(230,255,200,0.95) 0%, rgba(190,242,100,0.85) 25%, rgba(132,204,22,0.6) 55%, rgba(100,160,30,0.3) 80%, rgba(40,80,15,0.1) 100%)",
+              ? "radial-gradient(circle at 38% 32%, rgba(245,240,255,1) 0%, rgba(236,72,153,0.95) 25%, rgba(244,114,182,0.8) 55%, rgba(130,180,40,0.5) 80%, rgba(124,58,237,0.2) 100%)"
+              : "radial-gradient(circle at 38% 32%, rgba(230,240,255,0.95) 0%, rgba(139,92,246,0.85) 25%, rgba(124,58,237,0.6) 55%, rgba(124,58,237,0.3) 80%, rgba(76,29,149,0.1) 100%)",
             boxShadow: isError
               ? "inset 0 -15px 30px rgba(100,20,10,0.3), inset 0 10px 20px rgba(255,200,200,0.2), 0 0 40px rgba(239,68,68,0.2)"
               : isApproval
@@ -176,12 +176,12 @@ export function AIOrb({
               : isCompleted
               ? "inset 0 -15px 30px rgba(10,80,30,0.3), inset 0 10px 20px rgba(220,255,220,0.2), 0 0 40px rgba(34,197,94,0.2)"
               : state === "speaking"
-              ? "inset 0 -15px 30px rgba(50,80,20,0.3), inset 0 10px 20px rgba(240,255,220,0.25), 0 0 50px rgba(190,242,100,0.25)"
+              ? "inset 0 -15px 30px rgba(76,29,149,0.3), inset 0 10px 20px rgba(240,230,255,0.25), 0 0 50px rgba(139,92,246,0.25)"
               : state === "listening"
-              ? "inset 0 -15px 30px rgba(50,80,20,0.3), inset 0 10px 20px rgba(240,255,220,0.2), 0 0 40px rgba(190,242,100,0.2)"
+              ? "inset 0 -15px 30px rgba(76,29,149,0.3), inset 0 10px 20px rgba(240,230,255,0.2), 0 0 40px rgba(139,92,246,0.2)"
               : state === "generating"
-              ? "inset 0 -15px 30px rgba(50,80,20,0.3), inset 0 10px 20px rgba(245,255,230,0.25), 0 0 45px rgba(210,250,120,0.2)"
-              : "inset 0 -15px 30px rgba(50,80,20,0.3), inset 0 10px 20px rgba(240,255,220,0.15), 0 0 30px rgba(190,242,100,0.15)",
+              ? "inset 0 -15px 30px rgba(76,29,149,0.3), inset 0 10px 20px rgba(245,240,255,0.25), 0 0 45px rgba(236,72,153,0.2)"
+              : "inset 0 -15px 30px rgba(76,29,149,0.3), inset 0 10px 20px rgba(240,230,255,0.15), 0 0 30px rgba(139,92,246,0.15)",
           }}
         >
           {/* Inner highlight (glassy sphere look) */}
@@ -202,7 +202,7 @@ export function AIOrb({
             className="relative z-10"
             style={{
               fontSize: size * 0.33,
-              filter: "drop-shadow(0 0 12px rgba(190,242,100,0.6))",
+              filter: "drop-shadow(0 0 12px rgba(139,92,246,0.6))",
             }}
           >
             {isError ? "⚠" : isApproval ? "?" : isCompleted ? "✓" : isCancelled ? "✕" : "✦"}

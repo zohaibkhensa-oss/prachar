@@ -118,7 +118,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     setOrbOpen((prev) => !prev);
   }, []);
 
-  // Listen for orb open events from dashboard or other pages
+  // Memoize sidebar callbacks so the Sidebar's pathname effect doesn't
+  // fire on every render (which would immediately close the mobile drawer).
+  const handleMobileClose = useCallback(() => setSidebarOpen(false), []);
+
+  // Listen for orb open events from other pages (NOT the home page, which
+  // uses inline conversation). Other pages can still dispatch this event to
+  // open the floating orb panel.
   useEffect(() => {
     const handler = () => setOrbOpen(true);
     window.addEventListener("prachar-open-orb", handler);
@@ -143,7 +149,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <ProactiveNotifications open={notifOpen} onClose={() => setNotifOpen(false)} />
 
       {/* Sidebar */}
-      <Sidebar mobileOpen={sidebarOpen} onMobileClose={() => setSidebarOpen(false)} />
+      <Sidebar mobileOpen={sidebarOpen} onMobileClose={handleMobileClose} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-16">

@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import { Mail, MessageCircle, Book, Zap, Clock } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Support — PRACHAR",
-  description: "Get help with PRACHAR AI marketing platform.",
+  title: "Support — CURV AI",
+  description: "Get help with CURV AI marketing platform.",
 };
 
 export default function SupportPage() {
@@ -11,11 +11,11 @@ export default function SupportPage() {
     <div className="min-h-screen bg-bg text-text">
       <div className="max-w-3xl mx-auto px-6 py-16">
         <h1 className="font-display text-3xl font-bold mb-2">How can we help?</h1>
-        <p className="text-sm text-text-muted mb-10">We're here to help you get the most out of PRACHAR.</p>
+        <p className="text-sm text-text-muted mb-10">We're here to help you get the most out of CURV AI.</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
           <a
-            href="mailto:support@prachar.ai"
+            href="mailto:support@curv.ai"
             className="glass rounded-xl p-5 hover:border-accent/20 transition-colors group"
           >
             <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-3 group-hover:bg-accent/20 transition-colors">
@@ -23,7 +23,7 @@ export default function SupportPage() {
             </div>
             <h3 className="font-display font-semibold text-text mb-1">Email Support</h3>
             <p className="text-xs text-text-secondary mb-2">For account, billing, and technical issues.</p>
-            <p className="text-xs text-accent">support@prachar.ai</p>
+            <p className="text-xs text-accent">support@curv.ai</p>
           </a>
 
           <a
@@ -55,7 +55,7 @@ export default function SupportPage() {
             </div>
             <h3 className="font-display font-semibold text-text mb-1">Feature Requests</h3>
             <p className="text-xs text-text-secondary mb-2">Suggest new features or improvements.</p>
-            <p className="text-xs text-accent">features@prachar.ai</p>
+            <p className="text-xs text-accent">features@curv.ai</p>
           </div>
         </div>
 
@@ -107,7 +107,7 @@ export default function SupportPage() {
         </div>
 
         <p className="text-center text-xs text-text-muted mt-8">
-          By using PRACHAR, you agree to our <a href="/terms" className="text-accent hover:underline">Terms of Service</a> and <a href="/privacy" className="text-accent hover:underline">Privacy Policy</a>.
+          By using CURV AI, you agree to our <a href="/terms" className="text-accent hover:underline">Terms of Service</a> and <a href="/privacy" className="text-accent hover:underline">Privacy Policy</a>.
         </p>
       </div>
     </div>

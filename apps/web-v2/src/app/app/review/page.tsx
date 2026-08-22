@@ -170,7 +170,7 @@ export default function ReviewQueuePage() {
             No campaigns awaiting review
           </h2>
           <p className="text-sm text-text-secondary leading-relaxed max-w-md mx-auto mb-6">
-            When PRACHAR AI creates campaigns they&apos;ll appear here for your approval.
+            When CURV AI creates campaigns they&apos;ll appear here for your approval.
             You approve, you reject — nothing goes live without you.
           </p>
           <Link href="/app/campaigns" className="btn-primary inline-flex group">

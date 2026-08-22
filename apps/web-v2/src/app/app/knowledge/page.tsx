@@ -495,7 +495,7 @@ export default function KnowledgePage() {
                   className={cn(
                     "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-all",
                     addMode === "url"
-                      ? "bg-accent text-bg font-medium"
+                      ? "bg-accent text-white font-medium"
                       : "text-text-secondary hover:text-text",
                   )}
                 >
@@ -509,7 +509,7 @@ export default function KnowledgePage() {
                   className={cn(
                     "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md text-sm transition-all",
                     addMode === "text"
-                      ? "bg-accent text-bg font-medium"
+                      ? "bg-accent text-white font-medium"
                       : "text-text-secondary hover:text-text",
                   )}
                 >
