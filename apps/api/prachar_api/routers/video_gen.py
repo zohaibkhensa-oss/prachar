@@ -41,24 +41,19 @@ VEO_TIER_COST_PER_SEC = {
     "standard": 0.40,  # 1080p with audio
 }
 
-# fal.ai models — Grok Imagine 1.5 is the DEFAULT (best value with native audio)
-# Pricing: ~$0.14/s at 720p with native audio = $2.10 for 15s
-# Supports text-to-video, image-to-video, reference-to-video; 1-15s; 480p/720p/1080p
+# fal.ai model — Wan 3.0 is the DEFAULT (best capabilities + cheapest)
+# 1080p, up to 30s per clip, native audio, text-to-video + image-to-video + reference-to-video
+# Pricing: ~$0.12/s at 1080p with audio
 FAL_MODELS = {
-    "grok": "xai/grok-imagine-video/v1.5/text-to-video",
-    "grok_imagine": "xai/grok-imagine-video/v1.5/text-to-video",
-    "kling": "fal-ai/kling-video/v2.6/pro/text-to-video",
-    "kling_turbo": "fal-ai/kling-video/v2.6/pro/text-to-video",
-    "ltx": "fal-ai/ltx-2.3/text-to-video",
-    "seedance_fast": "bytedance/seedance-2.0/fast/text-to-video",
-    "seedance": "bytedance/seedance-2.0/text-to-video",
-    "wan_fast": "wan-video/wan-2.2-t2v-fast",
-    "pixverse": "fal-ai/pixverse/pixverse-v6/text-to-video",
+    "wan": "alibaba/wan-3.0/text-to-video",
+    "wan3": "alibaba/wan-3.0/text-to-video",
+    "wan_image": "alibaba/wan-3.0/image-to-video",
+    "wan_reference": "alibaba/wan-3.0/reference-to-video",
 }
 
-# Default fal.ai model (best quality-to-price with native audio)
-FAL_DEFAULT_MODEL = "grok"
-FAL_DEFAULT_COST_PER_SEC = 0.07  # 720p with audio
+# Default fal.ai model
+FAL_DEFAULT_MODEL = "wan"
+FAL_DEFAULT_COST_PER_SEC = 0.12  # 1080p with audio
 
 ASPECT_RATIOS = {
     "reel": "9:16",
@@ -153,14 +148,6 @@ def _normalize_quality(req: VideoGenRequest) -> str:
     q = (req.quality or "").strip().lower()
     if q in VEO_MODELS or q == "preview":
         return q
-    # Map legacy model values to tiers
-    legacy = (req.model or "").strip().lower()
-    if legacy == "ltx":
-        return "lite"
-    if legacy in ("seedance_fast", "wan_fast"):
-        return "fast"
-    if legacy in ("seedance", "kling"):
-        return "standard"
     # Default
     return "lite"
 
@@ -679,33 +666,15 @@ async def _call_fal_video(fal_key: str, req: VideoGenRequest, prompt: str, aspec
 
     model_id = FAL_MODELS.get(req.model, FAL_MODELS[FAL_DEFAULT_MODEL])
 
-    # Build payload based on model
+    # Build payload for Wan 3.0
     payload: dict[str, Any] = {"prompt": prompt}
 
-    # Grok Imagine 1.5: duration (int 1-15), resolution, aspect_ratio; native audio always included
-    if "grok" in model_id:
-        duration_val = int(str(req.duration).replace("s", "").replace(".0", ""))
-        payload["duration"] = min(max(duration_val, 1), 15)  # Grok supports 1-15s
-        payload["aspect_ratio"] = aspect
-        payload["resolution"] = "720p"  # 480p / 720p / 1080p
-    # Kling 2.6 Pro: supports duration, aspect_ratio, negative_prompt, generate_audio
-    elif "kling" in model_id:
-        duration_val = str(req.duration).replace("s", "")
-        payload["duration"] = duration_val  # "5" or "10" (Kling supports these)
-        payload["aspect_ratio"] = aspect
-        payload["negative_prompt"] = "blur, distort, and low quality, low resolution, watermark"
-        payload["generate_audio"] = True  # Native audio generation
-    elif "seedance" in model_id:
-        payload["duration"] = str(req.duration).replace("s", "")
-        payload["aspect_ratio"] = aspect
-    elif "ltx" in model_id:
-        payload["duration"] = str(req.duration).replace("s", "")
-        payload["resolution"] = req.resolution
-    elif "pixverse" in model_id:
-        payload["duration"] = str(req.duration).replace("s", "")
-        payload["resolution"] = req.resolution
-    else:
-        payload["resolution"] = req.resolution
+    # Wan 3.0: duration (up to 30s), resolution (1080p), aspect_ratio, audio
+    duration_val = int(str(req.duration).replace("s", "").replace(".0", ""))
+    payload["duration"] = min(max(duration_val, 1), 30)  # Wan 3.0 supports 1-30s
+    payload["aspect_ratio"] = aspect
+    payload["resolution"] = req.resolution or "1080p"
+    payload["audio"] = True  # Native audio generation
 
     log.info("Using fal_client.subscribe_async for model %s", model_id)
 

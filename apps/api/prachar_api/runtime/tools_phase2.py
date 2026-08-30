@@ -267,7 +267,7 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
                     creative_type="video",
                     url=video_url,
                     prompt=prompt,
-                    model="grok-imagine-1.5",
+                    model="wan-3.0",
                     metadata={"duration": duration_sec, "aspect_ratio": aspect_ratio},
                 )
             except Exception:
@@ -365,7 +365,7 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
                 creative_type="video",
                 url=final_url,
                 prompt=prompt,
-                model="grok-imagine-1.5-stitched",
+                model="wan-3.0-stitched",
                 metadata={"duration": actual_duration, "clips": len(clip_urls), "aspect_ratio": aspect_ratio},
             )
         except Exception:
