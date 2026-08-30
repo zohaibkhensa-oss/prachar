@@ -46,7 +46,7 @@ class InstagramAdapter(ChannelAdapter):
         client_id = s.meta_app_id or "PLACEHOLDER"
         params = urlencode({
             "client_id": client_id,
-            "redirect_uri": f"https://example.com/oauth/instagram/callback",
+            "redirect_uri": fself.redirect_uri,
             "scope": ",".join(IG_SCOPES),
             "response_type": "code",
             "state": state,
@@ -65,7 +65,7 @@ class InstagramAdapter(ChannelAdapter):
                     "client_secret": s.meta_app_secret,
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": "https://example.com/oauth/instagram/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
             )
             resp.raise_for_status()

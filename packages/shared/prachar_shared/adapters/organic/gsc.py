@@ -103,7 +103,7 @@ class GSCAdapter(ChannelAdapter):
         client_id = s.gsc_client_id or "GSC_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": _GSC_SCOPE,
             "state": state,
@@ -126,7 +126,7 @@ class GSCAdapter(ChannelAdapter):
                     "code": code,
                     "client_id": s.gsc_client_id,
                     "client_secret": s.gsc_client_secret,
-                    "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+                    "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                 },
             )

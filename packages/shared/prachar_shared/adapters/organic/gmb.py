@@ -40,7 +40,7 @@ class GMBAdapter(ChannelAdapter):
         client_id = s.google_client_id or "GOOGLE_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": _GMB_SCOPE,
             "state": state,
@@ -67,7 +67,7 @@ class GMBAdapter(ChannelAdapter):
                     "code": code,
                     "client_id": s.google_client_id,
                     "client_secret": s.google_client_secret,
-                    "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+                    "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                 },
             )

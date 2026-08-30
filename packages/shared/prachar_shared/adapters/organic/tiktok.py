@@ -107,7 +107,7 @@ class TikTokAdapter(ChannelAdapter):
             "client_key": client_key,
             "scope": ",".join(_TT_SCOPES),
             "response_type": "code",
-            "redirect_uri": "https://example.com/oauth/tiktok/callback",
+            "redirect_uri": self.redirect_uri,
             "state": state,
         }
         return f"{_TT_OAUTH_BASE}?{urlencode(params)}"
@@ -128,7 +128,7 @@ class TikTokAdapter(ChannelAdapter):
                     "client_secret": s.tiktok_client_secret,
                     "code": code,
                     "grant_type": "authorization_code",
-                    "redirect_uri": "https://example.com/oauth/tiktok/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
             )
         )

@@ -22,6 +22,7 @@ from .registry import (
     register_tool,
 )
 from .context import AIContext
+from .memory_categories import MemoryCategory
 
 log = logging.getLogger("prachar.runtime.tools_phase2")
 
@@ -256,6 +257,22 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
                 thumbnail_url="",
                 duration=f"{duration_sec}s",
             )
+
+            # ─── Loop 1: Store as Creative for evolution loop ───────────
+            try:
+                from .creative_lineage import store_generated_creative
+                await store_generated_creative(
+                    tenant_id=ctx.tenant_id,
+                    brand_id=ctx.brand_id,
+                    creative_type="video",
+                    url=video_url,
+                    prompt=prompt,
+                    model="grok-imagine-1.5",
+                    metadata={"duration": duration_sec, "aspect_ratio": aspect_ratio},
+                )
+            except Exception:
+                pass  # non-blocking
+
             return {
                 "video_url": video_url,
                 "status": "completed",
@@ -338,6 +355,22 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
             thumbnail_url="",
             duration=f"{actual_duration}s",
         )
+
+        # ─── Loop 1: Store stitched video as Creative for evolution loop ──
+        try:
+            from .creative_lineage import store_generated_creative
+            await store_generated_creative(
+                tenant_id=ctx.tenant_id,
+                brand_id=ctx.brand_id,
+                creative_type="video",
+                url=final_url,
+                prompt=prompt,
+                model="grok-imagine-1.5-stitched",
+                metadata={"duration": actual_duration, "clips": len(clip_urls), "aspect_ratio": aspect_ratio},
+            )
+        except Exception:
+            pass  # non-blocking
+
         return {
             "video_url": final_url,
             "status": "completed",
@@ -1077,3 +1110,128 @@ async def workflow_query(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any
     except Exception as exc:  # noqa: BLE001
         log.exception("workflow.query failed: %s", exc)
         return {"error": f"workflow query failed: {exc}", "rules": [], "active_rules": 0}
+
+
+# ─── A/B Testing Tool ────────────────────────────────────────────────────────
+
+
+@register_tool(ToolManifest(
+    name="creative.ab_test",
+    display_name="A/B Test Creatives",
+    description=(
+        "Generate multiple creative variants with different psychological hooks "
+        "(pain point, social proof, curiosity, offer, urgency) and run an A/B test. "
+        "Use when the user says 'A/B test this ad' or 'test different versions' or "
+        "'which creative performs better'. Returns variant IDs for tracking."
+    ),
+    category=ToolCategory.CREATIVE,
+    input_schema={
+        "prompt": "string (base creative prompt to test variants of)",
+        "creative_type": "string (image, video, or copy — default: image)",
+        "num_variants": "number (optional, default 3, max 5)",
+    },
+    output_schema={"status": "string", "variant_group": "string", "variants": "array"},
+    estimated_cost_usd=0.30,
+    estimated_time_ms=60000,
+    estimated_tokens=500,
+    estimated_latency_ms=60000,
+    quality_score=0.95,
+    requires_brand=True,
+    requires_user_approval=False,
+    side_effects=SideEffects.WRITES,
+    memory_categories=[MemoryCategory.CREATIVE],
+))
+async def creative_ab_test(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
+    """Generate A/B test variants of a creative."""
+    from .ab_testing import create_variant_test
+
+    prompt = (input.get("prompt") or "").strip()
+    if not prompt:
+        return {"error": "prompt is required", "status": "failed"}
+
+    creative_type = input.get("creative_type", "image")
+    num_variants = min(int(input.get("num_variants", 3)), 5)
+
+    try:
+        result = await create_variant_test(
+            tenant_id=ctx.tenant_id,
+            brand_id=ctx.brand_id,
+            base_prompt=prompt,
+            creative_type=creative_type,
+            num_variants=num_variants,
+        )
+        return result
+    except Exception as exc:  # noqa: BLE001
+        log.exception("creative.ab_test failed: %s", exc)
+        return {"error": f"A/B test failed: {exc}", "status": "failed"}
+
+
+@register_tool(ToolManifest(
+    name="creative.evaluate_test",
+    display_name="Evaluate A/B Test",
+    description=(
+        "Evaluate an ongoing A/B test — compare variant performance, declare a "
+        "winner if statistical significance is reached, and promote the winner. "
+        "Use when the user says 'check A/B test results' or 'which variant won'."
+    ),
+    category=ToolCategory.CREATIVE,
+    input_schema={
+        "variant_group": "string (the variant_group ID from creative.ab_test)",
+    },
+    output_schema={"status": "string", "winner": "string", "lift": "number", "confidence": "number"},
+    estimated_cost_usd=0.0,
+    estimated_time_ms=5000,
+    estimated_tokens=0,
+    estimated_latency_ms=5000,
+    quality_score=0.9,
+    requires_brand=True,
+    requires_user_approval=False,
+    side_effects=SideEffects.READS,
+    memory_categories=[MemoryCategory.CREATIVE],
+))
+async def creative_evaluate_test(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate an A/B test and promote the winner if significant."""
+    from .ab_testing import evaluate_variant_test, promote_winner
+
+    variant_group = (input.get("variant_group") or "").strip()
+    if not variant_group:
+        return {"error": "variant_group is required", "status": "failed"}
+
+    try:
+        test_result = await evaluate_variant_test(
+            tenant_id=ctx.tenant_id,
+            brand_id=ctx.brand_id,
+            variant_group=variant_group,
+        )
+
+        if test_result.is_significant:
+            promotion = await promote_winner(
+                tenant_id=ctx.tenant_id,
+                test_result=test_result,
+            )
+            return {
+                "status": "winner_promoted",
+                "winner": str(test_result.winner_id),
+                "winner_ctr": test_result.winner_ctr,
+                "lift": test_result.lift,
+                "confidence": test_result.confidence,
+                "promotion": promotion,
+                "variants": [
+                    {"id": str(v.creative_id), "ctr": v.ctr, "impressions": v.impressions}
+                    for v in test_result.variants
+                ],
+            }
+        else:
+            return {
+                "status": "insufficient_data",
+                "confidence": test_result.confidence,
+                "is_significant": False,
+                "variants": [
+                    {"id": str(v.creative_id), "ctr": v.ctr, "impressions": v.impressions}
+                    for v in test_result.variants
+                ],
+                "message": "Not enough data to declare a winner. Need at least 100 impressions per variant.",
+            }
+    except Exception as exc:  # noqa: BLE001
+        log.exception("creative.evaluate_test failed: %s", exc)
+        return {"error": f"evaluation failed: {exc}", "status": "failed"}

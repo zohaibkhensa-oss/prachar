@@ -851,6 +851,22 @@ async def creative_studio_generate_image(ctx: AIContext, input: dict[str, Any]) 
             width=width,
             height=height,
         )
+
+        # ─── Loop 1: Store as Creative for evolution loop ───────────
+        try:
+            from .creative_lineage import store_generated_creative
+            await store_generated_creative(
+                tenant_id=ctx.tenant_id,
+                brand_id=ctx.brand_id,
+                creative_type="image",
+                url=result.image_url,
+                prompt=prompt,
+                model=result.model,
+                metadata={"width": width, "height": height},
+            )
+        except Exception:
+            pass  # non-blocking
+
         return {
             "image_url": result.image_url,
             "model": result.model,

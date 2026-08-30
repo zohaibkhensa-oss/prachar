@@ -39,7 +39,7 @@ class FacebookAdapter(ChannelAdapter):
         client_id = s.meta_app_id or "PLACEHOLDER"
         params = urlencode({
             "client_id": client_id,
-            "redirect_uri": "https://example.com/oauth/facebook/callback",
+            "redirect_uri": self.redirect_uri,
             "scope": ",".join(FB_SCOPES),
             "response_type": "code",
             "state": state,
@@ -58,7 +58,7 @@ class FacebookAdapter(ChannelAdapter):
                     "client_secret": s.meta_app_secret,
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": "https://example.com/oauth/facebook/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
             )
             resp.raise_for_status()

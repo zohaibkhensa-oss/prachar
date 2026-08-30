@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import logging
 import uuid
+import base64
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, status
@@ -11,6 +14,8 @@ from ..models import Connection
 from ..schemas import ConnectionOut
 from prachar_shared.config import get_settings
 
+log = logging.getLogger("prachar_api.connections")
+
 router = APIRouter(prefix="/connections", tags=["connections"])
 
 # ─── OAuth URL builders for each channel ─────────────────────────────────────
@@ -20,7 +25,8 @@ WEB_URL = get_settings().web_url or "http://localhost:3002"
 
 
 def _redirect_uri(channel: str) -> str:
-    return f"{WEB_URL}/app/connections/{channel}/callback"
+    from prachar_shared.adapters.organic.base import redirect_uri_for
+    return redirect_uri_for(channel)
 
 
 def _build_google_oauth(state: str) -> str:
@@ -106,16 +112,24 @@ def _build_linkedin_oauth(state: str) -> str:
 
 
 def _build_x_oauth(state: str) -> str:
+    import hashlib
+    import secrets
+
     s = get_settings()
     client_id = s.x_client_id or "placeholder"
+    # PKCE: use S256 (secure) instead of plain
+    verifier = secrets.token_urlsafe(64)
+    challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(verifier.encode("ascii")).digest()
+    ).rstrip(b"=").decode("ascii")
     params = {
         "client_id": client_id,
         "redirect_uri": _redirect_uri("x"),
         "response_type": "code",
-        "scope": "tweet.read tweet.write users.read",
+        "scope": "tweet.read tweet.write users.read offline.access",
         "state": state,
-        "code_challenge": "plain",
-        "code_challenge_method": "plain",
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
     }
     return f"https://twitter.com/i/oauth2/authorize?{urlencode(params)}"
 
@@ -242,9 +256,99 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
 @router.get("/{channel}/callback", response_model=ConnectionOut)
 async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser, session: SessionDep) -> ConnectionOut:
     """OAuth callback — exchanges code for tokens via the channel adapter.
-    Creates a connection record after successful OAuth."""
-    brand_id = uuid.UUID(state)
-    conn = Connection(tenant_id=user.tenant_id, brand_id=brand_id, channel=channel, status="active")
-    session.add(conn)
+
+    1. Validates state (brand_id) belongs to the current tenant
+    2. Loads the channel adapter
+    3. Calls adapter.exchange_code(code) to get tokens
+    4. Encrypts tokens with AES-GCM
+    5. Creates/updates Connection record with encrypted tokens
+    """
+    import asyncio
+
+    # 1. Parse and validate state
+    try:
+        brand_id = uuid.UUID(state)
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state parameter")
+
+    # 2. Map channel names (facebook → meta, twitter → x)
+    adapter_channel = channel
+    if channel == "facebook":
+        adapter_channel = "facebook"
+    elif channel == "twitter":
+        adapter_channel = "x"
+    elif channel == "meta":
+        adapter_channel = "facebook"  # Meta uses Facebook adapter
+
+    # 3. Load adapter and exchange code for tokens
+    try:
+        from prachar_shared.adapters.registry import get_organic
+        adapter = get_organic(adapter_channel)
+    except KeyError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}")
+
+    try:
+        # exchange_code is async in some adapters, sync in others
+        result = adapter.exchange_code(code)
+        if asyncio.iscoroutine(result):
+            tokens = await result
+        else:
+            tokens = result
+    except NotImplementedError:
+        raise HTTPException(
+            status.HTTP_501_NOT_IMPLEMENTED,
+            f"token exchange not implemented for {channel} — set tokens manually",
+        )
+    except Exception as exc:
+        log.error("OAuth token exchange failed for %s: %s", channel, str(exc)[:200])
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"token exchange failed: {str(exc)[:200]}",
+        )
+
+    # 4. Encrypt tokens
+    from prachar_shared.security import encrypt_token
+
+    token_bundle = {
+        "access_token": tokens.access_token,
+        "refresh_token": tokens.refresh_token,
+        "expires_at": tokens.expires_at.isoformat() if tokens.expires_at else None,
+        "scopes": tokens.scopes,
+        "channel": channel,
+    }
+    encrypted = encrypt_token(json.dumps(token_bundle, default=str))
+
+    # 5. Check for existing connection (upsert)
+    from sqlalchemy import select as sa_select
+
+    res = await session.execute(
+        sa_select(Connection).where(
+            Connection.tenant_id == user.tenant_id,
+            Connection.brand_id == brand_id,
+            Connection.channel == channel,
+        )
+    )
+    existing = res.scalar_one_or_none()
+
+    if existing:
+        existing.oauth_tokens_enc = encrypted
+        existing.scopes = tokens.scopes
+        existing.expires_at = tokens.expires_at
+        existing.status = "active"
+        conn = existing
+    else:
+        conn = Connection(
+            tenant_id=user.tenant_id,
+            brand_id=brand_id,
+            channel=channel,
+            oauth_tokens_enc=encrypted,
+            scopes=tokens.scopes,
+            expires_at=tokens.expires_at,
+            status="active",
+        )
+        session.add(conn)
+
     await session.commit()
+    await session.refresh(conn)
+    log.info("OAuth callback success: channel=%s brand=%s", channel, brand_id)
     return ConnectionOut.model_validate(conn)

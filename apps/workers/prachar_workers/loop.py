@@ -207,7 +207,63 @@ def measure(self, brand_id: Any) -> dict[str, Any]:  # noqa: ANN001
         pull_daily_performance.apply_async()
     except Exception as exc:  # pragma: no cover
         logger.warning("performance pull enqueue failed: %s", exc)
+
+    # ─── Loop 2: Real-time learning checkpoint ───────────────────────
+    # Run a mid-campaign learning checkpoint on recent performance data.
+    # This feeds learnings back into BusinessMemory before the regenerate
+    # step, so content regeneration is informed by real performance.
+    try:
+        run_learning_checkpoint.apply_async(args=[brand_id])
+    except Exception as exc:  # pragma: no cover
+        logger.warning("learning checkpoint enqueue failed: %s", exc)
+
     return result
+
+
+@celery_app.task(
+    name="prachar_workers.loop.run_learning_checkpoint",
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    max_retries=2,
+)
+def run_learning_checkpoint(brand_id: Any) -> dict[str, Any]:  # noqa: ANN001
+    """Run a real-time learning checkpoint for a brand.
+
+    Pulls partial performance data, runs the LearningEngine, stores interim
+    learnings in BusinessMemory, and feeds creative performance into the
+    evolution loop. Called after the measure step so learnings are available
+    for the regenerate step.
+    """
+    import asyncio as _aio
+
+    try:
+        from sqlalchemy import text
+
+        from prachar_workers.db import session_scope
+
+        # Look up tenant_id for this brand
+        with session_scope() as session:
+            row = session.execute(
+                text("SELECT tenant_id FROM brands WHERE id = :bid"),
+                {"bid": str(brand_id)},
+            ).first()
+            if not row:
+                return {"status": "brand_not_found"}
+            tenant_id = str(row[0])
+
+        # Run the async checkpoint in a sync context
+        from prachar_api.runtime.realtime_feedback import run_learning_checkpoint as _async_checkpoint
+
+        result = _aio.run(_async_checkpoint(
+            tenant_id=uuid.UUID(tenant_id),
+            brand_id=uuid.UUID(str(brand_id)),
+            days=3,
+        ))
+        logger.info("learning checkpoint for brand %s: %s", brand_id, result.get("status"))
+        return result
+    except Exception as exc:  # pragma: no cover
+        logger.warning("learning checkpoint failed: %s", exc)
+        return {"status": "failed", "error": str(exc)[:200]}
 
 
 @celery_app.task(

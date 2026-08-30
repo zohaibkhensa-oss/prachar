@@ -42,7 +42,7 @@ class GoogleSearchAdapter(ChannelAdapter):
         client_id = s.google_client_id or "GOOGLE_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": _GOOGLE_SCOPE,
             "state": state,

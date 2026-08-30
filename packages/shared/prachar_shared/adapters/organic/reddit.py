@@ -42,7 +42,7 @@ class RedditAdapter(ChannelAdapter):
             "client_id": client_id,
             "response_type": "code",
             "state": state,
-            "redirect_uri": "https://example.com/oauth/reddit/callback",
+            "redirect_uri": self.redirect_uri,
             "duration": "permanent",
             "scope": "submit,read,identity",
         })

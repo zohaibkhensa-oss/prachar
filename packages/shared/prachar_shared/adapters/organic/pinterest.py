@@ -104,7 +104,7 @@ class PinterestAdapter(ChannelAdapter):
         client_id = s.pinterest_client_id or "PINTEREST_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "https://example.com/oauth/pinterest/callback",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": ",".join(_PIN_SCOPES),
             "state": state,
@@ -128,7 +128,7 @@ class PinterestAdapter(ChannelAdapter):
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": "https://example.com/oauth/pinterest/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
                 headers={
                     "Authorization": f"Basic {basic}",

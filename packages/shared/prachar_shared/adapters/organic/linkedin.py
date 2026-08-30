@@ -32,7 +32,6 @@ _LI_ANALYTICS = "https://api.linkedin.com/rest/organizationalEntityShareStatisti
 _LI_SCOPES = [
     "w_member_social",
     "r_organization_social",
-    "r_organization_social",
     "rw_organization_admin",
 ]
 
@@ -115,7 +114,7 @@ class LinkedInAdapter(ChannelAdapter):
         client_id = s.linkedin_client_id or "LINKEDIN_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "https://example.com/oauth/linkedin/callback",
+            "redirect_uri": self.redirect_uri,
             "scope": " ".join(_LI_SCOPES),
             "response_type": "code",
             "state": state,
@@ -138,7 +137,7 @@ class LinkedInAdapter(ChannelAdapter):
                     "code": code,
                     "client_id": s.linkedin_client_id,
                     "client_secret": s.linkedin_client_secret,
-                    "redirect_uri": "https://example.com/oauth/linkedin/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
             )
         )

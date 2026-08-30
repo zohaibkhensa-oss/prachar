@@ -108,7 +108,7 @@ class YouTubeAdapter(ChannelAdapter):
         client_id = s.youtube_client_id or "YOUTUBE_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
-            "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": " ".join(_YT_SCOPES),
             "state": state,
@@ -132,7 +132,7 @@ class YouTubeAdapter(ChannelAdapter):
                     "code": code,
                     "client_id": s.youtube_client_id,
                     "client_secret": s.youtube_client_secret,
-                    "redirect_uri": "urn:ietf:wg:oauth:2.0:oob",
+                    "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                 },
             )

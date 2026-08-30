@@ -37,7 +37,7 @@ class VKAdapter(ChannelAdapter):
         client_id = s.vk_client_id or "PLACEHOLDER"
         params = urlencode({
             "client_id": client_id,
-            "redirect_uri": "https://example.com/oauth/vk/callback",
+            "redirect_uri": self.redirect_uri,
             "scope": "wall,photos,stats,offline",
             "response_type": "code",
             "state": state,

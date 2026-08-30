@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
 import time
 from datetime import UTC, datetime, timedelta
@@ -98,16 +99,25 @@ class XAdapter(ChannelAdapter):
 
     # ---- OAuth ----
     def auth_url(self, state: str) -> str:
+        import hashlib
+        import secrets
+
         s = get_settings()
         client_id = s.x_client_id or "X_CLIENT_ID_PLACEHOLDER"
+        # PKCE with S256 (secure) — store verifier for exchange_code
+        verifier = secrets.token_urlsafe(64)
+        challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(verifier.encode("ascii")).digest()
+        ).rstrip(b"=").decode("ascii")
+        self._pkce_verifier = verifier
         params = {
             "client_id": client_id,
-            "redirect_uri": "https://example.com/oauth/x/callback",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "scope": " ".join(_X_SCOPES),
             "state": state,
-            "code_challenge": "plain",
-            "code_challenge_method": "plain",
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
         }
         return f"{_X_OAUTH_BASE}?{urlencode(params)}"
 
@@ -124,9 +134,9 @@ class XAdapter(ChannelAdapter):
                 data={
                     "grant_type": "authorization_code",
                     "code": code,
-                    "redirect_uri": "https://example.com/oauth/x/callback",
+                    "redirect_uri": self.redirect_uri,
                     "client_id": s.x_client_id,
-                    "code_verifier": "plain",
+                    "code_verifier": getattr(self, "_pkce_verifier", "plain"),
                 },
             )
         )
