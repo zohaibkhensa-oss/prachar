@@ -197,6 +197,8 @@ resource "aws_ecs_task_definition" "api" {
         { name = "S3_ENDPOINT", value = "https://s3.${var.aws_region}.amazonaws.com" },
         { name = "S3_BUCKET", value = aws_s3_bucket.storage.bucket },
         { name = "AWS_REGION", value = var.aws_region },
+        { name = "CORS_ORIGINS", value = "https://${var.app_domain},https://${var.domain_name},https://www.${var.domain_name}" },
+        { name = "WEB_URL", value = "https://${var.app_domain}" },
       ]
 
       secrets = [

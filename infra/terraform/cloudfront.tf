@@ -9,12 +9,9 @@ resource "aws_cloudfront_distribution" "main" {
   aliases             = [var.domain_name, var.app_domain, "www.${var.domain_name}"]
 
   origin {
-    domain_name = aws_s3_bucket.frontend.bucket_regional_domain_name
-    origin_id   = "s3-frontend"
-
-    s3_origin_config {
-      origin_access_identity = aws_cloudfront_origin_access_identity.main.cloudfront_access_identity_path
-    }
+    domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
+    origin_id                = "s3-frontend"
+    origin_access_control_id = aws_cloudfront_origin_access_control.main.id
   }
 
   default_cache_behavior {
@@ -34,6 +31,11 @@ resource "aws_cloudfront_distribution" "main" {
     default_ttl            = 3600
     max_ttl                = 86400
     compress               = true
+
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.spa_rewrite.arn
+    }
   }
 
   # SPA fallback — serve index.html for all routes
@@ -94,10 +96,39 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   restrict_public_buckets = false
 }
 
-# ─── CloudFront origin access identity ───────────────────────────────────────
+# ─── CloudFront origin access control (OAC) ──────────────────────────────────
 
-resource "aws_cloudfront_origin_access_identity" "main" {
-  comment = "CloudFront OAI for ${var.project_name} frontend"
+resource "aws_cloudfront_origin_access_control" "main" {
+  name                              = "${var.project_name}-frontend-oac"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+# SPA routing for the static export: clean URLs need .html appended, and
+# runtime dynamic segments map to the exported "placeholder" stub pages
+# (client components read the real params from the URL via useParams()).
+resource "aws_cloudfront_function" "spa_rewrite" {
+  name    = "${var.project_name}-spa-rewrite"
+  runtime = "cloudfront-js-2.0"
+  comment = "SPA clean-URL + dynamic-segment stub rewrite"
+  publish = true
+
+  code = <<-EOT
+    function handler(event) {
+      var uri = event.request.uri;
+      uri = uri.replace(/^(\/app\/(brands|review|performance)\/)[^/]+(\/.*)?$/, "$1placeholder$3");
+      if (uri === "/") {
+        uri = "/index.html";
+      } else if (uri.endsWith("/")) {
+        uri = uri.slice(0, -1) + ".html";
+      } else if (!uri.match(/\.[a-zA-Z0-9]+$/)) {
+        uri += ".html";
+      }
+      event.request.uri = uri;
+      return event.request;
+    }
+  EOT
 }
 
 # ─── S3 bucket policy allowing CloudFront to read ────────────────────────────
@@ -110,10 +141,15 @@ resource "aws_s3_bucket_policy" "frontend" {
     Statement = [{
       Effect = "Allow"
       Principal = {
-        AWS = aws_cloudfront_origin_access_identity.main.iam_arn
+        Service = "cloudfront.amazonaws.com"
       }
       Action   = "s3:GetObject"
       Resource = "${aws_s3_bucket.frontend.arn}/*"
+      Condition = {
+        StringEquals = {
+          "AWS:SourceArn" = aws_cloudfront_distribution.main.arn
+        }
+      }
     }]
   })
 }
