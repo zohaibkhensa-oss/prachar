@@ -50,10 +50,9 @@ resource "aws_db_instance" "main" {
   storage_encrypted = true
   kms_key_id        = aws_kms_key.rds.arn
 
-  db_name                     = "prachar"
-  username                    = "prachar_admin"
-  password                    = aws_secretsmanager_secret_version.db_password.secret_string
-  manage_master_user_password = false
+  db_name  = "prachar"
+  username = "prachar_admin"
+  password = aws_secretsmanager_secret_version.db_password.secret_string
 
   db_subnet_group_name   = aws_db_subnet_group.main.name
   parameter_group_name   = aws_db_parameter_group.main.name
