@@ -106,6 +106,26 @@ resource "aws_s3_bucket_public_access_block" "cf_logs" {
 
 data "aws_canonical_user_id" "current" {}
 
+# ELB service account for this region — ALB access-log delivery principal
+data "aws_elb_service_account" "main" {}
+
+resource "aws_s3_bucket_policy" "cf_logs" {
+  bucket = aws_s3_bucket.cf_logs.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "AllowELBLogDelivery"
+        Effect    = "Allow"
+        Principal = { AWS = data.aws_elb_service_account.main.arn }
+        Action    = "s3:PutObject"
+        Resource  = "${aws_s3_bucket.cf_logs.arn}/alb/*"
+      }
+    ]
+  })
+}
+
 resource "aws_s3_bucket_ownership_controls" "cf_logs" {
   bucket = aws_s3_bucket.cf_logs.id
 
