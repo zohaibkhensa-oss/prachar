@@ -104,6 +104,53 @@ resource "aws_s3_bucket_public_access_block" "cf_logs" {
   restrict_public_buckets = true
 }
 
+data "aws_canonical_user_id" "current" {}
+
+resource "aws_s3_bucket_ownership_controls" "cf_logs" {
+  bucket = aws_s3_bucket.cf_logs.id
+
+  rule {
+    object_ownership = "BucketOwnerPreferred"
+  }
+}
+
+# CloudFront standard logging delivers via the S3 log-delivery ACL group,
+# which requires ACLs enabled on the bucket (not BucketOwnerEnforced).
+resource "aws_s3_bucket_acl" "cf_logs" {
+  bucket     = aws_s3_bucket.cf_logs.id
+  depends_on = [aws_s3_bucket_ownership_controls.cf_logs]
+
+  access_control_policy {
+    owner {
+      id = data.aws_canonical_user_id.current.id
+    }
+
+    grant {
+      grantee {
+        id   = data.aws_canonical_user_id.current.id
+        type = "CanonicalUser"
+      }
+      permission = "FULL_CONTROL"
+    }
+
+    grant {
+      grantee {
+        type = "Group"
+        uri  = "http://acs.amazonaws.com/groups/s3/LogDelivery"
+      }
+      permission = "WRITE"
+    }
+
+    grant {
+      grantee {
+        type = "Group"
+        uri  = "http://acs.amazonaws.com/groups/s3/LogDelivery"
+      }
+      permission = "READ_ACP"
+    }
+  }
+}
+
 # ─── Terraform state backend bucket ──────────────────────────────────────────
 # NOTE: prachar-tfstate is intentionally NOT Terraform-managed — Terraform cannot
 # create/destroy the bucket that stores its own state. Managed out-of-band per

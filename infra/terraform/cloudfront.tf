@@ -70,6 +70,8 @@ resource "aws_cloudfront_distribution" "main" {
     Name        = "${var.project_name}-cdn"
     Environment = var.environment
   }
+
+  depends_on = [aws_s3_bucket_acl.cf_logs]
 }
 
 # ─── S3 bucket for frontend (static hosting) ─────────────────────────────────
