@@ -104,42 +104,9 @@ resource "aws_s3_bucket_public_access_block" "cf_logs" {
   restrict_public_buckets = true
 }
 
-# ─── S3 bucket for Terraform state (referenced in backend config) ────────────
-
-resource "aws_s3_bucket" "tfstate" {
-  bucket = "prachar-tfstate"
-
-  tags = {
-    Name        = "${var.project_name}-tfstate"
-    Environment = var.environment
-  }
-}
-
-resource "aws_s3_bucket_versioning" "tfstate" {
-  bucket = aws_s3_bucket.tfstate.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
-  bucket = aws_s3_bucket.tfstate.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-resource "aws_s3_bucket_public_access_block" "tfstate" {
-  bucket = aws_s3_bucket.tfstate.id
-
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
+# ─── Terraform state backend bucket ──────────────────────────────────────────
+# NOTE: prachar-tfstate is intentionally NOT Terraform-managed — Terraform cannot
+# create/destroy the bucket that stores its own state. Managed out-of-band per
+# STATE_BOOTSTRAP.md.
 
 

@@ -71,14 +71,18 @@ terraform plan
 
 ## Note
 
-The `storage.tf` file also defines `aws_s3_bucket.tfstate`. This is
-**for documentation purposes** — it shows what the bootstrap resource
-looks like. If you run `terraform apply` after bootstrapping, Terraform
-will attempt to manage it. To avoid conflicts, either:
+The state bucket is intentionally **not** declared as a Terraform
+resource. Terraform cannot safely manage the bucket that stores its own
+state — creating it requires the bucket to already exist, and destroying
+it would orphan the state. It is created out-of-band (steps above) and
+managed manually.
 
-1. Import the manually-created resource:
-   `terraform import aws_s3_bucket.tfstate prachar-tfstate`
-2. Or remove it from `storage.tf` after bootstrap (it's already created)
+If the bucket was previously imported into state, remove those state
+entries so Terraform forgets the resource without touching AWS:
 
-Option 1 is recommended — it brings the bootstrap resource under
-Terraform management.
+```bash
+terraform state rm aws_s3_bucket.tfstate \
+  aws_s3_bucket_versioning.tfstate \
+  aws_s3_bucket_server_side_encryption_configuration.tfstate \
+  aws_s3_bucket_public_access_block.tfstate
+```
