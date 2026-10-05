@@ -1,0 +1,37 @@
+# Production Terraform variables — full redundancy
+# Usage: terraform apply -var-file="terraform.tfvars.prod"
+
+aws_region     = "ap-southeast-2"
+project_name   = "prachar"
+environment    = "production"
+domain_name    = "curv.app"
+api_domain     = "api.curv.app"
+app_domain     = "app.curv.app"
+
+# Database — Multi-AZ, small instance, adequate storage
+db_instance_class    = "db.t3.small"
+db_multi_az          = true
+db_allocated_storage = 50
+
+# Redis — replication group with failover
+redis_node_type    = "cache.t3.small"
+redis_cluster_size = 1
+
+# ECS — 2 API + 2 workers for redundancy
+ecs_api_cpu        = 1024
+ecs_api_memory     = 2048
+api_desired_count  = 2
+worker_desired_count = 2
+worker_cpu         = 512
+worker_memory      = 1024
+
+# Enable WAF for production
+enable_waf = true
+
+# Multi-AZ NAT gateways
+enable_nat_single_az = false
+
+# ECR images (fill after build+push)
+ecr_api_image    = ""
+ecr_web_image    = ""
+ecr_worker_image = ""

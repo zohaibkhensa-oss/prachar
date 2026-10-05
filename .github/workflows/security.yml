@@ -19,15 +19,12 @@ jobs:
           python-version: "3.12"
       - name: Install pip-audit
         run: pip install pip-audit
+      - name: Install project dependencies
+        run: |
+          pip install -e packages/shared -e apps/api -e apps/workers
       - name: Audit Python dependencies
         run: |
-          pip-audit -r requirements.txt --strict 2>&1 || true
-          # Also audit each package
-          for req in packages/shared/pyproject.toml apps/api/pyproject.toml apps/workers/pyproject.toml; do
-            echo "Auditing $req..."
-            pip install -e "$req" 2>/dev/null
-          done
-          pip-audit --strict 2>&1 || true
+          pip-audit --strict
 
   # ─── npm audit ──────────────────────────────────────────────────────────────
   npm-audit:
@@ -41,10 +38,11 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
+          cache-dependency-path: apps/web-v2/pnpm-lock.yaml
       - name: Install
-        run: cd apps/web && pnpm install --frozen-lockfile
+        run: cd apps/web-v2 && pnpm install --frozen-lockfile
       - name: Audit
-        run: cd apps/web && pnpm audit --audit-level=high || true
+        run: cd apps/web-v2 && pnpm audit --audit-level=high
 
   # ─── Secret scanning ────────────────────────────────────────────────────────
   secret-scan:
@@ -71,7 +69,7 @@ jobs:
         run: pip install cyclonedx-bom
       - name: Generate Python SBOM
         run: |
-          cyclonedx-py requirements -i requirements.txt -o sbom-python.json --format-json || true
+          cyclonedx-py environment -o sbom-python.json --format-json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom

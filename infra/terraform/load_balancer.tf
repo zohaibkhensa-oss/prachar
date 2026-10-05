@@ -9,6 +9,7 @@ resource "aws_lb" "main" {
 
   enable_deletion_protection = var.environment == "production"
   enable_http2               = true
+  idle_timeout               = 120 # Raised from default 60s for SSE streaming
 
   access_logs {
     bucket  = aws_s3_bucket.cf_logs.bucket
@@ -78,7 +79,7 @@ resource "aws_lb_listener" "https" {
   port              = 443
   protocol          = "HTTPS"
   ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-  certificate_arn   = aws_acm_certificate.main.arn
+  certificate_arn   = aws_acm_certificate.alb.arn
 
   default_action {
     type             = "forward"

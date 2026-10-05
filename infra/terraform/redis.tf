@@ -12,20 +12,20 @@ resource "aws_elasticache_subnet_group" "main" {
 }
 
 resource "aws_elasticache_replication_group" "main" {
-  replication_group_id          = "${var.project_name}-${var.environment}"
-  description                   = "Redis HA cluster for ${var.project_name}"
-  node_type                     = var.redis_node_type
-  num_cache_clusters            = var.redis_cluster_size + 1
-  port                          = 6379
-  engine_version                = "7.1"
-  parameter_group_name          = "default.redis7.x"
-  subnet_group_name             = aws_elasticache_subnet_group.main.name
-  security_group_ids            = [aws_security_group.redis.id]
-  automatic_failover_enabled    = true
-  multi_az_enabled              = true
-  at_rest_encryption_enabled    = true
-  transit_encryption_enabled    = true
-  auth_token                    = aws_secretsmanager_secret_version.redis_token.secret_string
+  replication_group_id       = "${var.project_name}-${var.environment}"
+  description                = "Redis HA cluster for ${var.project_name}"
+  node_type                  = var.redis_node_type
+  num_cache_clusters         = var.redis_cluster_size + 1
+  port                       = 6379
+  engine_version             = "7.1"
+  parameter_group_name       = "default.redis7.x"
+  subnet_group_name          = aws_elasticache_subnet_group.main.name
+  security_group_ids         = [aws_security_group.redis.id]
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
+  at_rest_encryption_enabled = true
+  transit_encryption_enabled = true
+  auth_token                 = aws_secretsmanager_secret_version.redis_token.secret_string
 
   snapshot_retention_limit = 7
   snapshot_window          = "03:00-05:00"

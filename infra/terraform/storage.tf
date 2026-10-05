@@ -17,15 +17,13 @@ resource "aws_s3_bucket_versioning" "storage" {
   }
 }
 
-resource "aws_s3_bucket_encryption" "storage" {
+resource "aws_s3_bucket_server_side_encryption_configuration" "storage" {
   bucket = aws_s3_bucket.storage.id
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "aws:kms"
-        kms_master_key_id = aws_kms_key.s3.arn
-      }
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = aws_kms_key.s3.arn
     }
   }
 }
@@ -45,6 +43,10 @@ resource "aws_s3_bucket_lifecycle_configuration" "storage" {
   rule {
     id     = "transition-to-ia"
     status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
 
     transition {
       days          = 30
@@ -121,14 +123,12 @@ resource "aws_s3_bucket_versioning" "tfstate" {
   }
 }
 
-resource "aws_s3_bucket_encryption" "tfstate" {
+resource "aws_s3_bucket_server_side_encryption_configuration" "tfstate" {
   bucket = aws_s3_bucket.tfstate.id
 
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        sse_algorithm = "AES256"
-      }
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -142,20 +142,4 @@ resource "aws_s3_bucket_public_access_block" "tfstate" {
   restrict_public_buckets = true
 }
 
-# ─── DynamoDB table for Terraform state locking ──────────────────────────────
 
-resource "aws_dynamodb_table" "tf_locks" {
-  name         = "prachar-tf-locks"
-  billing_mode = "PAY_PER_REQUEST"
-  hash_key     = "LockID"
-
-  attribute {
-    name = "LockID"
-    type = "S"
-  }
-
-  tags = {
-    Name        = "${var.project_name}-tf-locks"
-    Environment = var.environment
-  }
-}

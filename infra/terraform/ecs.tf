@@ -36,6 +36,16 @@ resource "aws_cloudwatch_log_group" "worker" {
   }
 }
 
+resource "aws_cloudwatch_log_group" "beat" {
+  name              = "/ecs/${var.project_name}/beat"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.project_name}-beat-logs"
+    Environment = var.environment
+  }
+}
+
 # ─── IAM roles for ECS task execution ────────────────────────────────────────
 
 resource "aws_iam_role" "ecs_task_execution" {
@@ -136,18 +146,25 @@ resource "aws_secretsmanager_secret" "app_secrets" {
 # RAZORPAY_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, META_*, etc.
 # Populate manually after initial terraform apply.
 resource "aws_secretsmanager_secret_version" "app_secrets" {
-  secret_id     = aws_secretsmanager_secret.app_secrets.id
+  secret_id = aws_secretsmanager_secret.app_secrets.id
   secret_string = jsonencode({
-    JWT_SECRET           = "CHANGE_ME_AFTER_APPLY"
-    JWT_REFRESH_SECRET   = "CHANGE_ME_AFTER_APPLY"
-    TOKEN_ENC_KEY        = "CHANGE_ME_32_HEX_BYTES"
-    ANTHROPIC_API_KEY    = ""
-    OPENAI_API_KEY       = ""
-    STRIPE_API_KEY       = ""
-    RAZORPAY_KEY_ID      = ""
-    RAZORPAY_SECRET      = ""
-    GROQ_API_KEY         = ""
+    JWT_SECRET         = "CHANGE_ME_AFTER_APPLY"
+    JWT_REFRESH_SECRET = "CHANGE_ME_AFTER_APPLY"
+    TOKEN_ENC_KEY      = "CHANGE_ME_32_HEX_BYTES"
+    ANTHROPIC_API_KEY  = ""
+    OPENAI_API_KEY     = ""
+    STRIPE_API_KEY     = ""
+    RAZORPAY_KEY_ID    = ""
+    RAZORPAY_SECRET    = ""
+    GROQ_API_KEY       = ""
   })
+
+  # Prevent Terraform from resetting secrets that were populated manually
+  # after the initial apply. Without this, every `terraform apply` would
+  # overwrite real secrets with the placeholder values above.
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
 }
 
 # ─── API task definition ────────────────────────────────────────────────────
@@ -164,7 +181,7 @@ resource "aws_ecs_task_definition" "api" {
   container_definitions = jsonencode([
     {
       name      = "api"
-      image     = coalesce(var.ecr_api_image, "public.ecr.aws/docker/library/python:3.12-slim")
+      image     = var.ecr_api_image != "" ? var.ecr_api_image : "public.ecr.aws/docker/library/python:3.12-slim"
       essential = true
 
       portMappings = [{
@@ -204,7 +221,7 @@ resource "aws_ecs_task_definition" "api" {
       }
 
       healthCheck = {
-        command = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+        command     = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
@@ -272,7 +289,7 @@ resource "aws_ecs_task_definition" "worker" {
   container_definitions = jsonencode([
     {
       name      = "worker"
-      image     = coalesce(var.ecr_worker_image, "public.ecr.aws/docker/library/python:3.12-slim")
+      image     = var.ecr_worker_image != "" ? var.ecr_worker_image : "public.ecr.aws/docker/library/python:3.12-slim"
       essential = true
 
       environment = [
@@ -336,6 +353,236 @@ resource "aws_ecs_service" "worker" {
 
   tags = {
     Name        = "${var.project_name}-worker-service"
+    Environment = var.environment
+  }
+}
+
+# ─── Celery Beat task definition (singleton scheduler) ──────────────────────
+# Beat must NEVER run more than 1 replica — duplicate beat instances cause
+# duplicate task dispatch. desired_count is hardcoded to 1.
+
+resource "aws_ecs_task_definition" "beat" {
+  family                   = "${var.project_name}-beat"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 256
+  memory                   = 512
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "beat"
+      image     = var.ecr_worker_image != "" ? var.ecr_worker_image : "public.ecr.aws/docker/library/python:3.12-slim"
+      essential = true
+
+      command = ["celery", "-A", "prachar_workers.celery_app", "beat", "-l", "info"]
+
+      environment = [
+        { name = "ENVIRONMENT", value = var.environment },
+        { name = "DATABASE_URL", value = "postgresql+asyncpg://prachar_admin:${random_password.db_password.result}@${aws_db_instance.main.address}:5432/prachar" },
+        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0" },
+        { name = "S3_ENDPOINT", value = "https://s3.${var.aws_region}.amazonaws.com" },
+        { name = "S3_BUCKET", value = aws_s3_bucket.storage.bucket },
+        { name = "AWS_REGION", value = var.aws_region },
+        { name = "CELERY_WORKER", value = "true" },
+      ]
+
+      secrets = [
+        { name = "JWT_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_SECRET::" },
+        { name = "JWT_REFRESH_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:JWT_REFRESH_SECRET::" },
+        { name = "TOKEN_ENC_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:TOKEN_ENC_KEY::" },
+        { name = "ANTHROPIC_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:ANTHROPIC_API_KEY::" },
+        { name = "OPENAI_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:OPENAI_API_KEY::" },
+        { name = "GROQ_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:GROQ_API_KEY::" },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.beat.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "beat"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name        = "${var.project_name}-beat-task"
+    Environment = var.environment
+  }
+}
+
+# ─── Celery Beat ECS service (singleton — desired_count = 1) ────────────────
+
+resource "aws_ecs_service" "beat" {
+  name            = "${var.project_name}-beat"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.beat.arn
+  desired_count   = 1 # MUST remain 1 — beat is a singleton
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_maximum_percent         = 100 # Never run 2 beat instances
+  deployment_minimum_healthy_percent = 0   # Allow rolling deploys
+
+  tags = {
+    Name        = "${var.project_name}-beat-service"
+    Environment = var.environment
+  }
+}
+
+# ─── Web (Next.js) task definition ───────────────────────────────────────────
+# Next.js requires a running Node server for the /api rewrite proxy and
+# 30-min proxyTimeout for SSE video generation. S3+CloudFront static hosting
+# is NOT viable for this application.
+
+resource "aws_cloudwatch_log_group" "web" {
+  name              = "/ecs/${var.project_name}/web"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.project_name}-web-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lb_target_group" "web" {
+  name        = "${var.project_name}-web-tg"
+  port        = 3002
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    enabled             = true
+    path                = "/"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    timeout             = 5
+    interval            = 30
+    matcher             = "200-399"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-web-tg"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lb_listener_rule" "web" {
+  listener_arn = aws_lb_listener.https.arn
+  priority     = 100
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.web.arn
+  }
+
+  condition {
+    host_header {
+      values = [var.app_domain]
+    }
+  }
+}
+
+resource "aws_ecs_task_definition" "web" {
+  family                   = "${var.project_name}-web"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = 512
+  memory                   = 1024
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name      = "web"
+      image     = var.ecr_web_image != "" ? var.ecr_web_image : "public.ecr.aws/docker/library/node:20-slim"
+      essential = true
+
+      portMappings = [{
+        containerPort = 3002
+        hostPort      = 3002
+        protocol      = "tcp"
+      }]
+
+      environment = [
+        { name = "NODE_ENV", value = "production" },
+        { name = "NEXT_PUBLIC_API_BASE", value = "https://${var.api_domain}" },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.web.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "web"
+        }
+      }
+
+      healthCheck = {
+        command     = ["CMD-SHELL", "curl -f http://localhost:3002/ || exit 1"]
+        interval    = 30
+        timeout     = 5
+        retries     = 3
+        startPeriod = 60
+      }
+    }
+  ])
+
+  tags = {
+    Name        = "${var.project_name}-web-task"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecs_service" "web" {
+  name            = "${var.project_name}-web"
+  cluster         = aws_ecs_cluster.main.id
+  task_definition = aws_ecs_task_definition.web.arn
+  desired_count   = var.api_desired_count
+  launch_type     = "FARGATE"
+
+  network_configuration {
+    subnets          = aws_subnet.private[*].id
+    security_groups  = [aws_security_group.ecs.id]
+    assign_public_ip = false
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.web.arn
+    container_name   = "web"
+    container_port   = 3002
+  }
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  deployment_maximum_percent         = 200
+  deployment_minimum_healthy_percent = 100
+
+  health_check_grace_period_seconds = 120
+
+  depends_on = [aws_lb_listener.https]
+
+  tags = {
+    Name        = "${var.project_name}-web-service"
     Environment = var.environment
   }
 }

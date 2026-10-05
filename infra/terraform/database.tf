@@ -42,24 +42,24 @@ resource "aws_db_parameter_group" "main" {
 }
 
 resource "aws_db_instance" "main" {
-  identifier                = "${var.project_name}-${var.environment}"
-  engine                    = "postgres"
-  engine_version            = "16.4"
-  instance_class            = var.db_instance_class
-  allocated_storage         = var.db_allocated_storage
-  storage_encrypted         = true
-  kms_key_id                = aws_kms_key.rds.arn
+  identifier        = "${var.project_name}-${var.environment}"
+  engine            = "postgres"
+  engine_version    = "16.4"
+  instance_class    = var.db_instance_class
+  allocated_storage = var.db_allocated_storage
+  storage_encrypted = true
+  kms_key_id        = aws_kms_key.rds.arn
 
-  db_name                   = "prachar"
-  username                  = "prachar_admin"
-  password                  = aws_secretsmanager_secret_version.db_password.secret_string
+  db_name                     = "prachar"
+  username                    = "prachar_admin"
+  password                    = aws_secretsmanager_secret_version.db_password.secret_string
   manage_master_user_password = false
 
-  db_subnet_group_name      = aws_db_subnet_group.main.name
-  parameter_group_name      = aws_db_parameter_group.main.name
-  vpc_security_group_ids    = [aws_security_group.rds.id]
+  db_subnet_group_name   = aws_db_subnet_group.main.name
+  parameter_group_name   = aws_db_parameter_group.main.name
+  vpc_security_group_ids = [aws_security_group.rds.id]
 
-  multi_az                  = true
+  multi_az                  = var.db_multi_az
   storage_type              = "gp3"
   backup_retention_period   = 14
   backup_window             = "03:00-04:00"
@@ -102,9 +102,8 @@ resource "aws_secretsmanager_secret" "db_password" {
 }
 
 resource "random_password" "db_password" {
-  length           = 32
-  special          = true
-  override_special = "!#$%&*()-_=+[]{}<>:?"
+  length  = 32
+  special = false # URL-safe: alphanumeric only to avoid breaking DATABASE_URL
 }
 
 resource "aws_secretsmanager_secret_version" "db_password" {

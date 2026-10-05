@@ -8,11 +8,11 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "prachar-tfstate"
-    key            = "terraform.tfstate"
-    region         = "ap-south-1"
-    encrypt        = true
-    dynamodb_table = "prachar-tf-locks"
+    bucket       = "prachar-tfstate"
+    key          = "terraform.tfstate"
+    region       = "ap-southeast-2"
+    encrypt      = true
+    use_lockfile = true
   }
 }
 

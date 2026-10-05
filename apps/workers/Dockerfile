@@ -22,15 +22,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 \
     libcairo2 \
     libasound2 \
+    libpq-dev \
+    gcc \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-COPY prachar_workers ./prachar_workers
+# Copy all three packages — worker imports prachar-shared and prachar-api
+COPY packages/shared /app/packages/shared
+COPY apps/api /app/apps/api
+COPY apps/workers /app/apps/workers
 
-RUN pip install --no-cache-dir .
+# Install all three packages so loop.py can import prachar_api.runtime.*
+RUN pip install --no-cache-dir -e packages/shared -e apps/api -e apps/workers
 
 RUN playwright install chromium
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser \
+    && chown -R appuser:appuser /app
+USER appuser
 
 CMD ["celery", "-A", "prachar_workers.celery_app", "worker", "-l", "info"]

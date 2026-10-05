@@ -1,7 +1,7 @@
 variable "aws_region" {
   description = "AWS region for all resources"
   type        = string
-  default     = "ap-south-1"
+  default     = "ap-southeast-2"
 }
 
 variable "project_name" {
@@ -19,43 +19,67 @@ variable "environment" {
 variable "domain_name" {
   description = "Primary domain name for the application"
   type        = string
-  default     = "prachar.ai"
+  default     = "curv.app"
 }
 
 variable "api_domain" {
   description = "API subdomain"
   type        = string
-  default     = "api.prachar.ai"
+  default     = "api.curv.app"
 }
 
 variable "app_domain" {
   description = "App subdomain"
   type        = string
-  default     = "app.prachar.ai"
+  default     = "app.curv.app"
 }
 
 variable "db_instance_class" {
   description = "RDS instance class"
   type        = string
-  default     = "db.r6g.large"
+  default     = "db.t3.small"
+}
+
+variable "db_multi_az" {
+  description = "Enable Multi-AZ for RDS (true for production, false for dev/staging)"
+  type        = bool
+  default     = true
 }
 
 variable "db_allocated_storage" {
   description = "RDS allocated storage in GB"
   type        = number
-  default     = 100
+  default     = 20
 }
 
 variable "redis_node_type" {
   description = "ElastiCache Redis node type"
   type        = string
-  default     = "cache.r6g.large"
+  default     = "cache.t3.small"
 }
 
 variable "redis_cluster_size" {
   description = "Number of Redis replicas (excluding primary)"
   type        = number
-  default     = 2
+  default     = 1
+}
+
+variable "enable_waf" {
+  description = "Enable WAF on ALB (true for production, false for dev/staging)"
+  type        = bool
+  default     = true
+}
+
+variable "enable_nat_single_az" {
+  description = "Use single NAT gateway (true for dev/staging, false for production Multi-AZ)"
+  type        = bool
+  default     = false
+}
+
+variable "alert_email" {
+  description = "Email address for CloudWatch alarm notifications (leave empty to skip subscription)"
+  type        = string
+  default     = ""
 }
 
 variable "ecs_api_cpu" {
@@ -73,13 +97,13 @@ variable "ecs_api_memory" {
 variable "api_desired_count" {
   description = "Desired number of API tasks"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "worker_desired_count" {
   description = "Desired number of worker tasks"
   type        = number
-  default     = 2
+  default     = 1
 }
 
 variable "worker_cpu" {

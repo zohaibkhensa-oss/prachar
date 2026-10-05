@@ -1,8 +1,5 @@
-# Prachar AI — Terraform variables example
-# Copy to terraform.tfvars or use -var-file
-#
-# For dev/staging:  terraform apply -var-file="terraform.tfvars.dev"
-# For production:    terraform apply -var-file="terraform.tfvars.prod"
+# Dev/Staging Terraform variables — minimal cost configuration
+# Usage: terraform apply -var-file="terraform.tfvars.dev"
 
 aws_region     = "ap-southeast-2"
 project_name   = "prachar"
@@ -11,16 +8,16 @@ domain_name    = "curv.app"
 api_domain     = "api.curv.app"
 app_domain     = "app.curv.app"
 
-# Database
+# Database — single AZ, small instance, minimal storage
 db_instance_class    = "db.t3.micro"
 db_multi_az          = false
 db_allocated_storage = 20
 
-# Redis
+# Redis — single node, small instance
 redis_node_type    = "cache.t3.micro"
 redis_cluster_size = 0
 
-# ECS
+# ECS — single API + single worker
 ecs_api_cpu        = 512
 ecs_api_memory     = 1024
 api_desired_count  = 1
@@ -28,14 +25,11 @@ worker_desired_count = 1
 worker_cpu         = 512
 worker_memory      = 1024
 
-# WAF
+# Disable WAF for dev/staging (saves ~$10/mo)
 enable_waf = false
 
-# NAT
+# Single NAT gateway (saves ~$35/mo)
 enable_nat_single_az = true
-
-# Alerts — set your email to receive CloudWatch alarm notifications
-alert_email = ""
 
 # ECR images (fill after first build+push)
 ecr_api_image    = ""

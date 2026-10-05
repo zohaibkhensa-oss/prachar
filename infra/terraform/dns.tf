@@ -1,12 +1,11 @@
-# ─── ACM certificate (must be in us-east-1 for CloudFront) ───────────────────
+# ─── ACM certificate for CloudFront (must be in us-east-1) ──────────────────
 
-resource "aws_acm_certificate" "main" {
+resource "aws_acm_certificate" "cloudfront" {
   provider          = aws.acm
   domain_name       = var.domain_name
   validation_method = "DNS"
 
   subject_alternative_names = [
-    var.api_domain,
     var.app_domain,
     "www.${var.domain_name}",
   ]
@@ -16,7 +15,23 @@ resource "aws_acm_certificate" "main" {
   }
 
   tags = {
-    Name        = "${var.project_name}-cert"
+    Name        = "${var.project_name}-cloudfront-cert"
+    Environment = var.environment
+  }
+}
+
+# ─── ACM certificate for ALB (must be in the deployment region) ──────────────
+
+resource "aws_acm_certificate" "alb" {
+  domain_name       = var.api_domain
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  tags = {
+    Name        = "${var.project_name}-alb-cert"
     Environment = var.environment
   }
 }
@@ -32,11 +47,11 @@ resource "aws_route53_zone" "main" {
   }
 }
 
-# ─── DNS validation records ──────────────────────────────────────────────────
+# ─── DNS validation records for CloudFront cert (us-east-1) ──────────────────
 
-resource "aws_route53_record" "cert_validation" {
+resource "aws_route53_record" "cloudfront_cert_validation" {
   for_each = {
-    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+    for dvo in aws_acm_certificate.cloudfront.domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
       type   = dvo.resource_record_type
@@ -51,10 +66,34 @@ resource "aws_route53_record" "cert_validation" {
   zone_id         = aws_route53_zone.main.zone_id
 }
 
-resource "aws_acm_certificate_validation" "main" {
+resource "aws_acm_certificate_validation" "cloudfront" {
   provider                = aws.acm
-  certificate_arn         = aws_acm_certificate.main.arn
-  validation_record_fqdns = [for r in aws_route53_record.cert_validation : r.fqdn]
+  certificate_arn         = aws_acm_certificate.cloudfront.arn
+  validation_record_fqdns = [for r in aws_route53_record.cloudfront_cert_validation : r.fqdn]
+}
+
+# ─── DNS validation records for ALB cert (regional) ──────────────────────────
+
+resource "aws_route53_record" "alb_cert_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.alb.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      record = dvo.resource_record_value
+      type   = dvo.resource_record_type
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  records         = [each.value.record]
+  ttl             = 60
+  type            = each.value.type
+  zone_id         = aws_route53_zone.main.zone_id
+}
+
+resource "aws_acm_certificate_validation" "alb" {
+  certificate_arn         = aws_acm_certificate.alb.arn
+  validation_record_fqdns = [for r in aws_route53_record.alb_cert_validation : r.fqdn]
 }
 
 # ─── DNS records ─────────────────────────────────────────────────────────────

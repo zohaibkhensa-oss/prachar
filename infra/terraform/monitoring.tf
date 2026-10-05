@@ -106,13 +106,65 @@ resource "aws_cloudwatch_metric_alarm" "redis_evictions" {
   alarm_description   = "Redis evicting keys (memory pressure)"
 
   dimensions = {
-    CacheClusterId = aws_elasticache_replication_group.main.id
+    CacheClusterId = replace(aws_elasticache_replication_group.main.id, "${aws_elasticache_replication_group.main.id}", "${aws_elasticache_replication_group.main.id}-001")
   }
 
   alarm_actions = [aws_sns_topic.alerts.arn]
 
   tags = {
     Name        = "${var.project_name}-redis-eviction-alarm"
+    Environment = var.environment
+  }
+}
+
+# ─── Worker queue depth alarm ────────────────────────────────────────────────
+
+resource "aws_cloudwatch_metric_alarm" "worker_high_cpu" {
+  alarm_name          = "${var.project_name}-worker-high-cpu"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  evaluation_periods  = 2
+  metric_name         = "CPUUtilization"
+  namespace           = "AWS/ECS"
+  period              = 300
+  statistic           = "Average"
+  threshold           = 85
+  alarm_description   = "Worker CPU utilization above 85%"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.worker.name
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+
+  tags = {
+    Name        = "${var.project_name}-worker-cpu-alarm"
+    Environment = var.environment
+  }
+}
+
+# ─── API task restart alarm ──────────────────────────────────────────────────
+
+resource "aws_cloudwatch_metric_alarm" "api_restarts" {
+  alarm_name          = "${var.project_name}-api-restarts"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "RestartCount"
+  namespace           = "ECS/ContainerInsights"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 3
+  alarm_description   = "API container restarting more than 3 times in 5 minutes"
+
+  dimensions = {
+    ClusterName = aws_ecs_cluster.main.name
+    ServiceName = aws_ecs_service.api.name
+  }
+
+  alarm_actions = [aws_sns_topic.alerts.arn]
+
+  tags = {
+    Name        = "${var.project_name}-api-restart-alarm"
     Environment = var.environment
   }
 }
@@ -126,6 +178,15 @@ resource "aws_sns_topic" "alerts" {
     Name        = "${var.project_name}-alerts"
     Environment = var.environment
   }
+}
+
+# SNS email subscription — set alert_email in tfvars to receive notifications
+# If alert_email is empty, no subscription is created (configure manually later)
+resource "aws_sns_topic_subscription" "email_alerts" {
+  count     = var.alert_email != "" ? 1 : 0
+  topic_arn = aws_sns_topic.alerts.arn
+  protocol  = "email"
+  endpoint  = var.alert_email
 }
 
 # ─── Dashboard ───────────────────────────────────────────────────────────────

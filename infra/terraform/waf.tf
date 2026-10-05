@@ -1,6 +1,8 @@
 # ─── WAF Web ACL (protect API + ALB) ─────────────────────────────────────────
+# Disabled in dev/staging via the enable_waf variable.
 
 resource "aws_wafv2_web_acl" "main" {
+  count       = var.enable_waf ? 1 : 0
   name        = "${var.project_name}-waf"
   description = "WAF for ${var.project_name} API"
   scope       = "REGIONAL"
@@ -157,6 +159,7 @@ resource "aws_wafv2_web_acl" "main" {
 # ─── Associate WAF with ALB ──────────────────────────────────────────────────
 
 resource "aws_wafv2_web_acl_association" "main" {
+  count        = var.enable_waf ? 1 : 0
   resource_arn = aws_lb.main.arn
-  web_acl_arn  = aws_wafv2_web_acl.main.arn
+  web_acl_arn  = aws_wafv2_web_acl.main[0].arn
 }

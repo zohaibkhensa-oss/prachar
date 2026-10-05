@@ -56,7 +56,7 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./apps/web-v2/Dockerfile
-    dockerContext: ./apps/web-v2
+    dockerContext: .
     envVars:
       - key: NEXT_PUBLIC_API_BASE
-        value: https://prachar-api.onrender.com
+        value: https://api.curv.app
