@@ -48,21 +48,29 @@ resource "aws_route53_zone" "main" {
 }
 
 # ─── DNS validation records for CloudFront cert (us-east-1) ──────────────────
+#
+# for_each keys must be known at plan time, so we iterate over the static
+# certificate domain list and look up the computed DVO attributes per key.
+
+locals {
+  cloudfront_cert_domains = toset([
+    var.domain_name,
+    var.app_domain,
+    "www.${var.domain_name}",
+  ])
+  alb_cert_domains = toset([
+    var.api_domain,
+  ])
+}
 
 resource "aws_route53_record" "cloudfront_cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.cloudfront.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
+  for_each = local.cloudfront_cert_domains
 
   allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
+  name            = [for dvo in aws_acm_certificate.cloudfront.domain_validation_options : dvo.resource_record_name if dvo.domain_name == each.key][0]
+  records         = [[for dvo in aws_acm_certificate.cloudfront.domain_validation_options : dvo.resource_record_value if dvo.domain_name == each.key][0]]
   ttl             = 60
-  type            = each.value.type
+  type            = [for dvo in aws_acm_certificate.cloudfront.domain_validation_options : dvo.resource_record_type if dvo.domain_name == each.key][0]
   zone_id         = aws_route53_zone.main.zone_id
 }
 
@@ -75,19 +83,13 @@ resource "aws_acm_certificate_validation" "cloudfront" {
 # ─── DNS validation records for ALB cert (regional) ──────────────────────────
 
 resource "aws_route53_record" "alb_cert_validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.alb.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
+  for_each = local.alb_cert_domains
 
   allow_overwrite = true
-  name            = each.value.name
-  records         = [each.value.record]
+  name            = [for dvo in aws_acm_certificate.alb.domain_validation_options : dvo.resource_record_name if dvo.domain_name == each.key][0]
+  records         = [[for dvo in aws_acm_certificate.alb.domain_validation_options : dvo.resource_record_value if dvo.domain_name == each.key][0]]
   ttl             = 60
-  type            = each.value.type
+  type            = [for dvo in aws_acm_certificate.alb.domain_validation_options : dvo.resource_record_type if dvo.domain_name == each.key][0]
   zone_id         = aws_route53_zone.main.zone_id
 }
 
