@@ -718,7 +718,7 @@ def _generate_invoice_pdf(
     c.drawString(20 * mm, height - 18 * mm, "CURV AI")
     c.setFont("Helvetica", 9)
     c.drawString(20 * mm, height - 24 * mm, "AI-Driven Advertising Platform")
-    c.drawString(20 * mm, height - 29 * mm, "hello@curv.app | www.curv.app")
+    c.drawString(20 * mm, height - 29 * mm, "hello@curvai.org | www.curvai.org")
 
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(width - 20 * mm, height - 18 * mm, "TAX INVOICE")

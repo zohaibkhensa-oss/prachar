@@ -66,12 +66,12 @@ See `LAUNCH_READINESS.md` for the feature matrix.
 """,
         contact={
             "name": "CURV AI Support",
-            "url": "https://curv.ai/support",
-            "email": "support@curv.ai",
+            "url": "https://curvai.org/support",
+            "email": "support@curvai.org",
         },
         license_info={
             "name": "Proprietary",
-            "url": "https://curv.ai/terms",
+            "url": "https://curvai.org/terms",
         },
         openapi_tags=[
             {"name": "meta", "description": "Health checks and metrics"},

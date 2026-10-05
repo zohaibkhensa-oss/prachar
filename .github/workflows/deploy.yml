@@ -167,7 +167,7 @@ jobs:
       - name: Health check
         run: |
           for i in $(seq 1 10); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.curv.app/health/ready || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.curvai.org/health/ready || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Health check passed"
               exit 0
@@ -215,7 +215,7 @@ jobs:
       - name: Health check
         run: |
           for i in $(seq 1 10); do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.curv.app/health/ready || echo "000")
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.curvai.org/health/ready || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Production health check passed"
               exit 0

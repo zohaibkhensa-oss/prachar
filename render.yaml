@@ -41,7 +41,7 @@ services:
       - key: AI_DEFAULT_PROVIDER
         value: groq
       - key: EMAIL_FROM
-        value: noreply@curv.app
+        value: noreply@curvai.org
       - key: EMAIL_FROM_NAME
         value: CURV AI
       # ─── Social Login (backend verification) ───
@@ -59,4 +59,4 @@ services:
     dockerContext: .
     envVars:
       - key: NEXT_PUBLIC_API_BASE
-        value: https://api.curv.app
+        value: https://api.curvai.org

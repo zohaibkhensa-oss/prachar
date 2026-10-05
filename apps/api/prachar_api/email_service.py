@@ -202,7 +202,7 @@ def invoice_email_html(invoice_number: str, plan_name: str, total_inr: int, user
         </table>
       </div>
       <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-        Your GST-compliant invoice is attached to this email as a PDF. You can also download it anytime from your <a href="https://app.curv.app/app/settings" style="color: #6366f1;">Settings &rarr; Billing</a> page.
+        Your GST-compliant invoice is attached to this email as a PDF. You can also download it anytime from your <a href="https://app.curvai.org/app/settings" style="color: #6366f1;">Settings &rarr; Billing</a> page.
       </p>
       <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
       <p style="color: #9ca3af; font-size: 12px;">

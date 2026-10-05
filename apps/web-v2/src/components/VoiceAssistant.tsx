@@ -114,7 +114,7 @@ const KNOWLEDGE_BASE: KBEntry[] = [
   },
   {
     keywords: ["login", "sign in", "credentials", "password", "demo", "access", "how to login"],
-    response: "You can log in with your email and password. For demo access, use demo@curv.app with password prachar123. If you don't have an account, click Register to create one — it's free for 14 days, no credit card required.",
+    response: "You can log in with your email and password. For demo access, use demo@curvai.org with password prachar123. If you don't have an account, click Register to create one — it's free for 14 days, no credit card required.",
     navigate: "/login",
   },
   {

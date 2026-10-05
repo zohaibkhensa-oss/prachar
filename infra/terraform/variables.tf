@@ -19,19 +19,19 @@ variable "environment" {
 variable "domain_name" {
   description = "Primary domain name for the application"
   type        = string
-  default     = "curv.app"
+  default     = "curvai.org"
 }
 
 variable "api_domain" {
   description = "API subdomain"
   type        = string
-  default     = "api.curv.app"
+  default     = "api.curvai.org"
 }
 
 variable "app_domain" {
   description = "App subdomain"
   type        = string
-  default     = "app.curv.app"
+  default     = "app.curvai.org"
 }
 
 variable "db_instance_class" {

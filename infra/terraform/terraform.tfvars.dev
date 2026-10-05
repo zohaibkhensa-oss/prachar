@@ -4,9 +4,9 @@
 aws_region     = "ap-southeast-2"
 project_name   = "prachar"
 environment    = "staging"
-domain_name    = "curv.app"
-api_domain     = "api.curv.app"
-app_domain     = "app.curv.app"
+domain_name    = "curvai.org"
+api_domain     = "api.curvai.org"
+app_domain     = "app.curvai.org"
 
 # Database — single AZ, small instance, minimal storage
 db_instance_class    = "db.t3.micro"

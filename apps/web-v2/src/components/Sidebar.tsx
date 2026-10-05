@@ -134,7 +134,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
               </div>
               <div className="flex-1 min-w-0 text-left">
                 <div className="text-xs font-medium text-text truncate">My Workspace</div>
-                <div className="text-[10px] text-text-muted truncate">{email || "demo@curv.app"}</div>
+                <div className="text-[10px] text-text-muted truncate">{email || "demo@curvai.org"}</div>
               </div>
             </div>
           </motion.div>

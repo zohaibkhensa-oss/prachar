@@ -19,8 +19,8 @@ COPY apps/web-v2 ./apps/web-v2
 WORKDIR /app/apps/web-v2
 
 # Build — NEXT_PUBLIC_API_BASE is baked in at build time.
-# Override with --build-arg NEXT_PUBLIC_API_BASE=https://api.curv.app
-ARG NEXT_PUBLIC_API_BASE=https://api.curv.app
+# Override with --build-arg NEXT_PUBLIC_API_BASE=https://api.curvai.org
+ARG NEXT_PUBLIC_API_BASE=https://api.curvai.org
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 RUN pnpm build
 

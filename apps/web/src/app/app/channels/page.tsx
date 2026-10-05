@@ -60,7 +60,7 @@ const CHANNELS: Channel[] = [
     icon: Search,
     color: "#3B82F6",
     status: "connected",
-    account: "aurora@curv.app",
+    account: "aurora@curvai.org",
     spend30d: 184200,
     reach: 1240000,
     followers: 0,
