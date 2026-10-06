@@ -69,10 +69,11 @@ jobs:
           node-version: "20"
           cache: pnpm
       - name: Install
-        run: cd apps/web && pnpm install --frozen-lockfile
-      - name: Lint
-        run: cd apps/web && pnpm lint
+        run: pnpm install --frozen-lockfile --filter web-v2...
+      # web-v2 (the deployed frontend) has no ESLint config — `next lint`
+      # prompts interactively and can never pass in CI. Typecheck + build
+      # are the real gates until an ESLint config is added deliberately.
       - name: Typecheck
-        run: cd apps/web && pnpm typecheck
+        run: cd apps/web-v2 && pnpm typecheck
       - name: Build
-        run: cd apps/web && pnpm build
+        run: cd apps/web-v2 && pnpm build
