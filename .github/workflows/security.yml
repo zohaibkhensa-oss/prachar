@@ -38,8 +38,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - name: Install
         run: pnpm install --frozen-lockfile --filter web-v2...
       - name: Audit
@@ -74,7 +72,7 @@ jobs:
       - name: Generate Python SBOM
         run: |
           pip freeze --exclude-editable > /tmp/requirements-sbom.txt
-          cyclonedx-py requirements -i /tmp/requirements-sbom.txt -o sbom-python.json
+          cyclonedx-py requirements -r /tmp/requirements-sbom.txt -o sbom-python.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
