@@ -12,10 +12,11 @@ This creates stable HTTPS endpoints:
     https://zohaib-khensa--prachar-ai-gen-generate-image.modal.run
     https://zohaib-khensa--prachar-ai-gen-health.modal.run
 """
-import modal
 import os
 import time
 import uuid
+
+import modal
 import numpy as np
 from pydantic import BaseModel
 
@@ -74,10 +75,11 @@ class ImageRequest(BaseModel):
 @modal.fastapi_endpoint(method="POST")
 def generate_video(data: dict):
     """Generate video using AnimateDiff + SD 1.5."""
-    import torch
-    from diffusers import AnimateDiffPipeline, MotionAdapter, DDIMScheduler
-    import imageio
     from pathlib import Path
+
+    import imageio
+    import torch
+    from diffusers import AnimateDiffPipeline, DDIMScheduler, MotionAdapter
 
     os.environ["HF_HOME"] = "/data/hf_cache"
 
@@ -156,9 +158,10 @@ def generate_video(data: dict):
 @modal.fastapi_endpoint(method="POST")
 def generate_image(data: dict):
     """Generate image using SDXL."""
+    from pathlib import Path
+
     import torch
     from diffusers import DiffusionPipeline
-    from pathlib import Path
 
     os.environ["HF_HOME"] = "/data/hf_cache"
 
@@ -218,8 +221,9 @@ def generate_image(data: dict):
 @modal.fastapi_endpoint(method="GET")
 def get_video(video_id: str):
     """Retrieve a generated video by ID."""
-    from fastapi import Response
     from pathlib import Path
+
+    from fastapi import Response
 
     path = Path(f"/data/outputs/{video_id}.mp4")
     if not path.exists():
@@ -236,8 +240,9 @@ def get_video(video_id: str):
 @modal.fastapi_endpoint(method="GET")
 def get_image(image_id: str):
     """Retrieve a generated image by ID."""
-    from fastapi import Response
     from pathlib import Path
+
+    from fastapi import Response
 
     path = Path(f"/data/outputs/{image_id}.png")
     if not path.exists():

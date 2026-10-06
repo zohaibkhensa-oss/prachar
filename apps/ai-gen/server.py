@@ -8,7 +8,6 @@ Uses models that are compatible with torch 2.4 + diffusers 0.32.2:
 from __future__ import annotations
 
 import logging
-import os
 import time
 import uuid
 from pathlib import Path
@@ -41,7 +40,7 @@ def get_video_pipeline():
         return _video_pipeline
 
     log.info("Loading AnimateDiff + SD 1.5 for text-to-video...")
-    from diffusers import AnimateDiffPipeline, MotionAdapter, DDIMScheduler
+    from diffusers import AnimateDiffPipeline, DDIMScheduler, MotionAdapter
 
     # Motion adapter provides the temporal layers
     adapter = MotionAdapter.from_pretrained("guoyww/animatediff-motion-adapter-v1-5-2", torch_dtype=DTYPE)
@@ -174,7 +173,7 @@ async def generate_video(req: VideoGenRequest):
 
     except Exception as e:
         log.error("Video gen failed: %s: %s", type(e).__name__, str(e)[:300])
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 @app.post("/generate-image", response_model=GenResponse)
@@ -217,7 +216,7 @@ async def generate_image(req: ImageGenRequest):
 
     except Exception as e:
         log.error("Image gen failed: %s: %s", type(e).__name__, str(e)[:300])
-        raise HTTPException(status_code=500, detail=str(e)[:200])
+        raise HTTPException(status_code=500, detail=str(e)[:200]) from e
 
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUT_DIR)), name="outputs")
