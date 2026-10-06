@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { CurvOrb } from "@/components/CurvOrb";
+import { ChatHistoryRail } from "@/components/ChatHistoryRail";
 import { ArtefactRenderer, type Artefact } from "@/components/ArtefactRenderer";
 import { TypewriterText } from "@/components/TypewriterText";
 import { ThinkingBubble } from "@/components/ThinkingBubble";
@@ -179,6 +180,9 @@ export default function DashboardPage() {
       const response = evt.data.response;
       const isClarifying = evt.data?.clarifying === true;
       const replyText = response.reply || "Done!";
+
+      // Track the live session so the history rail can highlight + refresh
+      if (evt.session_id) setCurrentSessionId(evt.session_id);
 
       // Collect any pending artefacts that were emitted during this session
       // but not yet attached to a message
@@ -526,7 +530,9 @@ export default function DashboardPage() {
     setOrbState("idle");
     setCurrentSessionId(null);
     stopSpeaking();
-  }, [session]);
+    // Clear ?session= so the loader effect doesn't reopen the old conversation
+    if (searchParams.get("session")) router.replace("/app");
+  }, [session, searchParams, router]);
 
   // ─── Load a past session from URL query param ─────────────────────────────
   const loadSession = useCallback(async (sessionId: string) => {
@@ -565,6 +571,7 @@ export default function DashboardPage() {
 
       setMessages(loadedMessages);
       setCurrentSessionId(sessionId);
+      setOrbState("idle");
     } catch (err) {
       console.error("Failed to load session:", err);
     }
@@ -593,7 +600,14 @@ export default function DashboardPage() {
   // ═══════════════════════════════════════════════════════════════════════════
   if (!inConversation) {
     return (
-      <div className="min-h-[calc(100vh-64px)] flex flex-col items-center justify-start px-4 py-8 lg:py-12">
+      <div className="min-h-[calc(100vh-64px)] flex">
+        {/* Conversation rail — ChatGPT/Gemini-style persistent history */}
+        <ChatHistoryRail
+          activeSessionId={currentSessionId}
+          onNewChat={handleNewChat}
+          refreshKey={messages.length}
+        />
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-start px-4 py-8 lg:py-12">
         {/* ═══ Greeting ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
@@ -698,6 +712,7 @@ export default function DashboardPage() {
             </button>
           ))}
         </motion.div>
+        </div>
       </div>
     );
   }
@@ -706,7 +721,14 @@ export default function DashboardPage() {
   // CONVERSATION STATE — ChatGPT/Gemini-style full-width chat
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* Conversation rail — ChatGPT/Gemini-style persistent history */}
+      <ChatHistoryRail
+        activeSessionId={currentSessionId}
+        onNewChat={handleNewChat}
+        refreshKey={messages.length}
+      />
+      <div className="flex-1 min-w-0 flex flex-col">
       {/* ─── Conversation header ─── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] flex-shrink-0">
         <div className="flex items-center gap-2.5">
@@ -953,6 +975,7 @@ export default function DashboardPage() {
             onStopListening={stopListening}
           />
         </div>
+      </div>
       </div>
     </div>
   );
