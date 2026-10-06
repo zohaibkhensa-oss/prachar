@@ -233,7 +233,13 @@ class Runtime:
             type="runtime.session.started",
             phase=EventPhase.STARTED.value,
             orb_state=OrbState.UNDERSTANDING.value,
-            data={"message": request.message, "modality": request.modality},
+            data={
+                "message": request.message,
+                "modality": request.modality,
+                # persisted to runtime_events.data — powers the brand filter in
+                # GET /runtime/sessions?brand_id= (chat history scoping)
+                "brand_id": str(request.brand_id) if request.brand_id else None,
+            },
         ))
 
         # 4. Classify intent
