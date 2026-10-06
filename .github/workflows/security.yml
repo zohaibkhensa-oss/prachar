@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
-          version: 9
+          version: 10
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -72,7 +72,7 @@ jobs:
       - name: Generate Python SBOM
         run: |
           pip freeze --exclude-editable > /tmp/requirements-sbom.txt
-          cyclonedx-py requirements -r /tmp/requirements-sbom.txt -o sbom-python.json
+          cyclonedx-py requirements /tmp/requirements-sbom.txt -o sbom-python.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
