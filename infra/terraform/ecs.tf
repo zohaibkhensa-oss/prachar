@@ -193,7 +193,7 @@ resource "aws_ecs_task_definition" "api" {
       environment = [
         { name = "ENVIRONMENT", value = var.environment },
         { name = "DATABASE_URL", value = "postgresql+asyncpg://prachar_admin:${random_password.db_password.result}@${aws_db_instance.main.address}:5432/prachar" },
-        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0" },
+        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0?ssl_cert_reqs=CERT_NONE" },
         { name = "S3_ENDPOINT", value = "https://s3.${var.aws_region}.amazonaws.com" },
         { name = "S3_BUCKET", value = aws_s3_bucket.storage.bucket },
         { name = "AWS_REGION", value = var.aws_region },
@@ -349,7 +349,7 @@ resource "aws_ecs_task_definition" "worker" {
       environment = [
         { name = "ENVIRONMENT", value = var.environment },
         { name = "DATABASE_URL", value = "postgresql+asyncpg://prachar_admin:${random_password.db_password.result}@${aws_db_instance.main.address}:5432/prachar" },
-        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0" },
+        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0?ssl_cert_reqs=CERT_NONE" },
         { name = "S3_ENDPOINT", value = "https://s3.${var.aws_region}.amazonaws.com" },
         { name = "S3_BUCKET", value = aws_s3_bucket.storage.bucket },
         { name = "AWS_REGION", value = var.aws_region },
@@ -435,7 +435,7 @@ resource "aws_ecs_task_definition" "beat" {
       environment = [
         { name = "ENVIRONMENT", value = var.environment },
         { name = "DATABASE_URL", value = "postgresql+asyncpg://prachar_admin:${random_password.db_password.result}@${aws_db_instance.main.address}:5432/prachar" },
-        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0" },
+        { name = "REDIS_URL", value = "rediss://:${random_password.redis_token.result}@${aws_elasticache_replication_group.main.primary_endpoint_address}:6379/0?ssl_cert_reqs=CERT_NONE" },
         { name = "S3_ENDPOINT", value = "https://s3.${var.aws_region}.amazonaws.com" },
         { name = "S3_BUCKET", value = aws_s3_bucket.storage.bucket },
         { name = "AWS_REGION", value = var.aws_region },
