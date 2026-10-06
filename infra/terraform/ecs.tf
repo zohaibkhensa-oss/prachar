@@ -223,7 +223,7 @@ resource "aws_ecs_task_definition" "api" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+        command     = ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)\" || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
@@ -589,7 +589,7 @@ resource "aws_ecs_task_definition" "web" {
       }
 
       healthCheck = {
-        command     = ["CMD-SHELL", "curl -f http://localhost:3002/ || exit 1"]
+        command     = ["CMD-SHELL", "node -e \"fetch('http://localhost:3002/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\" || exit 1"]
         interval    = 30
         timeout     = 5
         retries     = 3
