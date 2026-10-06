@@ -6,7 +6,8 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt as _bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError
 from prachar_shared.config import get_settings
 
 
@@ -55,7 +56,7 @@ def create_token(sub: str | uuid.UUID, kind: str = "access", extra: dict[str, An
 def decode_token(token: str, kind: str = "access") -> dict[str, Any]:
     try:
         payload = jwt.decode(token, _secret(kind), algorithms=["HS256"])
-    except JWTError as exc:
+    except PyJWTError as exc:
         raise ValueError(f"invalid token: {exc}") from exc
     if payload.get("typ") != kind:
         raise ValueError("wrong token type")

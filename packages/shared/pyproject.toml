@@ -15,7 +15,9 @@ dependencies = [
     "openai",
     "httpx",
     "sqlalchemy>=2",
-    "cryptography",
+    "cryptography>=50.0.0",
+    # transitive via boto3/requests — pin above PYSEC-2026-4175/76/77 fixes
+    "urllib3>=2.8.0",
 ]
 
 [project.optional-dependencies]

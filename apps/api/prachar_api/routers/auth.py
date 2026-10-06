@@ -71,18 +71,17 @@ def _make_action_token(user_id: uuid.UUID, action: str, ttl_hours: int = 24) -> 
         "typ": action,  # "email_verify" or "password_reset"
     }
     s = get_settings()
-    from jose import jwt as _jwt
+    import jwt as _jwt
     return _jwt.encode(payload, s.jwt_secret, algorithm="HS256")
 
 
 def _decode_action_token(token: str, expected_action: str) -> uuid.UUID:
     """Decode and validate an action token. Returns user_id."""
-    from jose import JWTError
-    from jose import jwt as _jwt
+    import jwt as _jwt
     s = get_settings()
     try:
         payload = _jwt.decode(token, s.jwt_secret, algorithms=["HS256"])
-    except JWTError as exc:
+    except _jwt.PyJWTError as exc:
         raise ValueError(f"invalid token: {exc}") from exc
     if payload.get("typ") != expected_action:
         raise ValueError("wrong token type")
@@ -425,8 +424,7 @@ async def _verify_google_token(token: str) -> dict:
 async def _verify_apple_token(token: str, full_name: str | None = None) -> dict:
     """Verify an Apple Sign-In identity token (JWT) using Apple's public keys."""
     import httpx
-    from jose import JWTError
-    from jose import jwt as _jwt
+    import jwt as _jwt
 
     # Fetch Apple's public keys
     async with httpx.AsyncClient(timeout=10) as client:
@@ -459,7 +457,7 @@ async def _verify_apple_token(token: str, full_name: str | None = None) -> dict:
                 "full_name": full_name or "",
                 "avatar_url": "",
             }
-        except (JWTError, Exception):
+        except Exception:
             continue
 
     raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid Apple token")
