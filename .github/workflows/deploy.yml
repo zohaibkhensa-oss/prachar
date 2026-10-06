@@ -168,16 +168,21 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.4"
+
       - name: Terraform Apply (staging)
+        # Build image URIs inline — job outputs containing secrets get masked
         run: |
           cd infra/terraform
           terraform init
           terraform apply -auto-approve \
             -var-file="terraform.tfvars.dev" \
             -var="environment=staging" \
-            -var="ecr_api_image=${{ needs.build.outputs.api_image }}" \
-            -var="ecr_web_image=${{ needs.build.outputs.web_image }}" \
-            -var="ecr_worker_image=${{ needs.build.outputs.worker_image }}"
+            -var="ecr_api_image=${{ secrets.ECR_REGISTRY }}/prachar/api:${{ github.sha }}" \
+            -var="ecr_web_image=${{ secrets.ECR_REGISTRY }}/prachar/web:${{ github.sha }}" \
+            -var="ecr_worker_image=${{ secrets.ECR_REGISTRY }}/prachar/worker:${{ github.sha }}"
 
       - name: Run migrations
         run: |
@@ -219,16 +224,21 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
 
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.16.4"
+
       - name: Terraform Apply (production)
+        # Build image URIs inline — job outputs containing secrets get masked
         run: |
           cd infra/terraform
           terraform init
           terraform apply -auto-approve \
             -var-file="terraform.tfvars.prod" \
             -var="environment=production" \
-            -var="ecr_api_image=${{ needs.build.outputs.api_image }}" \
-            -var="ecr_web_image=${{ needs.build.outputs.web_image }}" \
-            -var="ecr_worker_image=${{ needs.build.outputs.worker_image }}"
+            -var="ecr_api_image=${{ secrets.ECR_REGISTRY }}/prachar/api:${{ github.sha }}" \
+            -var="ecr_web_image=${{ secrets.ECR_REGISTRY }}/prachar/web:${{ github.sha }}" \
+            -var="ecr_worker_image=${{ secrets.ECR_REGISTRY }}/prachar/worker:${{ github.sha }}"
 
       - name: Run migrations
         run: |
