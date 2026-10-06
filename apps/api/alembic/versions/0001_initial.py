@@ -330,7 +330,7 @@ def upgrade() -> None:
         """
         CREATE OR REPLACE FUNCTION auth_lookup(p_email TEXT)
         RETURNS TABLE (id uuid, tenant_id uuid, pw_hash text, role text, is_active boolean)
-        LANGUAGE sql SECURITY DEFINER SET search_path = public, row_security = off AS $$
+        LANGUAGE sql SECURITY DEFINER SET search_path = public SET row_security = off AS $$
           SELECT id, tenant_id, pw_hash, role::text, is_active
           FROM users WHERE email = p_email LIMIT 1;
         $$;
