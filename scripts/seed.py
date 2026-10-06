@@ -20,10 +20,10 @@ async def main() -> None:
         if tenant is not None:
             # Tenant exists — check if the demo user already exists
             res2 = await session.execute(
-                text("SELECT id FROM users WHERE email = 'demo@prachar.app' LIMIT 1")
+                text("SELECT id FROM users WHERE email = 'demo@curvai.org' LIMIT 1")
             )
             if res2.fetchone() is not None:
-                print(f"Demo user already exists: demo@prachar.app (pw: prachar123)")
+                print(f"Demo user already exists: demo@curvai.org (pw: prachar123)")
                 return
             print(f"Demo tenant exists: {tenant.id} — creating demo user...")
         else:
@@ -37,17 +37,17 @@ async def main() -> None:
         # Create user if missing
         from sqlalchemy import text as _text
         existing = await session.execute(
-            _text("SELECT id FROM users WHERE email = 'demo@prachar.app' LIMIT 1")
+            _text("SELECT id FROM users WHERE email = 'demo@curvai.org' LIMIT 1")
         )
         if existing.fetchone() is None:
             user = User(
                 tenant_id=tenant.id,
-                email="demo@prachar.app",
+                email="demo@curvai.org",
                 role=Role.owner,
                 pw_hash=hash_password("prachar123"),
             )
             session.add(user)
-            print("  + Created demo user: demo@prachar.app")
+            print("  + Created demo user: demo@curvai.org")
         else:
             print("  = User already exists")
 
@@ -86,12 +86,12 @@ async def main() -> None:
                 action="seed",
                 entity_type="tenant",
                 entity_id=str(tenant.id),
-                payload={"demo_user": "demo@prachar.app", "brand": "Acme Coffee Co."},
+                payload={"demo_user": "demo@curvai.org", "brand": "Acme Coffee Co."},
             )
         )
         await session.commit()
         print(f"\n✅ Demo credentials ready:")
-        print(f"   Email: demo@prachar.app")
+        print(f"   Email: demo@curvai.org")
         print(f"   Password: prachar123")
 
 
