@@ -44,9 +44,10 @@ async def _push_progress(job_id: uuid.UUID, msg: str) -> None:
     try:
         import redis.asyncio as aioredis
         from prachar_shared.config import get_settings
+        from prachar_shared.redis_utils import normalize_redis_url
 
         url = get_settings().redis_url
-        client = aioredis.from_url(url, decode_responses=True)
+        client = aioredis.from_url(normalize_redis_url(url), decode_responses=True)
         try:
             await client.rpush(f"audit:{job_id}:progress", msg)
             await client.expire(f"audit:{job_id}:progress", 7 * 24 * 3600)

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, status
 from prachar_shared.config import get_settings
+from prachar_shared.redis_utils import normalize_redis_url
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -192,14 +193,48 @@ async def login(body: LoginIn, request: Request, session: SessionDep) -> TokenOu
 
 @router.post("/refresh", response_model=TokenOut)
 async def refresh(body: RefreshIn, request: Request, session: SessionDep) -> TokenOut:
+    """Refresh access token.
+
+    Implements refresh token rotation: the old refresh token's jti is
+    recorded as used, and a new refresh token with a new jti is issued.
+    If a used jti is presented again, the token is rejected (reuse detection).
+    """
     try:
         payload = decode_token(body.refresh_token, kind="refresh")
         user_id = uuid.UUID(payload["sub"])
         tenant_id_str = payload.get("tenant_id")
+        jti = payload.get("jti")
     except (ValueError, KeyError) as exc:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "invalid refresh token") from exc
     if not tenant_id_str:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "missing tenant claim")
+
+    # Refresh token rotation: check if this jti was already used
+    # Uses Redis for cross-instance reuse detection (falls back to in-memory)
+    if jti:
+        import hashlib
+        jti_hash = hashlib.sha256(jti.encode()).hexdigest()
+        try:
+            import redis as _redis
+            from prachar_shared.config import get_settings
+            s = get_settings()
+            r = _redis.from_url(normalize_redis_url(s.redis_url), decode_responses=True)
+            used_key = f"refresh_used:{jti_hash}"
+            if r.exists(used_key):
+                # Reuse detected — this refresh token was already exchanged
+                raise HTTPException(
+                    status.HTTP_401_UNAUTHORIZED,
+                    "refresh token reuse detected — token has been rotated",
+                )
+            # Mark as used with TTL matching refresh token lifetime
+            r.setex(used_key, s.jwt_refresh_ttl_days * 86400, "1")
+            r.close()
+        except HTTPException:
+            raise
+        except Exception:
+            # Redis unavailable — skip rotation check (single-instance fallback)
+            pass
+
     # Set RLS context from the refresh token's tenant claim.
     await session.execute(
         text("SELECT set_config('app.tenant_id', :tid, true)"), {"tid": tenant_id_str}

@@ -28,6 +28,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import redis
+from prachar_shared.redis_utils import normalize_redis_url
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,7 @@ def send_to_dlq(
     try:
         from prachar_workers.db import _settings
 
-        client = redis.Redis.from_url(_settings().redis_url, decode_responses=True)
+        client = redis.Redis.from_url(normalize_redis_url(_settings().redis_url), decode_responses=True)
         entry = {
             "task_name": task_name,
             "task_id": task_id,
@@ -125,7 +126,7 @@ class IdempotencyGuard:
         if self._client is None:
             from prachar_workers.db import _settings
 
-            self._client = redis.Redis.from_url(_settings().redis_url, decode_responses=True)
+            self._client = redis.Redis.from_url(normalize_redis_url(_settings().redis_url), decode_responses=True)
         return self._client
 
     @staticmethod
@@ -169,7 +170,7 @@ def update_progress(task: Any, step: str, current: int, total: int, message: str
     try:
         from prachar_workers.db import _settings
 
-        client = redis.Redis.from_url(_settings().redis_url, decode_responses=True)
+        client = redis.Redis.from_url(normalize_redis_url(_settings().redis_url), decode_responses=True)
         task_id = task.request.id if hasattr(task, "request") else str(task)
         progress = {
             "step": step,
@@ -196,7 +197,7 @@ def get_progress(task_id: str) -> dict[str, Any] | None:
     try:
         from prachar_workers.db import _settings
 
-        client = redis.Redis.from_url(_settings().redis_url, decode_responses=True)
+        client = redis.Redis.from_url(normalize_redis_url(_settings().redis_url), decode_responses=True)
         data = client.get(f"progress:{task_id}")
         return json.loads(data) if data else None
     except Exception:

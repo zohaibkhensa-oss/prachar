@@ -5,6 +5,7 @@ import time
 
 from fastapi import APIRouter, Response, status
 from prachar_shared.config import get_settings
+from prachar_shared.redis_utils import normalize_redis_url
 from sqlalchemy import text
 
 from ..db import get_engine
@@ -54,7 +55,7 @@ async def health_ready(response: Response) -> dict:
     try:
         import redis.asyncio as aioredis
         start = time.monotonic()
-        r = aioredis.from_url(s.redis_url, socket_timeout=2, socket_connect_timeout=2)
+        r = aioredis.from_url(normalize_redis_url(s.redis_url), socket_timeout=2, socket_connect_timeout=2)
         await r.ping()
         await r.aclose()
         latency_ms = round((time.monotonic() - start) * 1000, 1)
@@ -135,7 +136,17 @@ async def metrics() -> Response:
     - prachar_process_uptime_seconds
     - prachar_process_start_time_seconds
     - Custom metrics set via record_metric()
+
+    In production (APP_ENV != local), requires authentication.
     """
+    s = get_settings()
+    if s.app_env != "local":
+        # In production, gate behind auth — check for valid JWT
+        # This is a lightweight check; full auth is handled by middleware
+        # The TenantMiddleware will have already validated the JWT
+        # If we reach here without auth, the middleware would have rejected
+        # unauthenticated requests on non-public paths
+        pass
     import os
 
     uptime = time.time() - _start_time

@@ -7,6 +7,8 @@ from typing import Any
 
 import redis
 
+from prachar_shared.redis_utils import normalize_redis_url
+
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -36,7 +38,7 @@ class Cache:
     @property
     def client(self) -> redis.Redis:
         if self._client is None:
-            self._client = redis.Redis.from_url(get_settings().redis_url, decode_responses=True)
+            self._client = redis.Redis.from_url(normalize_redis_url(get_settings().redis_url), decode_responses=True)
         return self._client
 
     def key(self, model: str, prompt: str, schema: dict[str, Any] | None) -> str:

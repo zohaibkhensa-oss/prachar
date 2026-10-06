@@ -120,8 +120,9 @@ def check_idempotency(key: str) -> bool:
     try:
         import redis
         from prachar_shared.config import get_settings
+        from prachar_shared.redis_utils import normalize_redis_url
 
-        r = redis.from_url(get_settings().redis_url, decode_responses=True)
+        r = redis.from_url(normalize_redis_url(get_settings().redis_url), decode_responses=True)
         result = r.set(f"idem:{key}", "1", ex=86400, nx=True)  # 24h TTL
         return bool(result)
     except Exception:

@@ -85,12 +85,13 @@ async def audit_events_sse(job_id: uuid.UUID, request: Request) -> StreamingResp
     We poll that list + the DB status until the job completes or client disconnects."""
     import redis.asyncio as aioredis
     from prachar_shared.config import get_settings
+    from prachar_shared.redis_utils import normalize_redis_url
 
     async def _event_stream():
         settings = get_settings()
         redis = None
         with contextlib.suppress(Exception):
-            redis = aioredis.from_url(settings.redis_url, decode_responses=True)
+            redis = aioredis.from_url(normalize_redis_url(settings.redis_url), decode_responses=True)
 
         last_status = None
         last_line_idx = 0

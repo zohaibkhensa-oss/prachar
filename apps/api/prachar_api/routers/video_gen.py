@@ -20,6 +20,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from prachar_shared.config import get_settings
+from prachar_shared.redis_utils import normalize_redis_url
 from pydantic import BaseModel
 
 from ..deps import CurrentUser, SessionDep
@@ -170,11 +171,12 @@ async def generate_video(
     """Generate a real AI video from a text prompt.
 
     Provider priority (cost-optimized):
-      - preview/standard: Kling 2.5 Turbo via fal.ai ($0.07/s, 720p + audio) — DEFAULT
-      - standard (premium): Gemini Veo 3.1 ($0.08-0.40/s, 1080p + audio) — if Gemini key set
-      - image-to-video: Gemini Veo (only Veo supports image input)
+      - DEFAULT: Wan 3.0 via fal.ai ($0.12/s, 1080p + audio)
+      - FALLBACK: Gemini Veo 3.1 ($0.08-0.40/s, 1080p + audio)
 
-    Fallback chain: Kling (fal.ai) → Gemini Veo
+    NOTE: This endpoint blocks until generation completes (up to 600s).
+    For long-running generation, use POST /video/generate-async instead,
+    which dispatches to a Celery worker and returns a job ID immediately.
     """
     from prachar_shared.plans import get_plan
 
@@ -259,6 +261,77 @@ async def generate_video(
         status_code=500,
         detail="No video generation service configured. Set GEMINI_API_KEY (recommended) or FAL_KEY in .env",
     )
+
+
+# ─── Async video generation (Celery) ─────────────────────────────────────────
+
+class AsyncVideoGenResponse(BaseModel):
+    job_id: str
+    status: str = "pending"
+    message: str = "Video generation dispatched to worker"
+
+
+@router.post("/generate-async", response_model=AsyncVideoGenResponse)
+async def generate_video_async(
+    req: VideoGenRequest,
+    user: CurrentUser,
+    session: SessionDep,
+) -> AsyncVideoGenResponse:
+    """Submit a video generation job to the Celery worker.
+
+    Returns immediately with a job_id. Poll GET /video/jobs/{job_id} for status.
+    This avoids blocking the HTTP request for up to 600 seconds.
+    """
+    import uuid as _uuid
+    try:
+        from prachar_workers.tasks import generate_video_task
+    except ImportError:
+        # Workers not installed — fall back to sync generation
+        raise HTTPException(
+            status_code=503,
+            detail="Async video generation requires the worker package. Use POST /video/generate instead.",
+        ) from None
+
+    job_id = str(_uuid.uuid4())
+    task = generate_video_task.delay(
+        job_id=job_id,
+        tenant_id=str(user.tenant_id),
+        user_id=str(user.id),
+        prompt=req.prompt,
+        quality=req.quality,
+        duration=str(req.duration),
+        resolution=req.resolution,
+        aspect_ratio=req.aspect_ratio,
+        video_type=req.video_type,
+        with_audio=req.with_audio,
+        image_base64=req.image_base64,
+        model=req.model,
+    )
+    log.info("Async video job dispatched: job_id=%s task_id=%s", job_id, task.id)
+    return AsyncVideoGenResponse(job_id=job_id, status="pending")
+
+
+@router.get("/jobs/{job_id}")
+async def get_video_job_status(job_id: str, user: CurrentUser) -> dict:
+    """Get the status of an async video generation job."""
+    try:
+        import redis as _redis
+        from prachar_shared.config import get_settings
+        s = get_settings()
+        r = _redis.from_url(normalize_redis_url(s.redis_url), decode_responses=True)
+        key = f"video_job:{job_id}"
+        data = r.hgetall(key)
+        r.close()
+        if not data:
+            raise HTTPException(status_code=404, detail="job not found")
+        # Verify tenant owns this job
+        if data.get("tenant_id") != str(user.tenant_id):
+            raise HTTPException(status_code=403, detail="job does not belong to your tenant")
+        return data
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to query job: {str(e)[:200]}") from e
 
 
 # ─── Image generation endpoint ──────────────────────────────────────────────
