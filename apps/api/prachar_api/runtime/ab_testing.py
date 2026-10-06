@@ -24,7 +24,6 @@ import logging
 import math
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import Any
 
 log = logging.getLogger("prachar.runtime.ab_testing")
@@ -124,8 +123,8 @@ OUTPUT (JSON array of {num_variants} objects):
                     url = result.image_url
                     model = result.model
                 else:
-                    from ..routers.video_gen import _call_fal_video, VideoGenRequest
                     from ..config import get_settings
+                    from ..routers.video_gen import VideoGenRequest, _call_fal_video
                     fal_key = get_settings().fal_key.strip()
                     if fal_key:
                         req = VideoGenRequest(prompt=variant_prompt, duration="5")
@@ -168,9 +167,11 @@ OUTPUT (JSON array of {num_variants} objects):
 
     # Audit the test creation
     try:
-        from sqlalchemy import text
-        from ..db import get_session_factory
         import json
+
+        from sqlalchemy import text
+
+        from ..db import get_session_factory
 
         async with get_session_factory() as session:
             await session.execute(
@@ -283,9 +284,11 @@ async def promote_winner(
         return {"status": "no_significant_winner"}
 
     try:
-        from sqlalchemy import text
-        from ..db import get_session_factory
         import json
+
+        from sqlalchemy import text
+
+        from ..db import get_session_factory
 
         async with get_session_factory() as session:
             await session.execute(

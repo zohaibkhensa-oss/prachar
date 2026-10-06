@@ -9,8 +9,8 @@ import asyncio
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, TYPE_CHECKING
+from datetime import UTC, datetime
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,12 +22,12 @@ from ..models import (
     Billing,
     Brand,
     BusinessMemoryRecord,
-    Connection,
     CampaignPlanRecord,
-    User,
+    Connection,
     Tenant,
+    User,
 )
-from .memory_categories import MemoryCategory, MemoryEntry, MemoryStore
+from .memory_categories import MemoryEntry, MemoryStore
 
 log = logging.getLogger("prachar.runtime.context")
 
@@ -312,7 +312,7 @@ async def assemble_context(
         ctx.conversation.append(ConversationMessage(
             role="user",
             content=message,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         ))
 
     # Load active campaign if specified

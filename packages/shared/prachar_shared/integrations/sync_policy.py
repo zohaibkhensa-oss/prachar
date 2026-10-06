@@ -17,12 +17,12 @@ Each mode has configurable parameters (interval, batch size, schedule expression
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 
-class SyncMode(str, Enum):
+class SyncMode(StrEnum):
     """How an integration syncs data."""
     REALTIME = "realtime"     # Webhook-driven, immediate processing
     WEBHOOK = "webhook"       # Webhook-driven, batched processing
@@ -89,7 +89,7 @@ class SyncPolicy:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
-    def default_for(cls, integration: str, category: str) -> "SyncPolicy":
+    def default_for(cls, integration: str, category: str) -> SyncPolicy:
         """Create a default sync policy for an integration based on its category."""
         mode = DEFAULT_SYNC_MODES.get(category, SyncMode.MANUAL)
         interval = DEFAULT_POLL_INTERVALS.get(category, 3600)
@@ -120,7 +120,7 @@ class SyncPolicy:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SyncPolicy":
+    def from_dict(cls, data: dict[str, Any]) -> SyncPolicy:
         """Reconstruct from a dict (e.g. from DB JSON column)."""
         def _parse_dt(v: str | None) -> datetime | None:
             if not v:
@@ -152,7 +152,7 @@ class SyncPolicy:
 
     def record_success(self, synced_count: int = 0) -> None:
         """Record a successful sync."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.last_sync_at = now
         self.last_successful_sync_at = now
         self.last_error = ""
@@ -162,7 +162,7 @@ class SyncPolicy:
 
     def record_failure(self, error: str) -> None:
         """Record a failed sync."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.last_sync_at = now
         self.last_failed_sync_at = now
         self.last_error = error
@@ -171,7 +171,7 @@ class SyncPolicy:
 
     def should_sync(self, now: datetime | None = None) -> bool:
         """Check if a sync should happen now based on the policy."""
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
 
         if self.mode == SyncMode.DISABLED:
             return False
@@ -207,7 +207,7 @@ class SyncPolicy:
             return None
 
         if not self.last_sync_at:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
 
         if self.mode == SyncMode.POLLING:
             return self.last_sync_at + timedelta(seconds=self.poll_interval_seconds)

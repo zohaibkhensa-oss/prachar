@@ -2,20 +2,29 @@
 governance, attribution, workspace isolation, and API endpoints."""
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
-
 from prachar_shared.knowledge import (
+    AttributionRecord,
+    AttributionTracker,
     # Document processing
-    DocumentProcessor, ParsedPage, ProcessingResult, TextChunk,
+    DocumentProcessor,
     # Vector store
-    EmbeddingGenerator, KnowledgeSearcher, SearchResult, VectorStore, cosine_similarity,
+    EmbeddingGenerator,
     # Governance
-    GovernanceChecker, GovernanceMetadata, KnowledgeLevel, KnowledgeLevelClassifier,
-    # Attribution
-    SourceCitation, AttributionRecord, AttributionTracker, WorkspaceKnowledgeFilter,
+    GovernanceChecker,
+    GovernanceMetadata,
+    KnowledgeLevel,
+    KnowledgeLevelClassifier,
+    KnowledgeSearcher,
+    ParsedPage,
+    ProcessingResult,
+    SourceCitation,
+    VectorStore,
+    WorkspaceKnowledgeFilter,
+    cosine_similarity,
 )
-
 
 # ─── Document Processing Tests ──────────────────────────────────────────────
 
@@ -299,7 +308,7 @@ class TestGovernanceChecker:
         checker = GovernanceChecker()
         gm = GovernanceMetadata(
             source="upload",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         )
         assert checker.is_current(gm) is True
 
@@ -307,7 +316,7 @@ class TestGovernanceChecker:
         checker = GovernanceChecker()
         gm = GovernanceMetadata(
             source="upload",
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
         assert checker.is_expired(gm) is True
         assert checker.is_current(gm) is False
@@ -326,7 +335,7 @@ class TestGovernanceChecker:
         checker = GovernanceChecker()
         gm = GovernanceMetadata(
             source="upload", confidence=0.9,
-            expires_at=datetime.now(timezone.utc) - timedelta(days=1),
+            expires_at=datetime.now(UTC) - timedelta(days=1),
         )
         assert checker.should_use(gm, user_id="user1") is False
 
@@ -346,14 +355,14 @@ class TestGovernanceChecker:
         expiry = checker.recommended_expiry(KnowledgeLevel.business)
         assert expiry is not None
         # Should be about 365 days from now
-        delta = expiry - datetime.now(timezone.utc)
+        delta = expiry - datetime.now(UTC)
         assert 360 < delta.days < 370
 
     def test_recommended_expiry_live(self):
         checker = GovernanceChecker()
         expiry = checker.recommended_expiry(KnowledgeLevel.live)
         assert expiry is not None
-        delta = expiry - datetime.now(timezone.utc)
+        delta = expiry - datetime.now(UTC)
         assert 5 < delta.days < 10
 
     def test_private_permissions_owner_only(self):

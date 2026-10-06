@@ -11,7 +11,6 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded, Completion
 from prachar_shared.marketing_intelligence.ab_concepts import (
     ABConcept,
@@ -368,5 +367,5 @@ class TestGenerateABConcepts:
         labels_by_dir: dict[str, list[str]] = {}
         for c in concepts:
             labels_by_dir.setdefault(c.direction_id, []).append(c.variant_label)
-        for dir_id, labels in labels_by_dir.items():
+        for _dir_id, labels in labels_by_dir.items():
             assert sorted(labels) == ["A", "B"]

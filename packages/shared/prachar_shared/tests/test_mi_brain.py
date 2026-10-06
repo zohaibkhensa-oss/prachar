@@ -5,7 +5,6 @@ import uuid
 from typing import Any
 
 import pytest
-
 from prachar_shared.ai_gateway import Completion
 from prachar_shared.marketing_intelligence import (
     BusinessMemory,
@@ -13,7 +12,6 @@ from prachar_shared.marketing_intelligence import (
     CampaignBrain,
     FullCampaign,
 )
-from prachar_shared.marketing_intelligence.base import EngineOutput
 
 
 class _StubGateway:

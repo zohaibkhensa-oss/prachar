@@ -24,7 +24,7 @@ Run with:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -38,8 +38,8 @@ from prachar_workers.performance import (
     YOUTUBE_METRIC_MAP,
     PerformanceStore,
     aggregate_events,
-    ingest_google_ads_metrics,
     ingest_gbp_metrics,
+    ingest_google_ads_metrics,
     ingest_linkedin_metrics,
     ingest_meta_metrics,
     ingest_whatsapp_metrics,
@@ -47,7 +47,6 @@ from prachar_workers.performance import (
     pull_for_campaign,
     run_pull,
 )
-
 
 # ─── Fakes (mirror test_performance.py) ────────────────────────────────────────
 

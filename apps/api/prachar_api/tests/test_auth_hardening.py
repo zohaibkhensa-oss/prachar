@@ -30,9 +30,9 @@ from prachar_shared.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()
 
-from prachar_api.main import app  # noqa: E402
-from prachar_api.routers.auth import _make_action_token, _decode_action_token  # noqa: E402
 from prachar_api import rate_limit  # noqa: E402
+from prachar_api.main import app  # noqa: E402
+from prachar_api.routers.auth import _decode_action_token, _make_action_token  # noqa: E402
 
 
 @pytest.fixture
@@ -250,7 +250,7 @@ class TestRateLimiting:
     async def test_login_rate_limit(self, client: AsyncClient):
         """After 10 failed login attempts in a minute, should get 429."""
         email = f"ratelimit-{uuid.uuid4().hex[:8]}@test.com"
-        for i in range(10):
+        for _i in range(10):
             res = await client.post("/auth/login", json={
                 "email": email,
                 "password": "wrongpass",
@@ -287,7 +287,7 @@ class TestRateLimiting:
         """Successful login clears the rate limit counter."""
         tok = await _register(client)
         # Make 5 failed attempts (under the limit of 10)
-        for i in range(5):
+        for _i in range(5):
             await client.post("/auth/login", json={
                 "email": tok["user"]["email"],
                 "password": "wrongpass",
@@ -299,7 +299,7 @@ class TestRateLimiting:
         })
         assert res.status_code == 200
         # Should be able to make more attempts (rate limit was reset)
-        for i in range(5):
+        for _i in range(5):
             res = await client.post("/auth/login", json={
                 "email": tok["user"]["email"],
                 "password": "wrongpass",

@@ -41,9 +41,8 @@ import base64
 import hashlib
 import logging
 import os
-import secrets as pysecrets
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 log = logging.getLogger("prachar.integrations.secrets")
@@ -65,20 +64,20 @@ class CredentialBundle:
     # Additional metadata (e.g. Shopify shop domain, Mailchimp DC)
     metadata: dict[str, Any] = field(default_factory=dict)
     # When these credentials were stored
-    stored_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    stored_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def is_expired(self, now: datetime | None = None) -> bool:
         """Check if the access token has expired."""
         if not self.expires_at:
             return False  # No expiry = permanent (e.g. Shopify tokens)
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         return now >= self.expires_at
 
     def expires_within(self, hours: int = 24, now: datetime | None = None) -> bool:
         """Check if the token will expire within the given hours."""
         if not self.expires_at:
             return False
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         threshold = now + timedelta(hours=hours)
         return self.expires_at <= threshold
 
@@ -86,7 +85,7 @@ class CredentialBundle:
         """Time remaining until token expires. None if no expiry."""
         if not self.expires_at:
             return None
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         return self.expires_at - now
 
     def to_dict(self, include_tokens: bool = False) -> dict[str, Any]:
@@ -111,7 +110,7 @@ class CredentialBundle:
 @dataclass
 class RefreshRecord:
     """A single token refresh attempt."""
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     success: bool = False
     error: str = ""
     old_expiry: datetime | None = None
@@ -141,7 +140,7 @@ class ConnectionHealthRecord:
 
     def record_sync(self, success: bool, error: str = "") -> None:
         """Record a sync attempt."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.total_syncs += 1
         if success:
             self.successful_syncs += 1
@@ -156,7 +155,7 @@ class ConnectionHealthRecord:
                        old_expiry: datetime | None = None,
                        new_expiry: datetime | None = None) -> None:
         """Record a token refresh attempt."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         self.last_refreshed_at = now
         self.refresh_history.append(RefreshRecord(
             timestamp=now,
@@ -304,7 +303,7 @@ class SecretsVault:
                 expires_at=datetime.fromisoformat(data["expires_at"]) if data.get("expires_at") else None,
                 scopes=data.get("scopes", []),
                 metadata=data.get("metadata", {}),
-                stored_at=datetime.fromisoformat(data["stored_at"]) if data.get("stored_at") else datetime.now(timezone.utc),
+                stored_at=datetime.fromisoformat(data["stored_at"]) if data.get("stored_at") else datetime.now(UTC),
             )
         except Exception as e:
             log.error("Failed to decrypt credentials for %s: %s", connection_id, e)

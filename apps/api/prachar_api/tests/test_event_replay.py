@@ -15,7 +15,7 @@ import asyncio
 import os
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
@@ -39,14 +39,13 @@ from sqlalchemy import text  # noqa: E402
 from prachar_api.db import get_sessionmaker  # noqa: E402
 from prachar_api.models import Tenant  # noqa: E402
 from prachar_api.models.tables import RuntimeEventRecord  # noqa: E402
-from prachar_api.runtime.events import AIEvent, EventBus, OrbState  # noqa: E402
 from prachar_api.runtime.event_replay import (  # noqa: E402
     ReplayResult,
     get_session_events,
     persist_event,
     replay_session,
 )
-
+from prachar_api.runtime.events import AIEvent, EventBus, OrbState  # noqa: E402
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -120,7 +119,7 @@ def _make_event(
         orb_state=orb_state,
         tool=tool,
         decision_id=decision_id,
-        timestamp=timestamp or datetime.now(timezone.utc).isoformat(),
+        timestamp=timestamp or datetime.now(UTC).isoformat(),
         data={"key": "value"},
     )
 
@@ -212,7 +211,7 @@ class TestGetSessionEvents:
         """get_session_events returns events ordered by timestamp."""
         session, tenant_id = db_session
         sid = f"order-{uuid.uuid4().hex[:8]}"
-        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         events = [
             _make_event(sid, type="e.first", timestamp=base.isoformat()),
             _make_event(sid, type="e.second", timestamp=base.replace(second=5).isoformat()),
@@ -245,7 +244,7 @@ class TestReplaySession:
         """replay_session reconstructs orb state transitions."""
         session, tenant_id = db_session
         sid = f"orb-{uuid.uuid4().hex[:8]}"
-        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         events = [
             _make_event(sid, type="s.started", orb_state=OrbState.UNDERSTANDING.value,
                         tool=None, timestamp=base.isoformat()),
@@ -281,7 +280,7 @@ class TestReplaySession:
         """replay_session reconstructs tool executions."""
         session, tenant_id = db_session
         sid = f"tools-{uuid.uuid4().hex[:8]}"
-        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         events = [
             _make_event(sid, type="tool.started", phase="started",
                         tool="campaign_brain.analyse",
@@ -310,7 +309,7 @@ class TestReplaySession:
         """replay_session computes duration between first and last event."""
         session, tenant_id = db_session
         sid = f"dur-{uuid.uuid4().hex[:8]}"
-        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+        base = datetime(2026, 1, 1, 12, 0, 0, tzinfo=UTC)
         await persist_event(session, tenant_id,
             _make_event(sid, timestamp=base.isoformat()))
         await persist_event(session, tenant_id,

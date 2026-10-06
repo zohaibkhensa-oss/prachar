@@ -8,8 +8,8 @@ Backward compatibility: PostgresMemoryRepository and PostgresCouncilRepository
 are re-exported here so existing imports (`from ..infrastructure import ...`)
 continue to work.
 """
-from .consult_engine import ConsultEngine, ConsultResult, CampaignResult, ToolResult
-from ._memory_repos import PostgresMemoryRepository, PostgresCouncilRepository
+from ._memory_repos import PostgresCouncilRepository, PostgresMemoryRepository
+from .consult_engine import CampaignResult, ConsultEngine, ConsultResult, ToolResult
 
 __all__ = [
     "ConsultEngine",

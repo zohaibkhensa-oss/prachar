@@ -9,11 +9,9 @@ Flow:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
-import uuid
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from prachar_shared.ai_gateway import AIGateway, Tier, extract_json_or_raise
@@ -28,7 +26,7 @@ log = logging.getLogger("prachar.runtime.planner")
 # ─── Runtime Modes (Amendment 7) ────────────────────────────────────────────
 
 
-class RuntimeMode(str, Enum):
+class RuntimeMode(StrEnum):
     """The Planner changes behaviour based on mode."""
 
     CONVERSATION = "conversation"   # quick chat, no tools except chat.respond

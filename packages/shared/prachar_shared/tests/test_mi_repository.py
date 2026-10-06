@@ -11,8 +11,6 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-import pytest
-
 from prachar_shared.marketing_intelligence import (
     BusinessMemory,
     BusinessMemoryStore,

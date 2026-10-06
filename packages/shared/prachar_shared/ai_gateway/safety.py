@@ -189,11 +189,7 @@ def check_output_for_leaks(output: str, *, system_prompt: str = "") -> bool:
         r"change-me-jwt",
         r"change-me-refresh",
     ]
-    for pattern in secret_patterns:
-        if re.search(pattern, output, re.I):
-            return False
-
-    return True
+    return all(not re.search(pattern, output, re.I) for pattern in secret_patterns)
 
 
 # ─── Safe response for blocked inputs ─────────────────────────────────────────

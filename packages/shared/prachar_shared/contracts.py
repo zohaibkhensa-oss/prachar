@@ -126,7 +126,7 @@ class VisibilityScore(BaseModel):
         paid_efficiency: float,
         momentum: float,
         week: date,
-    ) -> "VisibilityScore":
+    ) -> VisibilityScore:
         weights = {
             "organic_rank_index": 0.35,
             "ai_citation_rate": 0.15,

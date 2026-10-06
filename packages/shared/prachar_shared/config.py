@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     app_name: str = "prachar"
     log_level: str = "INFO"
 
+    # CORS — comma-separated list of allowed origins.
+    # If empty, defaults to localhost dev origins.
+    cors_origins: str = ""
+
     database_url: str = ""
     redis_url: str = "redis://localhost:6379/0"
     # DB connection pool — tuned for production. When using PgBouncer, lower
@@ -36,7 +40,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     # Frontend URL for email links (verify, reset)
-    web_url: str = "http://localhost:3000"
+    web_url: str = "http://localhost:3002"
     # Rate limiting (requests per window per IP)
     rate_limit_register_per_hour: int = 5
     rate_limit_login_per_min: int = 10
@@ -178,6 +182,36 @@ class Settings(BaseSettings):
             "growth": self.ai_budget_growth_inr,
             "agency": self.ai_budget_agency_inr,
         }.get(plan, self.ai_budget_starter_inr)
+
+    def validate_production(self) -> list[str]:
+        """Return a list of production safety errors. Empty list = safe to start.
+
+        Called at startup when APP_ENV is 'staging' or 'production' to reject
+        placeholder secrets. Returns empty for 'local' and 'test' environments.
+        Never raises — returns error messages so the caller can log and exit.
+        """
+        if self.app_env in ("local", "test"):
+            return []
+
+        errors: list[str] = []
+
+        insecure_defaults = {
+            "jwt_secret": "change-me-jwt",
+            "jwt_refresh_secret": "change-me-refresh",
+            "token_enc_key": "change-me-32-byte-hex-key-please",
+        }
+        for field, bad_value in insecure_defaults.items():
+            value = getattr(self, field, "")
+            if value == bad_value or value.startswith("change-me"):
+                errors.append(f"{field} is set to a placeholder value — set a real secret in environment")
+
+        if not self.database_url or "localhost" in self.database_url:
+            errors.append("DATABASE_URL is not set or points to localhost")
+
+        if "localhost" in self.redis_url and self.app_env == "production":
+            errors.append("REDIS_URL points to localhost in production")
+
+        return errors
 
 
 @lru_cache(maxsize=1)

@@ -10,21 +10,21 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 from .context import AIContext
 
 
-class RiskLevel(str, Enum):
+class RiskLevel(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
 
 
-class DecisionStatus(str, Enum):
+class DecisionStatus(StrEnum):
     PENDING = "pending"
     APPROVED = "approved"
     EXECUTING = "executing"
@@ -44,7 +44,7 @@ class DecisionContract:
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     session_id: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     # The decision
     goal: str = ""                                # "Create Diwali Campaign"
@@ -104,7 +104,7 @@ class DecisionContract:
         user_explanation: str = "",
         health_warnings: list[str] | None = None,
         cost_breakdown: list[dict] | None = None,
-    ) -> "DecisionContract":
+    ) -> DecisionContract:
         """Create a Decision Contract from the Planner's output."""
         return cls(
             session_id=session_id,

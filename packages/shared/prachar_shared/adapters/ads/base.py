@@ -4,7 +4,14 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Any
 
-from ...contracts import AudienceSpec, CreativeAsset, MetricEvent, NativeTargeting, PolicyResult, TokenSet
+from ...contracts import (
+    AudienceSpec,
+    CreativeAsset,
+    MetricEvent,
+    NativeTargeting,
+    PolicyResult,
+    TokenSet,
+)
 
 
 class AdNetworkAdapter(ABC):

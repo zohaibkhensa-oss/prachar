@@ -12,13 +12,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from prachar_shared.marketing_intelligence.performance_engine import (
     BENCHMARKS,
     PerformanceEngine,
     PerformanceSummary,
 )
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
 

@@ -8,14 +8,10 @@ Tests that the Performance Engine produces rich, decision-oriented output:
 """
 from __future__ import annotations
 
-import asyncio
 from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from prachar_shared.marketing_intelligence.performance_engine import (
-    BENCHMARKS,
     PerformanceEngine,
 )
 
@@ -110,36 +106,60 @@ class TestRecommendIntelligence:
     async def test_recommend_returns_categorised(self):
         engine = PerformanceEngine(session_factory=lambda: None)
         data = _make_data(14)
-        with patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data):
-            with patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}):
-                result = await engine.recommend("test-campaign", 30)
+        with (
+
+            patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data),
+
+            patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}),
+
+        ):
+
+            result = await engine.recommend("test-campaign", 30)
         assert "categorised" in result
         assert isinstance(result["categorised"], dict)
 
     async def test_recommend_returns_quick_wins(self):
         engine = PerformanceEngine(session_factory=lambda: None)
         data = _make_data(14)
-        with patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data):
-            with patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": [{"cause": "creative_fatigue"}]}):
-                result = await engine.recommend("test-campaign", 30)
+        with (
+
+            patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data),
+
+            patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": [{"cause": "creative_fatigue"}]}),
+
+        ):
+
+            result = await engine.recommend("test-campaign", 30)
         assert "quick_wins" in result
         assert isinstance(result["quick_wins"], list)
 
     async def test_recommend_returns_opportunities(self):
         engine = PerformanceEngine(session_factory=lambda: None)
         data = _make_data(14)
-        with patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data):
-            with patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}):
-                result = await engine.recommend("test-campaign", 30)
+        with (
+
+            patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data),
+
+            patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}),
+
+        ):
+
+            result = await engine.recommend("test-campaign", 30)
         assert "opportunities" in result
         assert isinstance(result["opportunities"], list)
 
     async def test_recommend_returns_expected_business_impact(self):
         engine = PerformanceEngine(session_factory=lambda: None)
         data = _make_data(14)
-        with patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data):
-            with patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}):
-                result = await engine.recommend("test-campaign", 30)
+        with (
+
+            patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=data),
+
+            patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}),
+
+        ):
+
+            result = await engine.recommend("test-campaign", 30)
         assert "expected_business_impact" in result
         impact = result["expected_business_impact"]
         assert "estimated_revenue_lift" in impact
@@ -148,9 +168,15 @@ class TestRecommendIntelligence:
 
     async def test_recommend_empty_data_returns_note(self):
         engine = PerformanceEngine(session_factory=lambda: None)
-        with patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=[]):
-            with patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}):
-                result = await engine.recommend("test-campaign", 30)
+        with (
+
+            patch.object(engine, "_load_performance", new_callable=AsyncMock, return_value=[]),
+
+            patch.object(engine, "explain", new_callable=AsyncMock, return_value={"likely_causes": []}),
+
+        ):
+
+            result = await engine.recommend("test-campaign", 30)
         assert result["recommendations"] == []
         assert "note" in result
 

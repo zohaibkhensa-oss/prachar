@@ -12,10 +12,11 @@ import asyncio
 import json
 import logging
 import uuid
-from dataclasses import dataclass, field, asdict
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 log = logging.getLogger("prachar.runtime.events")
 
@@ -30,7 +31,7 @@ PersistCallback = Callable[["AIEvent"], Awaitable[None]]
 # ─── Orb State Machine (13 states, frozen) ──────────────────────────────────
 
 
-class OrbState(str, Enum):
+class OrbState(StrEnum):
     """The 13 orb states. Every event carries an orb_state.
 
     The frontend simply sets the orb to whatever state an event carries.
@@ -56,7 +57,7 @@ class OrbState(str, Enum):
 # ─── Event Phase ────────────────────────────────────────────────────────────
 
 
-class EventPhase(str, Enum):
+class EventPhase(StrEnum):
     """Lifecycle phase of an event."""
 
     STARTED = "started"
@@ -79,7 +80,7 @@ class AIEvent:
     session_id: str
     type: str                        # e.g. "campaign.analysis.completed"
     phase: str                       # "started" | "progress" | "completed" | ...
-    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    timestamp: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     decision_id: str | None = None   # links to Decision Contract
     tool: str | None = None          # which tool emitted this
     data: dict[str, Any] = field(default_factory=dict)
@@ -206,7 +207,7 @@ def make_artefact_event(
         session_id=session_id,
         type=f"artefact.{artefact.kind}",
         phase=EventPhase.COMPLETED.value,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         decision_id=decision_id,
         tool=tool,
         orb_state=OrbState.GENERATING.value,

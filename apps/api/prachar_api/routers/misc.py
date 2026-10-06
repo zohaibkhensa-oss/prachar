@@ -4,10 +4,10 @@ import shutil
 import time
 
 from fastapi import APIRouter, Response, status
+from prachar_shared.config import get_settings
 from sqlalchemy import text
 
 from ..db import get_engine
-from prachar_shared.config import get_settings
 
 router = APIRouter(tags=["meta"])
 

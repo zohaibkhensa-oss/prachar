@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import pytest
-
 from prachar_shared.locales import (
-    LocalePack,
     REGION_ROUTES,
     SUPPORTED_LOCALES,
+    LocalePack,
     channels_for_region,
     get_locale_pack,
 )

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import os
 import uuid
-from typing import Any
 
 import pytest
-
 from prachar_shared.ai_gateway import AIGateway, Completion, Tier
 from prachar_shared.ai_gateway.budget import BudgetGuard
 from prachar_shared.ai_gateway.cache import Cache

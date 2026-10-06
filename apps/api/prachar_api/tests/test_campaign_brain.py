@@ -5,12 +5,9 @@ Uses FastAPI TestClient with stub-mode AI (no API keys needed).
 from __future__ import annotations
 
 import uuid
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ─── DB model tests (no DB needed — just class structure) ───────────────────
 
@@ -76,7 +73,6 @@ def auth_headers(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> dict[st
     """Register + login to get auth token."""
     # Mock the DB session for auth
     # Use a unique email per test run
-    email = f"test_{uuid.uuid4().hex[:8]}@test.com"
     # We need to mock the DB — use the real test DB if available, else mock
     # For simplicity, we'll test the router logic without full DB
     # by mocking the session dependency
@@ -163,6 +159,7 @@ class TestSchemas:
 
     def test_full_campaign_request_requires_brand_id(self) -> None:
         from pydantic import ValidationError
+
         from prachar_api.routers.campaign_brain import FullCampaignRequest
         with pytest.raises(ValidationError):
             FullCampaignRequest(goal="test")  # missing brand_id

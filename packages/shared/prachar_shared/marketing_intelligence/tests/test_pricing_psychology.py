@@ -12,7 +12,6 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded, Completion
 from prachar_shared.domain_packs import register_all
 from prachar_shared.marketing_intelligence.pricing_psychology import (

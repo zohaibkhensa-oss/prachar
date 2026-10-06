@@ -5,31 +5,28 @@ artefacts in its result dict, so the conversation becomes a live workspace.
 """
 from __future__ import annotations
 
-import asyncio
 import uuid
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
-from prachar_api.runtime.artefacts import Artefact
 from prachar_api.runtime.context import AIContext
+from prachar_api.runtime.memory_categories import MemoryStore
 from prachar_api.runtime.tools import (
     campaign_brain_analyse,
-    campaign_brain_strategy,
     campaign_brain_creative,
-    campaign_brain_media,
     campaign_brain_full_campaign,
+    campaign_brain_media,
+    campaign_brain_strategy,
+    consult_understand,
     council_review,
     creative_studio_generate,
     creative_studio_generate_image,
+    memory_retrieve,
+    performance_next,
     performance_story,
     performance_why,
-    performance_next,
     proactive_notifications,
-    memory_retrieve,
-    consult_understand,
 )
-from prachar_api.runtime.memory_categories import MemoryStore
 
 
 def _make_ctx() -> AIContext:
@@ -87,7 +84,7 @@ class TestCampaignBrainArtefacts:
         ctx = _make_ctx()
         with patch("prachar_shared.marketing_intelligence.CampaignBrain") as MockBrain:
             mock_instance = MockBrain.return_value
-            mock_instance.generate_creative_direction = AsyncMock(return_value={
+            mock_instance.generate_strategy = AsyncMock(return_value={
                 "creative_direction": {
                     "concept": "Festive joy",
                     "style": "Vibrant",
@@ -193,8 +190,8 @@ class TestCreativeStudioArtefacts:
 
     async def test_generate_image_emits_image_artefact(self):
         ctx = _make_ctx()
-        with patch("prachar_api.routers.video_gen.generate_image", new_callable=AsyncMock) as mock_gen:
-            mock_gen.return_value = {"image_url": "https://example.com/img.png", "model": "dalle"}
+        with patch("prachar_api.routers.video_gen._generate_image_core", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = SimpleNamespace(image_url="https://example.com/img.png", model="dalle")
             result = await creative_studio_generate_image(ctx, {"prompt": "festive sale"})
         artefacts = result.get("artefacts", [])
         assert len(artefacts) == 1
@@ -262,7 +259,7 @@ class TestMemoryArtefacts:
     """Memory retrieval emits memory insight artefacts."""
 
     async def test_retrieve_emits_memory_insights(self):
-        from prachar_api.runtime.memory_categories import MemoryStore, MemoryEntry, MemoryCategory
+        from prachar_api.runtime.memory_categories import MemoryCategory, MemoryEntry, MemoryStore
         ctx = _make_ctx()
         ctx.memory = MemoryStore(
             campaign=[MemoryEntry(category=MemoryCategory.CAMPAIGN, content="Reels outperform carousels")],

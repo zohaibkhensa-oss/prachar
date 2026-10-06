@@ -252,7 +252,9 @@ def run_learning_checkpoint(brand_id: Any) -> dict[str, Any]:  # noqa: ANN001
             tenant_id = str(row[0])
 
         # Run the async checkpoint in a sync context
-        from prachar_api.runtime.realtime_feedback import run_learning_checkpoint as _async_checkpoint
+        from prachar_api.runtime.realtime_feedback import (
+            run_learning_checkpoint as _async_checkpoint,
+        )
 
         result = _aio.run(_async_checkpoint(
             tenant_id=uuid.UUID(tenant_id),

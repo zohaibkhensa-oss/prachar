@@ -24,28 +24,23 @@ import uuid
 from typing import Any
 
 import pytest
-
 from prachar_shared.ai_gateway import (
     AIGateway,
-    Completion,
-    Tier,
-    detect_injection,
-    extract_json,
-    extract_json_or_raise,
-    sanitize_input,
-    wrap_user_input,
-    check_output_for_leaks,
     RiskLevel,
+    Tier,
+    check_output_for_leaks,
+    detect_injection,
     estimate_cost,
     estimate_workflow_cost,
-    preflight_check,
+    extract_json,
+    extract_json_or_raise,
     get_workflow_estimates,
+    sanitize_input,
+    wrap_user_input,
 )
 from prachar_shared.ai_gateway.budget import BudgetGuard
 from prachar_shared.ai_gateway.cache import Cache
-from prachar_shared.ai_gateway.json_utils import extract_json as _extract_json
-from prachar_shared.ai_gateway.observability import AIRequestLog, AIMetrics, estimate_cost as _estimate_cost
-
+from prachar_shared.ai_gateway.observability import AIMetrics, AIRequestLog
 
 # ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -67,9 +62,7 @@ class _FakeBudget(BudgetGuard):
         self._cap = cap
 
     def check_and_reserve(self, tenant_id, tokens: int, plan: str) -> bool:
-        if self.used + tokens > self._cap:
-            return False
-        return True
+        return not self.used + tokens > self._cap
 
     def record_usage(self, tenant_id, tokens: int, plan: str) -> None:
         self.used += tokens
@@ -662,8 +655,6 @@ class TestTokenEconomy:
     def test_preflight_check_sufficient_budget(self):
         """Preflight should pass when budget is sufficient."""
         # Use a fake budget with high cap
-        from prachar_shared.ai_gateway.preflight import preflight_check
-        from prachar_shared.ai_gateway.budget import BudgetGuard
 
         # We can't easily mock the Redis-backed budget, so we test the estimate logic
         estimate = estimate_workflow_cost("weekly_loop")

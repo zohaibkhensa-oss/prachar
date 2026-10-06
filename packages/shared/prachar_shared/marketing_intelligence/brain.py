@@ -13,8 +13,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import asdict, dataclass, field
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from ..agency_council import ConsensusEngine
 
 from prachar_shared.ai_gateway import AIGateway
 
@@ -40,7 +44,7 @@ from .events import (
     StrategyGenerated,
 )
 from .execution_engine import ExecutionPlan, ExecutionPlanner
-from .learning_engine import LearningReport, LearningEngine
+from .learning_engine import LearningEngine, LearningReport
 from .media_engine import MediaPlan, MediaPlanningEngine
 from .memory import BusinessMemory, BusinessMemoryStore
 from .objective_engine import MarketingObjective, MarketingObjectiveEngine
@@ -132,9 +136,9 @@ class CampaignBrain:
         self,
         gateway: AIGateway | None = None,
         memory_store: BusinessMemoryStore | None = None,
-        event_bus: "EventBus | None" = None,
-        council: "ConsensusEngine | None" = None,
-        session_factory: "Callable[[], Any] | None" = None,
+        event_bus: EventBus | None = None,
+        council: ConsensusEngine | None = None,
+        session_factory: Callable[[], Any] | None = None,
     ) -> None:
         self._gateway = gateway
         self._memory_store = memory_store or BusinessMemoryStore()
@@ -162,7 +166,7 @@ class CampaignBrain:
         return self._gateway
 
     @property
-    def council(self) -> "ConsensusEngine":
+    def council(self) -> ConsensusEngine:
         """Get the Agency Council consensus engine.
 
         The brain depends on the council INTERFACE (ConsensusEngine), not on

@@ -18,12 +18,11 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, Depends, HTTPException, status
-
+from fastapi import APIRouter, HTTPException, status
 from prachar_shared.ai_gateway import BudgetExceeded
 from prachar_shared.domain_packs import get_registry, register_all
+from pydantic import BaseModel, Field
 
 from ..deps import CurrentUser, SessionDep
 from ..infrastructure.consult_engine import ConsultEngine

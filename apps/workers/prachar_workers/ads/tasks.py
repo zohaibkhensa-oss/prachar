@@ -6,8 +6,8 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from prachar_workers.celery_app import celery_app
 from prachar_workers.ads.scaffold import scaffold_for_network
+from prachar_workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def _audit_campaign(
             if row is None:
                 logger.warning("audit: campaign %s not found", campaign_id)
                 return
-            tenant_id, brand_id = str(row[0]), str(row[1])
+            tenant_id, _brand_id = str(row[0]), str(row[1])
             session.execute(
                 text("SELECT set_config('app.tenant_id', :tid, true)"),
                 {"tid": tenant_id},
@@ -90,14 +90,14 @@ def _insert_campaign_row(struct: dict[str, Any]) -> str | None:
                     "(id, tenant_id, brand_id, network, objective, audience_spec, "
                     " budget_daily, currency, bid_strategy, status, network_campaign_id, "
                     " guardrails, dry_run, created_at, updated_at) "
-                    "VALUES (:id, :tid, :bid, :network, :objective, :spec::jsonb, "
+                    "VALUES (:id, :tid, :brand_id, :network, :objective, :spec::jsonb, "
                     "        :budget, :currency, :bid::jsonb, 'draft', :ncid, "
                     "        :guard::jsonb, :dry, now(), now())"
                 ),
                 {
                     "id": db_id,
                     "tid": tenant_id,
-                    "bid": brand_id,
+                    "brand_id": brand_id,
                     "network": struct["network"],
                     "objective": struct["objective"],
                     "spec": _json_dumps(struct["audience_spec"]),

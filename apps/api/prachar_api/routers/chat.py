@@ -6,21 +6,21 @@ expert in digital advertising, marketing strategy, and platform best practices.
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
-from sqlalchemy import select
-
-from ..deps import CurrentUser, SessionDep, get_tenant_plan
-from ..models import Brand
-from prachar_shared.ai_gateway import AIGateway, Tier, BudgetExceeded
+from fastapi import APIRouter
 from prachar_shared.agency_council import is_council_review_request
+from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier
 from prachar_shared.marketing_intelligence.proactive_engine import (
     Anomaly,
     ProactiveEngine,
     format_as_prachar_message,
 )
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from ..deps import CurrentUser, SessionDep, get_tenant_plan
+from ..models import Brand
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -468,7 +468,7 @@ async def chat(
             last_user_msg = msg.content
             break
 
-    from prachar_shared.ai_gateway.safety import detect_injection, RiskLevel
+    from prachar_shared.ai_gateway.safety import detect_injection
 
     risk = detect_injection(last_user_msg)
     if risk.is_dangerous:
@@ -495,8 +495,8 @@ async def chat(
     # and then summarises the decision in conversational language.
     if body.brand_id is not None and is_council_review_request(last_user_msg):
         try:
-            from prachar_shared.marketing_intelligence import CampaignBrain
             from prachar_shared.agency_council import summarise_council_decision as _summarise
+            from prachar_shared.marketing_intelligence import CampaignBrain
 
             brain = CampaignBrain()
             decision, _session = await brain.review_with_council(

@@ -19,7 +19,7 @@ Design rules:
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 from typing import Any, ClassVar
 
 
@@ -57,7 +57,7 @@ class DomainModel:
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "DomainModel":
+    def from_dict(cls, data: dict[str, Any] | None) -> DomainModel:
         """Deserialize from dict. Defensive: ignores unknown keys, uses defaults.
 
         If the dict contains a 'schema_version' that is older than

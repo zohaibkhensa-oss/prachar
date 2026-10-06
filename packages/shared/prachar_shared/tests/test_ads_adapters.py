@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from prachar_shared.adapters.ads.audience_translation import (
     google_geo_target,
     translate_taxonomy,
@@ -31,7 +31,63 @@ def _no_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _stub_tokens() -> TokenSet:
-    return TokenSet(access_token="stub", expires_at=datetime.now(UTC) + timedelta(hours=1))
+    return TokenSet(
+        access_token="stub",
+        expires_at=datetime.now(UTC) + timedelta(hours=1),
+        scopes=["customer_id:1234567890"],
+    )
+
+
+
+
+@pytest.fixture(autouse=True)
+def _stub_taxonomy(monkeypatch):
+    """Deterministic taxonomy mapping — adapter tests must not call the AI gateway."""
+    def stub(items, source_type, target_network):
+        return [f"{target_network}:{source_type}:{it}" for it in items]
+    for mod_name in (
+        "prachar_shared.adapters.ads.google_ads",
+        "prachar_shared.adapters.ads.meta_ads",
+    ):
+        mod = __import__(mod_name, fromlist=["translate_taxonomy_sync"])
+        if hasattr(mod, "translate_taxonomy_sync"):
+            monkeypatch.setattr(mod, "translate_taxonomy_sync", stub)
+    # cover the direct translate_taxonomy() call that goes through AIGateway
+    from types import SimpleNamespace
+
+    from prachar_shared.ai_gateway.client import AIGateway
+
+    def _fake_complete(self, prompt, **kw):
+        return SimpleNamespace(json_value={"mapped": ["fintech", "trading"]})
+
+    monkeypatch.setattr(AIGateway, "complete", _fake_complete)
+
+
+class _FakeHTTPResp:
+    def __init__(self, payload):
+        self._payload = payload
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._payload
+
+
+class _FakeHTTPClient:
+    payload: dict = {}
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def post(self, *args, **kwargs):
+        return _FakeHTTPResp(type(self).payload)
 
 
 def _spec() -> AudienceSpec:
@@ -113,8 +169,6 @@ def test_google_geo_target_unmapped_defaults_to_us() -> None:
 
 
 def test_translate_taxonomy_returns_list_of_strings() -> None:
-    import asyncio
-
     out = asyncio.run(translate_taxonomy(["fintech", "trading"], "interests", "google_ads"))
     assert isinstance(out, list)
     assert len(out) == 2
@@ -123,22 +177,46 @@ def test_translate_taxonomy_returns_list_of_strings() -> None:
         assert item, "mapped item must be non-empty"
 
 
-def test_google_create_campaign_returns_id() -> None:
-    cid = GoogleAdsAdapter().create_campaign(_stub_tokens(), {"objective": "traffic"})
+def test_google_create_campaign_returns_id(monkeypatch) -> None:
+    from prachar_shared.adapters.ads import google_ads
+
+    _FakeHTTPClient.payload = {"results": [{"resource_name": "customers/1234567890/campaigns/gads-42"}]}
+    monkeypatch.setattr(google_ads.httpx, "AsyncClient", _FakeHTTPClient)
+    cid = asyncio.run(GoogleAdsAdapter().create_campaign(_stub_tokens(), {"objective": "traffic"}))
     assert isinstance(cid, str)
     assert cid.startswith("gads-")
 
 
-def test_meta_create_campaign_returns_id() -> None:
-    cid = MetaAdsAdapter().create_campaign(_stub_tokens(), {"objective": "conversions"})
+def test_meta_create_campaign_returns_id(monkeypatch) -> None:
+    from prachar_shared.adapters.ads import meta_ads
+
+    _FakeHTTPClient.payload = {"id": "meta-99"}
+    monkeypatch.setattr(meta_ads.httpx, "AsyncClient", _FakeHTTPClient)
+    cid = asyncio.run(MetaAdsAdapter().create_campaign(_stub_tokens(), {"objective": "conversions"}))
     assert isinstance(cid, str)
     assert cid.startswith("meta-")
 
 
-def test_google_stats_returns_metric_events() -> None:
-    events = GoogleAdsAdapter().stats(
+def test_google_stats_returns_metric_events(monkeypatch) -> None:
+    from prachar_shared.adapters.ads import google_ads
+
+    _FakeHTTPClient.payload = {
+        "results": [
+            {
+                "segments": {"date": "2024-01-01"},
+                "metrics": {
+                    "impressions": "1000",
+                    "clicks": "50",
+                    "cost_micros": "2000000",
+                    "conversions": "4",
+                },
+            }
+        ]
+    }
+    monkeypatch.setattr(google_ads.httpx, "AsyncClient", _FakeHTTPClient)
+    events = asyncio.run(GoogleAdsAdapter().stats(
         _stub_tokens(), "gads-abc", datetime.now(UTC) - timedelta(days=3)
-    )
+    ))
     assert events
     metrics = {e.metric for e in events}
     assert {"impressions", "clicks", "cost", "conversions"} <= metrics
@@ -148,8 +226,8 @@ def test_google_stats_returns_metric_events() -> None:
 
 def test_google_set_budget_bid_and_pause_are_noops() -> None:
     adapter = GoogleAdsAdapter()
-    adapter.set_budget_bid(_stub_tokens(), "gads-1", 100.0, {"type": "TARGET_CPA"})
-    adapter.pause(_stub_tokens(), "gads-1")  # should not raise
+    asyncio.run(adapter.set_budget_bid(_stub_tokens(), "gads-1", 100.0, {"type": "TARGET_CPA"}))
+    asyncio.run(adapter.pause(_stub_tokens(), "gads-1"))  # should not raise
 
 
 def test_registry_has_google_and_meta() -> None:

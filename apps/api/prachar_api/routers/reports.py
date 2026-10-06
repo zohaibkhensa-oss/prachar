@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlalchemy import select
 
 from ..deps import CurrentUser, SessionDep
-from ..models import Brand, Report
+from ..models import Report
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 

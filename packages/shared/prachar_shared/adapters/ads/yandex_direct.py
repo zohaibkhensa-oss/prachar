@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -218,7 +218,7 @@ class YandexDirectAdapter(AdNetworkAdapter):
                 events: list[MetricEvent] = []
                 for line in lines[1:]:
                     values = line.split("\t")
-                    row = dict(zip(headers, values))
+                    row = dict(zip(headers, values, strict=False))
                     try:
                         ts = datetime.strptime(row.get("Date", start_date), "%Y-%m-%d")
                     except (ValueError, TypeError):

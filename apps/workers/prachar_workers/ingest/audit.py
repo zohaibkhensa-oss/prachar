@@ -3,12 +3,12 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 from urllib.parse import urlparse
 
 from .citation_probe import CitationResult, probe_citations
-from .crawl import CrawlResult, crawl_site, crawl_url
+from .crawl import CrawlResult, crawl_site
 from .serp import SerpResult, generate_seed_queries, serp_sample
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def extract_domain(input_text: str) -> str | None:
     host = (parsed.netloc or "").lower()
     if not host:
         return None
-    return host.lstrip("www.")
+    return host.removeprefix("www.")
 
 
 def _brand_name_from_domain(domain: str) -> str:
@@ -43,7 +43,6 @@ def _brand_name_from_domain(domain: str) -> str:
 async def _push_progress(job_id: uuid.UUID, msg: str) -> None:
     try:
         import redis.asyncio as aioredis
-
         from prachar_shared.config import get_settings
 
         url = get_settings().redis_url
@@ -385,7 +384,7 @@ async def run_audit_pipeline(job_id: uuid.UUID, input_text: str) -> dict:
             status="completed",
             score_snapshot=score_dict,
             findings=findings,
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(UTC),
         )
         await _push_progress(job_id, "completed")
         return {"score": score_dict, "findings": findings}

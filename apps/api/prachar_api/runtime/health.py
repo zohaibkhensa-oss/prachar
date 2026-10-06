@@ -13,13 +13,14 @@ Health checks are optional — tools without checkers default to healthy.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 
-class HealthStatus(str, Enum):
+class HealthStatus(StrEnum):
     """Health status of a tool."""
 
     HEALTHY = "healthy"
@@ -88,7 +89,7 @@ class HealthRegistry:
             self._health[tool_name] = ToolHealth(tool_name=tool_name)
         self._health[tool_name].status = status
         self._health[tool_name].message = message
-        self._health[tool_name].last_check = datetime.now(timezone.utc).isoformat()
+        self._health[tool_name].last_check = datetime.now(UTC).isoformat()
 
     def record_success(self, tool_name: str, latency_ms: int = 0) -> None:
         """Record a successful tool execution."""
@@ -109,7 +110,7 @@ class HealthRegistry:
         h = self._health[tool_name]
         h.error_count += 1
         h.message = error
-        h.last_check = datetime.now(timezone.utc).isoformat()
+        h.last_check = datetime.now(UTC).isoformat()
         # Auto-degrade after 3 consecutive errors
         if h.error_count >= 3 and h.status == HealthStatus.HEALTHY:
             h.status = HealthStatus.DEGRADED

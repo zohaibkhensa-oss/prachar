@@ -30,9 +30,10 @@ log = logging.getLogger("prachar.runtime.tools_integrations")
 
 async def _load_integration_tokens(ctx: AIContext, name: str) -> tuple[Any, Any]:
     """Load tokens for an integration. Returns (tokens, connection_row)."""
-    from ..models import Connection
     from prachar_shared.contracts import TokenSet
     from prachar_shared.security import decrypt_token
+
+    from ..models import Connection
 
     session = ctx.session
     if session is None:
@@ -232,8 +233,8 @@ async def integrations_health(ctx: AIContext, input: dict[str, Any]) -> dict[str
 
         # Try to call the integration's health check
         try:
-            from prachar_shared.integrations import get_integration_registry
             from prachar_shared.contracts import TokenSet
+            from prachar_shared.integrations import get_integration_registry
 
             registry = get_integration_registry()
             integration_cls = registry.get(name)

@@ -5,13 +5,11 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded, Completion
 from prachar_shared.creative_studio.formats.carousel import (
     CAROUSEL,
     generate_carousel,
 )
-
 
 # ─── Helpers ────────────────────────────────────────────────────────────────
 

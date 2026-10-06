@@ -29,7 +29,6 @@ import csv
 import html
 import io
 import logging
-import os
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -996,7 +995,7 @@ class DocumentProcessor:
                 return None
         if file_path:
             try:
-                with open(file_path, "r", encoding="utf-8", errors="replace") as fh:
+                with open(file_path, encoding="utf-8", errors="replace") as fh:
                     return fh.read()
             except OSError as exc:
                 logger.warning("failed to read %s: %s", file_path, exc)

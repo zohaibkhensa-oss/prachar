@@ -16,6 +16,11 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+from prachar_shared.agency_council import (
+    ConsensusEngine,
+    CouncilMemoryStore,
+)
+from prachar_shared.ai_gateway import BudgetExceeded
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,13 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..infrastructure import PostgresCouncilRepository
-from ..models import Actor, Brand, CampaignPlanRecord
-from prachar_shared.agency_council import (
-    ConsensusEngine,
-    CouncilMemoryStore,
-    CouncilLearning,
-)
-from prachar_shared.ai_gateway import BudgetExceeded
+from ..models import Actor, Brand
 
 router = APIRouter(prefix="/agency-council", tags=["agency-council"])
 
@@ -261,7 +260,7 @@ async def review(
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
             "AI token budget exceeded for this month",
-        )
+        ) from None
 
     # Set the campaign_id on the session before persisting
     if body.campaign_plan_id:

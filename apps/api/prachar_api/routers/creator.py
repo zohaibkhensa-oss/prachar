@@ -23,14 +23,14 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
+from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Actor, Brand, CampaignPlanRecord
-from prachar_shared.ai_gateway import AIGateway, Tier, BudgetExceeded
 
 router = APIRouter(prefix="/creator", tags=["creator"])
 
@@ -597,7 +597,7 @@ async def creator_consult(
         import logging
         logging.error("creator consult failed: %s", e)
         return CreatorConsultResponse(
-            reply=f"Thanks for telling me about your channel! I've set up your profile. I can build your content plan whenever you're ready.",
+            reply="Thanks for telling me about your channel! I've set up your profile. I can build your content plan whenever you're ready.",
             brand_id=str(brand.id),
             brand_name=brand.name,
         )
@@ -657,7 +657,7 @@ async def creator_consult(
     await session.commit()
 
     return CreatorConsultResponse(
-        reply=resp_dict.get("reply", f"Thanks for telling me about your channel!"),
+        reply=resp_dict.get("reply", "Thanks for telling me about your channel!"),
         profile=profile,
         position=position,
         plan=plan_weeks,

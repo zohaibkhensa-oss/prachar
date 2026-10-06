@@ -5,7 +5,6 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import Completion
 from prachar_shared.creative_studio import CreativeFormatRegistry, register_all
 from prachar_shared.creative_studio.studio import CreativePackage, CreativeStudio

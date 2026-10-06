@@ -11,13 +11,11 @@ import uuid
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import Completion
 from prachar_shared.marketing_intelligence.review_engine import (
     Suggestion,
     generate_suggestions,
 )
-
 
 # ─── Fixtures ──────────────────────────────────────────────────────────────
 

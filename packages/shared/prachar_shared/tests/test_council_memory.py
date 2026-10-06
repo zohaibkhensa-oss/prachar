@@ -12,10 +12,8 @@ Tests:
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 import pytest
-
 from prachar_shared.agency_council import (
     CouncilLearning,
     CouncilMemoryStore,
@@ -234,7 +232,7 @@ class TestFailureHandling:
                 return []
             async def get_session_by_campaign(self, *a, **kw) -> dict | None:
                 return None
-            async def save_learning(self, l: dict) -> None:
+            async def save_learning(self, learning: dict) -> None:
                 pass
             async def list_learnings(self, *a, **kw) -> list:
                 return []
@@ -257,7 +255,7 @@ class TestFailureHandling:
                 return []
             async def get_session_by_campaign(self, *a, **kw) -> dict | None:
                 return None
-            async def save_learning(self, l: dict) -> None:
+            async def save_learning(self, learning: dict) -> None:
                 pass
             async def list_learnings(self, *a, **kw) -> list:
                 return []

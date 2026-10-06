@@ -39,11 +39,10 @@ Two systems:
 from __future__ import annotations
 
 import logging
-import math
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 log = logging.getLogger("prachar.runtime.context_ranking")
@@ -68,7 +67,7 @@ def estimate_dict_tokens(data: dict[str, Any], max_depth: int = 3) -> int:
     if not data:
         return 0
     total = 0
-    for key, value in data.items():
+    for _key, value in data.items():
         if isinstance(value, str):
             total += estimate_tokens(value)
         elif isinstance(value, list):
@@ -87,7 +86,7 @@ def estimate_dict_tokens(data: dict[str, Any], max_depth: int = 3) -> int:
 # ─── Context Item ───────────────────────────────────────────────────────────
 
 
-class ContextItemType(str, Enum):
+class ContextItemType(StrEnum):
     """Types of context items that can be ranked."""
     KNOWLEDGE_CHUNK = "knowledge_chunk"
     BUSINESS_PROFILE = "business_profile"
@@ -257,9 +256,9 @@ class ContextRankingLayer:
 
             # Ensure timezone-aware
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
 
-            age_days = (datetime.now(timezone.utc) - dt).days
+            age_days = (datetime.now(UTC) - dt).days
             # Full score if < 7 days, decays to 0.1 over 365 days
             if age_days <= 7:
                 return 1.0
@@ -1493,7 +1492,7 @@ class ScoringWeights:
     confidence: float = 0.10
     intent: float = 0.05
 
-    def normalised(self) -> "ScoringWeights":
+    def normalised(self) -> ScoringWeights:
         """Return a copy with weights normalised to sum to 1.0."""
         total = self.type_base + self.semantic + self.recency + self.confidence + self.intent
         if total == 0:

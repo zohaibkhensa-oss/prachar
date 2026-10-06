@@ -2,24 +2,22 @@
 from __future__ import annotations
 
 import asyncio
-import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
+import pytest
 from prachar_shared.integrations import (
     IntegrationCapability,
     IntegrationEventBus,
     WebhookEvent,
-    WebhookSubscription,
-    get_event_bus,
     get_integration_registry,
 )
-from prachar_shared.integrations.shopify import Shopify, SHOPIFY_WEBHOOK_EVENTS
-from prachar_shared.integrations.mailchimp import Mailchimp, MAILCHIMP_WEBHOOK_EVENTS
-from prachar_shared.integrations.hubspot import HubSpot, HUBSPOT_WEBHOOK_EVENTS
+
 # Also import Sprint 1 integrations so they register
 from prachar_shared.integrations.google_analytics import GoogleAnalytics4  # noqa: F401
+from prachar_shared.integrations.hubspot import HUBSPOT_WEBHOOK_EVENTS, HubSpot
+from prachar_shared.integrations.mailchimp import MAILCHIMP_WEBHOOK_EVENTS, Mailchimp
+from prachar_shared.integrations.shopify import SHOPIFY_WEBHOOK_EVENTS, Shopify
 from prachar_shared.integrations.wordpress import WordPress  # noqa: F401
-
 
 # ─── Capability Discovery Tests ────────────────────────────────────────────
 
@@ -138,7 +136,7 @@ class TestShopify:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="shop domain is required"):
             s.fetch_assets(tokens, asset_type="products")
@@ -148,17 +146,17 @@ class TestShopify:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="shop domain is required"):
-            s.fetch_metrics(tokens, since=datetime.now(timezone.utc))
+            s.fetch_metrics(tokens, since=datetime.now(UTC))
 
     def test_unsupported_methods_raise(self):
         s = Shopify()
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(NotImplementedError, match="does not support PUBLISH"):
             s.publish(tokens, payload={})
@@ -181,7 +179,7 @@ class TestShopify:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="shop domain is required"):
             s.register_webhook(tokens, event_type="orders/create", callback_url="https://example.com/hook")
@@ -265,13 +263,13 @@ class TestMailchimp:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
             scopes=["_dc:us1"],
         )
         with pytest.raises(NotImplementedError, match="does not support WRITE_BACK"):
             m.write_back(tokens, entity_id="1", updates={})
         with pytest.raises(NotImplementedError, match="does not support ATTRIBUTION"):
-            m.attribute_conversions(tokens, since=datetime.now(timezone.utc))
+            m.attribute_conversions(tokens, since=datetime.now(UTC))
         with pytest.raises(NotImplementedError, match="does not support MANAGE_MEDIA"):
             m.manage_media(tokens, action="list")
         with pytest.raises(NotImplementedError, match="does not support SEO_MANAGEMENT"):
@@ -290,7 +288,7 @@ class TestMailchimp:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="list_id is required"):
             m.register_webhook(tokens, event_type="subscribe", callback_url="https://example.com/hook")
@@ -361,12 +359,12 @@ class TestHubSpot:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(NotImplementedError, match="does not support PUBLISH"):
             h.publish(tokens, payload={})
         with pytest.raises(NotImplementedError, match="does not support ATTRIBUTION"):
-            h.attribute_conversions(tokens, since=datetime.now(timezone.utc))
+            h.attribute_conversions(tokens, since=datetime.now(UTC))
         with pytest.raises(NotImplementedError, match="does not support MANAGE_MEDIA"):
             h.manage_media(tokens, action="list")
         with pytest.raises(NotImplementedError, match="does not support SEO_MANAGEMENT"):
@@ -385,7 +383,7 @@ class TestHubSpot:
         from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="app_id is required"):
             h.register_webhook(tokens, event_type="contact.creation", callback_url="https://example.com/hook")

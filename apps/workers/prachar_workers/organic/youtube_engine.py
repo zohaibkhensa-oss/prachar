@@ -83,9 +83,9 @@ async def transcribe_video(
     sentences = [
         f"Welcome back to the channel where we talk about {category}.",
         f"Today we are diving deep into the strategies that work for {category} in the current landscape.",
-        f"There are three key principles you need to understand to succeed here.",
+        "There are three key principles you need to understand to succeed here.",
         f"First, consistency matters more than intensity when building a {category} practice.",
-        f"Second, always measure your results so you can iterate and improve over time.",
+        "Second, always measure your results so you can iterate and improve over time.",
     ]
     return " ".join(sentences[:n_sentences])
 
@@ -158,7 +158,6 @@ async def optimize_youtube_metadata(
     """
     gw = _gateway()
     schema = YouTubeAdapter().generate_schema()
-    register = (brand_graph.get("tone") or {}).get("register", _DEFAULT_REGISTER)
     competitors = brand_graph.get("competitors") or []
     competitor_examples = (
         ", ".join(competitors) if competitors else _DEFAULT_COMPETITORS

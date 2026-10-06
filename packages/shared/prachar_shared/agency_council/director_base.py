@@ -242,7 +242,7 @@ class Director:
                 f"  Opinion: {opinion_text}"
             )
             if risks:
-                parts.append(f"  Risks raised:")
+                parts.append("  Risks raised:")
                 for r in risks[:3]:  # Top 3 risks per director
                     parts.append(f"    - {r}")
         parts.append(

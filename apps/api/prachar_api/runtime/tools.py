@@ -13,36 +13,34 @@ import logging
 import uuid
 from typing import Any
 
+from .artefacts import (
+    alert,
+    audience_card,
+    budget_table,
+    campaign_card,
+    chart,
+    competitor_card,
+    copy_draft,
+    copy_drafts,
+    creative_brief,
+    image_artefact,
+    kpi_grid,
+    media_plan,
+    memory_insight,
+    opportunity_card,
+    review_feedback,
+    review_summary,
+    task_list,
+    timeline_plan,
+)
+from .context import AIContext
+from .memory_categories import MemoryCategory
 from .registry import (
-    RetryPolicy,
     SideEffects,
     ToolCategory,
     ToolManifest,
     get_registry,
     register_tool,
-)
-from .memory_categories import MemoryCategory
-from .context import AIContext
-from .artefacts import (
-    campaign_card,
-    kpi_widget,
-    kpi_grid,
-    image_artefact,
-    chart,
-    budget_table,
-    copy_draft,
-    copy_drafts,
-    review_feedback,
-    review_summary,
-    timeline_plan,
-    opportunity_card,
-    audience_card,
-    competitor_card,
-    creative_brief,
-    media_plan,
-    task_list,
-    alert,
-    memory_insight,
 )
 
 log = logging.getLogger("prachar.runtime.tools")
@@ -71,6 +69,7 @@ log = logging.getLogger("prachar.runtime.tools")
 async def chat_respond(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Call the existing chat endpoint logic with enriched context."""
     from prachar_shared.ai_gateway import AIGateway, Tier
+
     from ..routers.chat import SYSTEM_PROMPT
 
     message = input.get("message", ctx.conversation[-1].content if ctx.conversation else "")
@@ -97,7 +96,7 @@ async def chat_respond(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
             title = chunk.get("title", "Unknown")
             content = chunk.get("content", "")[:200]
             knowledge_lines.append(f"  [{title}]: {content}")
-        context_parts.append(f"Retrieved knowledge:\n" + "\n".join(knowledge_lines))
+        context_parts.append("Retrieved knowledge:\n" + "\n".join(knowledge_lines))
 
     # Marketing Intelligence summaries
     mi = ctx.enriched.get("marketing_intelligence", {})
@@ -760,7 +759,7 @@ def _build_memory_artefacts(ctx: AIContext) -> list[dict]:
 ))
 async def council_review(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Submit campaign for 9-director council review."""
-    from prachar_shared.agency_council import ConsensusEngine, ALL_DIRECTORS
+    from prachar_shared.agency_council import ALL_DIRECTORS, ConsensusEngine
 
     directors = list(ALL_DIRECTORS.values()) if isinstance(ALL_DIRECTORS, dict) else list(ALL_DIRECTORS)
     engine = ConsensusEngine(directors=directors)
@@ -1075,6 +1074,7 @@ async def memory_retrieve(ctx: AIContext, input: dict[str, Any]) -> dict[str, An
 async def memory_update(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Update business memory with new learnings."""
     from sqlalchemy import select
+
     from ..models import BusinessMemoryRecord
 
     learnings = input.get("learnings", {})
@@ -1277,9 +1277,10 @@ Return as JSON.
 ))
 async def review_publish(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Publish a campaign (enqueues Celery task)."""
+    from sqlalchemy import select
+
     from ..audit import log_audit
     from ..models import Campaign, CampaignStatus
-    from sqlalchemy import select
 
     campaign_id = uuid.UUID(input["campaign_id"])
     res = await ctx.session.execute(

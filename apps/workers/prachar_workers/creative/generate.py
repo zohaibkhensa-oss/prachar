@@ -47,7 +47,7 @@ def _stub_copy_variant(
     char_limits: dict[str, int],
 ) -> dict[str, Any]:
     """Deterministic stub ad copy derived from brand_graph hash."""
-    seed = hashlib.sha256(f"{brand_id}|{channel}|{locale}|{hook_type}".encode("utf-8")).hexdigest()
+    seed = hashlib.sha256(f"{brand_id}|{channel}|{locale}|{hook_type}".encode()).hexdigest()
     brand_tag = str(brand_id)[:8]
     hook_templates = {
         "pain": f"Struggling with growth? {brand_tag} helps you win {channel}.",
@@ -162,6 +162,6 @@ async def generate_ad_image(
     """
     out: list[str] = []
     for w, h in sizes:
-        digest = hashlib.sha256(f"{brand_id}|{brief}|{w}x{h}".encode("utf-8")).hexdigest()[:10]
+        digest = hashlib.sha256(f"{brand_id}|{brief}|{w}x{h}".encode()).hexdigest()[:10]
         out.append(f"creative/{brand_id}/{w}x{h}_{digest}.png")
     return out

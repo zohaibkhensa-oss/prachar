@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import uuid
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -84,16 +84,13 @@ async def audit_events_sse(job_id: uuid.UUID, request: Request) -> StreamingResp
     The worker pushes lines to a Redis list `audit:{job_id}:progress`.
     We poll that list + the DB status until the job completes or client disconnects."""
     import redis.asyncio as aioredis
-
     from prachar_shared.config import get_settings
 
     async def _event_stream():
         settings = get_settings()
         redis = None
-        try:
+        with contextlib.suppress(Exception):
             redis = aioredis.from_url(settings.redis_url, decode_responses=True)
-        except Exception:
-            pass
 
         last_status = None
         last_line_idx = 0

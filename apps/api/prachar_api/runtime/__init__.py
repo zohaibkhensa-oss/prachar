@@ -8,48 +8,67 @@ Every execution creates a Decision Contract, emits Events, and writes to the Tim
 """
 from __future__ import annotations
 
+# Import tools to register them in the Tool Registry
+# L1–L8 capability tools (were only imported in tests; now auto-registered)
+# New wiring tools — connect channel adapters, loop, knowledge CRUD, integrations
+from . import (
+    tools,  # noqa: F401 — side effect: registers all tools
+    tools_admin,  # noqa: F401
+    tools_ads,  # noqa: F401
+    tools_calendar,  # noqa: F401
+    tools_channels,  # noqa: F401
+    tools_collab,  # noqa: F401
+    tools_crm,  # noqa: F401
+    tools_email,  # noqa: F401
+    tools_integrations,  # noqa: F401
+    tools_knowledge,  # noqa: F401
+    tools_landing,  # noqa: F401
+    tools_loop,  # noqa: F401
+    tools_phase2,  # noqa: F401 — side effect: registers Phase 2 tools
+    tools_seo,  # noqa: F401
+    tools_website,  # noqa: F401
+    tools_whatsapp,  # noqa: F401
+)
+from .composer import ResponseComposer
 from .context import AIContext, assemble_context
-from .context_builder import ContextBuilder, EnrichedContext, get_context_builder, create_default_context_builder
+from .context_builder import (
+    ContextBuilder,
+    EnrichedContext,
+    create_default_context_builder,
+    get_context_builder,
+)
 from .context_ranking import (
     AdaptiveContextRankingLayer,
     ChunkWeightAdjustment,
-    ContextEvaluation, ContextEvaluator, ContextItem, ContextItemExtractor,
-    ContextItemType, ContextRankingLayer, ContextTrace, FeedbackRecord,
-    ItemEvaluation, OfflineModelVersion, ProviderTrace, RankedEnrichedContext,
-    RankingFeedbackStore, RetrievalQuality, ScoringWeights,
-    SourceWeightAdjustment, TypeWeightAdjustment, estimate_tokens,
+    ContextEvaluation,
+    ContextEvaluator,
+    ContextItem,
+    ContextItemExtractor,
+    ContextItemType,
+    ContextRankingLayer,
+    ContextTrace,
+    FeedbackRecord,
+    ItemEvaluation,
+    OfflineModelVersion,
+    ProviderTrace,
+    RankedEnrichedContext,
+    RankingFeedbackStore,
+    RetrievalQuality,
+    ScoringWeights,
+    SourceWeightAdjustment,
+    TypeWeightAdjustment,
+    estimate_tokens,
 )
-from .events import AIEvent, EventBus, EventPhase, OrbState, get_session_manager, SessionManager
-from .registry import Tool, ToolManifest, ToolRegistry, get_registry, register_tool
-from .memory_categories import MemoryCategory, MemoryEntry, MemoryStore
 from .decision import DecisionContract, RiskLevel
-from .graph import ExecutionGraph, GraphNode, GraphEdge
-from .planner import IntentEngine, IntentResult, RuntimeMode, Planner, ExecutionPlan
+from .events import AIEvent, EventBus, EventPhase, OrbState, SessionManager, get_session_manager
 from .executor import ExecutionEngine, ExecutionResult
-from .composer import ResponseComposer
-from .runtime import Runtime, InvokeRequest, InvokeResponse
-from .timeline import TimelineEntry, TimelineService
+from .graph import ExecutionGraph, GraphEdge, GraphNode
+from .memory_categories import MemoryCategory, MemoryEntry, MemoryStore
 from .metrics import RuntimeMetrics, ToolMetrics
-
-# Import tools to register them in the Tool Registry
-from . import tools  # noqa: F401 — side effect: registers all tools
-from . import tools_phase2  # noqa: F401 — side effect: registers Phase 2 tools
-# L1–L8 capability tools (were only imported in tests; now auto-registered)
-from . import tools_landing  # noqa: F401
-from . import tools_calendar  # noqa: F401
-from . import tools_seo  # noqa: F401
-from . import tools_email  # noqa: F401
-from . import tools_website  # noqa: F401
-from . import tools_whatsapp  # noqa: F401
-from . import tools_collab  # noqa: F401
-from . import tools_crm  # noqa: F401
-# New wiring tools — connect channel adapters, loop, knowledge CRUD, integrations
-from . import tools_channels  # noqa: F401
-from . import tools_loop  # noqa: F401
-from . import tools_knowledge  # noqa: F401
-from . import tools_integrations  # noqa: F401
-from . import tools_admin  # noqa: F401
-from . import tools_ads  # noqa: F401
+from .planner import ExecutionPlan, IntentEngine, IntentResult, Planner, RuntimeMode
+from .registry import Tool, ToolManifest, ToolRegistry, get_registry, register_tool
+from .runtime import InvokeRequest, InvokeResponse, Runtime
+from .timeline import TimelineEntry, TimelineService
 
 __all__ = [
     # Context
@@ -86,6 +105,10 @@ __all__ = [
     "EventBus",
     "EventPhase",
     "OrbState",
+    "SessionManager",
+    "get_session_manager",
+    "RuntimeMetrics",
+    "ToolMetrics",
     # Registry
     "Tool",
     "ToolManifest",

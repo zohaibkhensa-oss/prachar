@@ -22,7 +22,6 @@ from typing import Any, ClassVar
 
 from prachar_shared.marketing_intelligence.domain_base import DomainModel
 
-
 # ─── Director Opinion ───────────────────────────────────────────────────────
 
 
@@ -181,7 +180,7 @@ class ConsensusDecision(DomainModel):
         return result
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "ConsensusDecision":
+    def from_dict(cls, data: dict[str, Any] | None) -> ConsensusDecision:
         """Deserialize from dict, converting confidence_interval list → tuple."""
         if data is None:
             data = {}

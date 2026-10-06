@@ -10,14 +10,14 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import select
-
-from ..deps import CurrentUser, SessionDep
-from ..models import Campaign
 from prachar_shared.marketing_intelligence.performance_engine import (
     PerformanceEngine,
     PerformanceSummary,
 )
+from sqlalchemy import select
+
+from ..deps import CurrentUser, SessionDep
+from ..models import Campaign
 
 router = APIRouter(prefix="/performance", tags=["performance"])
 

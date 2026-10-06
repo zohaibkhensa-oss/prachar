@@ -15,7 +15,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-
 # ─── Artefact Kinds ─────────────────────────────────────────────────────────
 
 ArtefactKind = Literal[
@@ -78,7 +77,7 @@ class Artefact:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "Artefact":
+    def from_dict(cls, data: dict[str, Any]) -> Artefact:
         return cls(
             kind=data.get("kind", "alert"),
             title=data.get("title", ""),

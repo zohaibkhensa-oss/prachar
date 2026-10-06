@@ -6,9 +6,10 @@ Constitution Rule 7: The Planner reasons from manifests. Never hard-code intent�
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Any, Awaitable, Callable, Protocol, TYPE_CHECKING
+from enum import StrEnum
+from typing import TYPE_CHECKING, Any, Protocol
 
 from .memory_categories import MemoryCategory
 
@@ -21,7 +22,7 @@ log = logging.getLogger("prachar.runtime.registry")
 # ─── Enums ──────────────────────────────────────────────────────────────────
 
 
-class ToolCategory(str, Enum):
+class ToolCategory(StrEnum):
     """Namespace a tool belongs to — matches event taxonomy."""
 
     CONVERSATION = "conversation"
@@ -46,7 +47,7 @@ class ToolCategory(str, Enum):
     ANALYSIS = "analysis"
 
 
-class SideEffects(str, Enum):
+class SideEffects(StrEnum):
     """What kind of side effects a tool has."""
 
     NONE = "none"        # pure read
@@ -55,7 +56,7 @@ class SideEffects(str, Enum):
     EXTERNAL = "external"  # calls external API (publish, OAuth, etc.)
 
 
-class RetryPolicy(str, Enum):
+class RetryPolicy(StrEnum):
     """Retry behaviour on tool failure."""
 
     NONE = "none"
@@ -201,7 +202,7 @@ class Tool(Protocol):
 
     async def __call__(
         self,
-        ctx: "AIContext",
+        ctx: AIContext,
         input: dict[str, Any],
     ) -> dict[str, Any]:
         ...
@@ -219,7 +220,7 @@ class ToolEntry:
 
     async def __call__(
         self,
-        ctx: "AIContext",
+        ctx: AIContext,
         input: dict[str, Any],
     ) -> dict[str, Any]:
         return await self.func(ctx, input)
@@ -282,10 +283,7 @@ class ToolRegistry:
         Phase E1.2: If ``only_healthy`` is True, exclude offline tools
         (and degraded tools, since the planner should prefer alternatives).
         """
-        if only_healthy:
-            manifests = self.list_healthy()
-        else:
-            manifests = self.list()
+        manifests = self.list_healthy() if only_healthy else self.list()
         lines: list[str] = []
         for m in manifests:
             latency_s = m.estimated_latency_ms / 1000.0

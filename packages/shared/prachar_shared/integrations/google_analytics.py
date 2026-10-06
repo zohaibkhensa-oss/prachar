@@ -13,7 +13,7 @@ Docs: https://developers.google.com/analytics/devguides/reporting/data/v1
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -22,7 +22,6 @@ from ..contracts import MetricEvent, TokenSet
 from .base import (
     IntegrationCapability,
     IntegrationInfo,
-    IntegrationStatus,
     MarketingIntegration,
     register_integration,
 )
@@ -115,7 +114,7 @@ class GoogleAnalytics4(MarketingIntegration):
         resp.raise_for_status()
         data = resp.json()
 
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600))
+        expires_at = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
@@ -137,7 +136,7 @@ class GoogleAnalytics4(MarketingIntegration):
         )
         resp.raise_for_status()
         data = resp.json()
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600))
+        expires_at = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=refresh_token,
@@ -194,7 +193,7 @@ class GoogleAnalytics4(MarketingIntegration):
         if not property_id:
             raise ValueError("property_id is required for GA4 metrics")
 
-        until = until or datetime.now(timezone.utc)
+        until = until or datetime.now(UTC)
 
         # Build the GA4 report request
         request = {
@@ -250,9 +249,9 @@ class GoogleAnalytics4(MarketingIntegration):
 
             date_str = dim_values.get("date", "")
             try:
-                event_time = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=timezone.utc)
+                event_time = datetime.strptime(date_str, "%Y%m%d").replace(tzinfo=UTC)
             except ValueError:
-                event_time = datetime.now(timezone.utc)
+                event_time = datetime.now(UTC)
 
             channel = dim_values.get("sessionDefaultChannelGroup", "Unknown")
 
@@ -336,7 +335,7 @@ class GoogleAnalytics4(MarketingIntegration):
             "pageviews": total_pageviews,
             "top_pages": top_pages[:10],
             "traffic_sources": dict(sorted(traffic_sources.items(), key=lambda x: x[1], reverse=True)),
-            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
         }
 
     def attribute_conversions(
@@ -354,7 +353,7 @@ class GoogleAnalytics4(MarketingIntegration):
         if not property_id:
             raise ValueError("property_id is required for attribution")
 
-        until = kwargs.get("until", datetime.now(timezone.utc))
+        until = kwargs.get("until", datetime.now(UTC))
 
         request = {
             "dateRanges": [

@@ -2,23 +2,28 @@
 from __future__ import annotations
 
 import asyncio
-import json
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta, timezone
-
 from prachar_shared.integrations import (
-    # Sync policies
-    SyncMode, SyncPolicy,
-    # Data mapping
-    DataMapping, FieldMapping, get_mapping_registry,
+    ActionType,
+    ConditionOperator,
     # Secrets
-    CredentialBundle, SecretsVault,
+    CredentialBundle,
+    # Data mapping
+    DataMapping,
+    FieldMapping,
+    SecretsVault,
+    # Sync policies
+    SyncMode,
+    SyncPolicy,
     # Workflow engine
-    Workflow, WorkflowAction, WorkflowCondition, WorkflowExecution,
-    ActionType, ConditionOperator, WorkflowEngine,
+    Workflow,
+    WorkflowAction,
+    WorkflowCondition,
+    WorkflowEngine,
+    get_mapping_registry,
 )
-from prachar_shared.integrations.workflow_engine import get_workflow_engine
-
 
 # ─── Sync Policy Tests ──────────────────────────────────────────────────────
 
@@ -80,12 +85,12 @@ class TestSyncPolicy:
 
     def test_should_sync_polling_recent_sync(self):
         policy = SyncPolicy(integration="test", mode=SyncMode.POLLING, poll_interval_seconds=3600)
-        policy.last_sync_at = datetime.now(timezone.utc)
+        policy.last_sync_at = datetime.now(UTC)
         assert policy.should_sync() is False
 
     def test_should_sync_polling_expired(self):
         policy = SyncPolicy(integration="test", mode=SyncMode.POLLING, poll_interval_seconds=60)
-        policy.last_sync_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        policy.last_sync_at = datetime.now(UTC) - timedelta(minutes=5)
         assert policy.should_sync() is True
 
     def test_record_success(self):
@@ -248,21 +253,21 @@ class TestCredentialBundle:
     def test_is_expired_past(self):
         creds = CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         )
         assert creds.is_expired() is True
 
     def test_is_expired_future(self):
         creds = CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         assert creds.is_expired() is False
 
     def test_expires_within(self):
         creds = CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
+            expires_at=datetime.now(UTC) + timedelta(hours=12),
         )
         assert creds.expires_within(hours=24) is True
         assert creds.expires_within(hours=6) is False
@@ -311,7 +316,6 @@ class TestSecretsVault:
         vault = SecretsVault("test-key")
         vault.store("conn_1", CredentialBundle(access_token="plaintext_secret"))
         # The internal storage should not contain the plaintext
-        import json
         for stored in vault._credentials.values():
             assert "plaintext_secret" not in stored
 
@@ -330,7 +334,7 @@ class TestSecretsVault:
     def test_record_refresh(self):
         vault = SecretsVault("test-key")
         vault.store("conn_1", CredentialBundle(access_token="test"))
-        vault.record_refresh("conn_1", success=True, new_expiry=datetime.now(timezone.utc) + timedelta(hours=1))
+        vault.record_refresh("conn_1", success=True, new_expiry=datetime.now(UTC) + timedelta(hours=1))
         health = vault.get_health("conn_1")
         assert len(health.refresh_history) == 1
         assert health.refresh_history[0].success is True
@@ -340,11 +344,11 @@ class TestSecretsVault:
         vault = SecretsVault("test-key")
         vault.store("conn_expiring", CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=12),
+            expires_at=datetime.now(UTC) + timedelta(hours=12),
         ))
         vault.store("conn_ok", CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            expires_at=datetime.now(UTC) + timedelta(days=30),
         ))
         vault.store("conn_no_expiry", CredentialBundle(access_token="test"))
         expiring = vault.expiring_within(hours=24)
@@ -356,11 +360,11 @@ class TestSecretsVault:
         vault = SecretsVault("test-key")
         vault.store("conn_expired", CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+            expires_at=datetime.now(UTC) - timedelta(hours=1),
         ))
         vault.store("conn_valid", CredentialBundle(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         ))
         expired = vault.expired()
         assert "conn_expired" in expired

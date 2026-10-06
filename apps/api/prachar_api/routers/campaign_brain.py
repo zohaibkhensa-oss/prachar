@@ -16,10 +16,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
+from prachar_shared.marketing_intelligence import (
+    CampaignBrain,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
@@ -27,9 +29,6 @@ from ..models import (
     Actor,
     Brand,
     CampaignPlanRecord,
-)
-from prachar_shared.marketing_intelligence import (
-    CampaignBrain,
 )
 
 router = APIRouter(prefix="/campaign-brain", tags=["campaign-brain"])

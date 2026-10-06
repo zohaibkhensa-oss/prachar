@@ -19,10 +19,9 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 log = logging.getLogger("prachar.runtime.evaluation")
 
@@ -99,7 +98,7 @@ class SuiteResult:
     failed: int = 0
     avg_quality: float = 0.0
     results: list[CaseResult] = field(default_factory=list)
-    ran_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    ran_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def summary(self) -> str:
         return (
@@ -187,13 +186,15 @@ class QualityScorer:
             non_empty = 0
             for f in all_fields:
                 val = output.get(f)
-                if val is not None:
-                    if isinstance(val, str) and len(val) > 5:
-                        non_empty += 1
-                    elif isinstance(val, (list, dict)) and len(val) > 0:
-                        non_empty += 1
-                    elif isinstance(val, (int, float)) and val != 0:
-                        non_empty += 1
+                if val is not None and (
+                    isinstance(val, str)
+                    and len(val) > 5
+                    or isinstance(val, (list, dict))
+                    and len(val) > 0
+                    or isinstance(val, (int, float))
+                    and val != 0
+                ):
+                    non_empty += 1
             richness_score = non_empty / len(all_fields)
             scores.append(richness_score * 0.2)
         else:
@@ -448,7 +449,7 @@ class RegressionSuite:
         testing in CI.
         """
         result = SuiteResult()
-        for dataset_name, cases in self._datasets.items():
+        for _dataset_name, cases in self._datasets.items():
             for case in cases:
                 # For static runs, we just verify the case is well-formed
                 cr = CaseResult(
@@ -477,7 +478,7 @@ class RegressionSuite:
             SuiteResult with per-case scores
         """
         result = SuiteResult()
-        for dataset_name, cases in self._datasets.items():
+        for _dataset_name, cases in self._datasets.items():
             for case in cases:
                 output = outputs.get(case.id, {})
                 cr = self.score_output(output, case)

@@ -15,14 +15,14 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
-import httpx
 from fastapi import APIRouter, HTTPException
+from prachar_shared.config import get_settings
 from pydantic import BaseModel
 
 from ..deps import CurrentUser, SessionDep
-from prachar_shared.config import get_settings
 
 router = APIRouter(prefix="/video", tags=["video-gen"])
 log = logging.getLogger(__name__)
@@ -176,8 +176,9 @@ async def generate_video(
 
     Fallback chain: Kling (fal.ai) → Gemini Veo
     """
-    from ..deps import get_tenant_plan
     from prachar_shared.plans import get_plan
+
+    from ..deps import get_tenant_plan
 
     quality = _normalize_quality(req)
     enhanced_prompt = req.prompt.strip()
@@ -253,10 +254,6 @@ async def generate_video(
             raise
         except Exception as e:
             log.error("Gemini Veo failed: %s: %s", type(e).__name__, str(e)[:300])
-        except HTTPException as e:
-            log.error("fal.ai failed: %s", str(e.detail)[:200])
-        except Exception as e:
-            log.error("fal.ai failed: %s: %s", type(e).__name__, str(e)[:200])
 
     raise HTTPException(
         status_code=500,
@@ -391,7 +388,7 @@ async def _edit_image_core(
         raise
     except Exception as e:
         log.error("FLUX Kontext Pro failed: %s: %s", type(e).__name__, str(e)[:200])
-        raise HTTPException(status_code=502, detail=f"Image edit failed: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Image edit failed: {str(e)[:200]}") from e
 
 
 # ─── TTS endpoint (Gemini TTS via fal.ai) ───────────────────────────────────
@@ -443,7 +440,7 @@ async def text_to_speech(
         raise
     except Exception as e:
         log.error("Gemini TTS failed: %s: %s", type(e).__name__, str(e)[:200])
-        raise HTTPException(status_code=502, detail=f"TTS failed: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"TTS failed: {str(e)[:200]}") from e
 
 
 # ─── Gemini Veo implementation ──────────────────────────────────────────────
@@ -463,9 +460,11 @@ async def _call_gemini_veo(
     Uses the long-running operation pattern: start generation, poll until done,
     fetch the resulting video URI, then download and return a streamable URL.
     """
+    import asyncio
+    import base64
+
     from google import genai
     from google.genai import types as gtypes
-    import asyncio, base64
 
     model_id = VEO_MODELS[quality]
     client = genai.Client(api_key=api_key)
@@ -552,6 +551,11 @@ async def _call_gemini_veo(
     )
 
 
+def _read_repo_env() -> str:
+    p = Path(__file__).resolve().parents[3] / ".env"
+    return p.read_text() if p.exists() else ""
+
+
 def _download_gemini_video(client, video) -> bytes:
     """Download video bytes from Gemini via the SDK.
 
@@ -567,15 +571,15 @@ async def _store_video_bytes(data: bytes, filename: str) -> str:
     Uploads to fal.ai storage (which returns a public URL), falling back to
     a data URL (base64) only if upload fails.
     """
+    import asyncio
     import base64
     import os
-    from pathlib import Path
 
     # Read FAL_KEY from env
     env = {}
-    env_path = Path(__file__).resolve().parents[3] / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
+    env_text = await asyncio.to_thread(_read_repo_env)
+    if env_text:
+        for line in env_text.splitlines():
             if "=" in line and not line.startswith("#"):
                 k, v = line.split("=", 1)
                 env[k.strip()] = v.strip()
@@ -606,9 +610,12 @@ async def _call_gemini_imagen(api_key: str, prompt: str, width: int, height: int
     dedicated generate_images API is deprecated and Imagen models are no longer
     available to new users. Gemini 2.5 Flash Image is the primary model.
     """
+    import asyncio
+    import base64
+    import time
+
     from google import genai
     from google.genai import types as gtypes
-    import asyncio, base64, time
 
     client = genai.Client(api_key=api_key)
     aspect = _aspect_ratio_from_dims(width, height)
@@ -683,8 +690,8 @@ async def _call_fal_video(fal_key: str, req: VideoGenRequest, prompt: str, aspec
     except Exception as exc:
         err_msg = str(exc)[:300]
         if "402" in err_msg or "403" in err_msg or "locked" in err_msg.lower():
-            raise HTTPException(status_code=402, detail=f"fal.ai: {err_msg}")
-        raise HTTPException(status_code=502, detail=f"fal.ai error: {err_msg}")
+            raise HTTPException(status_code=402, detail=f"fal.ai: {err_msg}") from exc
+        raise HTTPException(status_code=502, detail=f"fal.ai error: {err_msg}") from exc
 
     video_url = _extract_video_url(data)
     if not video_url:

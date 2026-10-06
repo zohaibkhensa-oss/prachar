@@ -8,15 +8,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .artefacts import task_list, team_board
+from .context import AIContext
+from .memory_categories import MemoryCategory
 from .registry import (
     SideEffects,
     ToolCategory,
     ToolManifest,
     register_tool,
 )
-from .memory_categories import MemoryCategory
-from .context import AIContext
-from .artefacts import team_board, task_list
 
 log = logging.getLogger("prachar.runtime.tools.collab")
 
@@ -41,7 +41,8 @@ log = logging.getLogger("prachar.runtime.tools.collab")
 async def team_board_view(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """View the team board."""
     from sqlalchemy import select
-    from ..models.tables import TeamMember, TaskRecord
+
+    from ..models.tables import TaskRecord, TeamMember
 
     # Get team members
     members_res = await ctx.session.execute(
@@ -112,8 +113,9 @@ async def team_board_view(ctx: AIContext, input: dict[str, Any]) -> dict[str, An
 async def team_assign(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Assign a task to a team member."""
     from sqlalchemy import select
-    from ..models.tables import TaskRecord, TeamMember
+
     from ..audit import audit_event
+    from ..models.tables import TaskRecord, TeamMember
 
     assignee_id = input.get("assignee_id", "")
     title = input.get("task_title", "Untitled task")
@@ -185,8 +187,8 @@ async def team_assign(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
 ))
 async def team_approve(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Submit an item for approval."""
-    from ..models.tables import ApprovalRecord
     from ..audit import audit_event
+    from ..models.tables import ApprovalRecord
 
     item_type = input.get("item_type", "campaign")
     item_id = input.get("item_id", "")

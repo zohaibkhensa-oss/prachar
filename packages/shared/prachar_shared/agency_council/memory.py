@@ -129,12 +129,12 @@ class InMemoryCouncilRepository:
         limit: int = 50,
     ) -> list[dict[str, Any]]:
         results = []
-        for l in self._learnings.values():
-            if l.get("tenant_id") != tenant_id:
+        for learning in self._learnings.values():
+            if learning.get("tenant_id") != tenant_id:
                 continue
-            if brand_id and l.get("brand_id") != brand_id:
+            if brand_id and learning.get("brand_id") != brand_id:
                 continue
-            results.append(dict(l))
+            results.append(dict(learning))
         return results[:limit]
 
     async def update_learning_outcome(
@@ -232,7 +232,7 @@ class CouncilMemoryStore:
                 str(brand_id) if brand_id else None,
                 limit,
             )
-            return [CouncilLearning.from_dict(l) for l in learnings]  # type: ignore[arg-type]
+            return [CouncilLearning.from_dict(lrn) for lrn in learnings]  # type: ignore[arg-type]
         except Exception as exc:
             logger.warning("failed to list council learnings: %s", exc)
             return []
@@ -251,12 +251,12 @@ class CouncilMemoryStore:
         if not learnings:
             return ""
         parts: list[str] = []
-        for l in learnings[-5:]:  # Last 5 learnings
-            parts.append(f"- Decision: {l.decision}, Outcome: {l.outcome}")
-            if l.lessons:
-                parts.append(f"  Lessons: {'; '.join(l.lessons[:2])}")
-            if l.successful_recommendations:
-                parts.append(f"  What worked: {'; '.join(l.successful_recommendations[:2])}")
-            if l.failed_recommendations:
-                parts.append(f"  What failed: {'; '.join(l.failed_recommendations[:2])}")
+        for learning in learnings[-5:]:  # Last 5 learnings
+            parts.append(f"- Decision: {learning.decision}, Outcome: {learning.outcome}")
+            if learning.lessons:
+                parts.append(f"  Lessons: {'; '.join(learning.lessons[:2])}")
+            if learning.successful_recommendations:
+                parts.append(f"  What worked: {'; '.join(learning.successful_recommendations[:2])}")
+            if learning.failed_recommendations:
+                parts.append(f"  What failed: {'; '.join(learning.failed_recommendations[:2])}")
         return "\n".join(parts)

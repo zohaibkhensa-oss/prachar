@@ -16,9 +16,10 @@ FastAPI router where the session is provided by ``SessionDep``.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Callable
+from typing import Any
 
 from sqlalchemy import select
 
@@ -209,7 +210,7 @@ class ProactiveEngine:
         last_week = dates[-7:]
         prev_week = dates[-14:-7] if len(dates) >= 14 else dates[: max(1, len(dates) - 7)]
 
-        timeframe = f"last 7 days vs previous 7 days"
+        timeframe = "last 7 days vs previous 7 days"
 
         for metric in _METRICS:
             last_sum = sum(daily[d][metric] for d in last_week)

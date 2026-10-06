@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from prachar_shared.ai_gateway import Completion, Tier
+from prachar_shared.ai_gateway import Tier
 
 from .base import EngineOutput, IntelligenceEngine
 from .domain_base import DomainModel

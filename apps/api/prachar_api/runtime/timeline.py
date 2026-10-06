@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
@@ -21,10 +21,11 @@ from sqlalchemy import (
     Text,
     select,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PGUUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
-from ..models.base import Base, TenantScoped, UUIDPK, utcnow
+from ..models.base import UUIDPK, Base, TenantScoped, utcnow
 
 log = logging.getLogger("prachar.runtime.timeline")
 
@@ -120,7 +121,7 @@ class TimelineService:
 
     async def append(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         tenant_id: uuid.UUID,
         brand_id: uuid.UUID | None,
         entry_type: str,
@@ -166,7 +167,7 @@ class TimelineService:
 
     async def list(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         tenant_id: uuid.UUID,
         brand_id: uuid.UUID | None = None,
         limit: int = 50,
@@ -218,7 +219,7 @@ class TimelineService:
 
     async def get(
         self,
-        session: "AsyncSession",
+        session: AsyncSession,
         tenant_id: uuid.UUID,
         entry_id: uuid.UUID,
     ) -> TimelineEntry | None:

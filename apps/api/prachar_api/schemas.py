@@ -9,7 +9,6 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from .models.enums import (
     CampaignObjective,
     CampaignStatus,
-    Channel,
     Plan,
     Role,
 )
@@ -36,7 +35,7 @@ class TokenOut(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-    user: "UserOut"
+    user: UserOut
 
 
 class RefreshIn(BaseModel):

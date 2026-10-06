@@ -9,12 +9,12 @@ they need via ``ToolManifest.memory_categories``.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 
 
-class MemoryCategory(str, Enum):
+class MemoryCategory(StrEnum):
     """The 7 memory classes.
 
     Each tool declares which categories it needs. An empty list means
@@ -42,7 +42,7 @@ class MemoryEntry:
     content: str
     confidence: float = 0.5
     source: str = "system"           # "learning_engine", "user", "campaign", etc.
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise for the Decision Contract context_snapshot."""
@@ -246,7 +246,7 @@ class MemoryStore:
                         content=str(item.get("content", item.get("text", ""))),
                         confidence=float(item.get("confidence", 0.5)),
                         source=str(item.get("source", source)),
-                        created_at=str(item.get("created_at", "")) or datetime.now(timezone.utc).isoformat(),
+                        created_at=str(item.get("created_at", "")) or datetime.now(UTC).isoformat(),
                     ))
                 else:
                     entries.append(MemoryEntry(

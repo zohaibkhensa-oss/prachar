@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-
 from prachar_shared.adapters.ads.linkedin_ads import LinkedInAdsAdapter
 from prachar_shared.adapters.ads.pinterest_ads import PinterestAdsAdapter
 from prachar_shared.adapters.ads.tiktok_ads import TikTokAdsAdapter
@@ -29,6 +28,32 @@ from prachar_shared.contracts import (
 def _no_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+
+
+@pytest.fixture(autouse=True)
+def _stub_taxonomy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Deterministic taxonomy mapping — adapter tests must not call the AI gateway."""
+    def stub(items, source_type, target_network):
+        return [f"{target_network}:{source_type}:{it}" for it in items]
+    for mod_name in (
+        "prachar_shared.adapters.ads.linkedin_ads",
+        "prachar_shared.adapters.ads.pinterest_ads",
+        "prachar_shared.adapters.ads.tiktok_ads",
+        "prachar_shared.adapters.ads.x_ads",
+        "prachar_shared.adapters.ads.snap_ads",
+        "prachar_shared.adapters.ads.reddit_ads",
+        "prachar_shared.adapters.ads.yandex_direct",
+        "prachar_shared.adapters.ads.microsoft_ads",
+        "prachar_shared.adapters.ads.vk_ads",
+    ):
+        try:
+            mod = __import__(mod_name, fromlist=["translate_taxonomy_sync"])
+        except ImportError:
+            continue
+        if hasattr(mod, "translate_taxonomy_sync"):
+            monkeypatch.setattr(mod, "translate_taxonomy_sync", stub)
     from prachar_shared.config import get_settings
 
     get_settings.cache_clear()
@@ -314,14 +339,14 @@ def test_x_ads_policy_precheck_blocks_guarantees() -> None:
 # Registry integration
 # ============================================================
 def test_registry_has_all_expansion_adapters() -> None:
-    from prachar_shared.adapters.organic import linkedin as _li  # noqa: F401
-    from prachar_shared.adapters.organic import pinterest as _pin  # noqa: F401
-    from prachar_shared.adapters.organic import tiktok as _tt  # noqa: F401
-    from prachar_shared.adapters.organic import x as _x  # noqa: F401
     from prachar_shared.adapters.ads import linkedin_ads as _liads  # noqa: F401
     from prachar_shared.adapters.ads import pinterest_ads as _pinads  # noqa: F401
     from prachar_shared.adapters.ads import tiktok_ads as _ttads  # noqa: F401
     from prachar_shared.adapters.ads import x_ads as _xads  # noqa: F401
+    from prachar_shared.adapters.organic import linkedin as _li  # noqa: F401
+    from prachar_shared.adapters.organic import pinterest as _pin  # noqa: F401
+    from prachar_shared.adapters.organic import tiktok as _tt  # noqa: F401
+    from prachar_shared.adapters.organic import x as _x  # noqa: F401
     from prachar_shared.adapters.registry import get_ads, get_organic
 
     assert get_organic("tiktok").channel == "tiktok"

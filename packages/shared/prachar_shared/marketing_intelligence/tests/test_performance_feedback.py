@@ -23,14 +23,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from prachar_shared.marketing_intelligence.brain import CampaignBrain
 from prachar_shared.marketing_intelligence.memory import (
-    BusinessMemory,
     BusinessMemoryStore,
 )
 from prachar_shared.marketing_intelligence.repository import InMemoryRepository
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -366,7 +363,6 @@ class _FakeLiveSession:
     ) -> None:
         self._campaigns = campaigns or []
         self._perf_rows = perf_rows or []
-        from unittest.mock import AsyncMock, MagicMock
 
         self.execute = AsyncMock(side_effect=self._execute)
 

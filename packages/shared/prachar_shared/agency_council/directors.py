@@ -16,12 +16,11 @@ Directors:
 """
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from prachar_shared.ai_gateway import Tier
 
 from .director_base import Director
-
 
 # ─── 1. Chief Strategy Officer ──────────────────────────────────────────────
 

@@ -33,8 +33,9 @@ import inspect
 import json
 import logging
 import uuid
-from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

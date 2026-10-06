@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import pytest
-
-from prachar_shared.adapters.organic.instagram import InstagramAdapter
 from prachar_shared.adapters.organic.facebook import FacebookAdapter
-from prachar_shared.contracts import AudienceSpec, CreativeAsset
+from prachar_shared.adapters.organic.instagram import InstagramAdapter
 
 
 def test_instagram_channel():

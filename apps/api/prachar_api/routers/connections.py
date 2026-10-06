@@ -1,18 +1,18 @@
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import uuid
-import base64
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, HTTPException, status
+from prachar_shared.config import get_settings
 from sqlalchemy import select
 
 from ..deps import CurrentUser, SessionDep
 from ..models import Connection
 from ..schemas import ConnectionOut
-from prachar_shared.config import get_settings
 
 log = logging.getLogger("prachar_api.connections")
 
@@ -269,7 +269,7 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
     try:
         brand_id = uuid.UUID(state)
     except ValueError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state parameter")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state parameter") from None
 
     # 2. Map channel names (facebook → meta, twitter → x)
     adapter_channel = channel
@@ -285,7 +285,7 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
         from prachar_shared.adapters.registry import get_organic
         adapter = get_organic(adapter_channel)
     except KeyError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}") from None
 
     try:
         # exchange_code is async in some adapters, sync in others
@@ -298,13 +298,13 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
         raise HTTPException(
             status.HTTP_501_NOT_IMPLEMENTED,
             f"token exchange not implemented for {channel} — set tokens manually",
-        )
+        ) from None
     except Exception as exc:
         log.error("OAuth token exchange failed for %s: %s", channel, str(exc)[:200])
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
             f"token exchange failed: {str(exc)[:200]}",
-        )
+        ) from exc
 
     # 4. Encrypt tokens
     from prachar_shared.security import encrypt_token

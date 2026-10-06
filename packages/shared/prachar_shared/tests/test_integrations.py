@@ -1,9 +1,9 @@
 """Tests for the Integrations framework — common interface, GA4, WordPress, registry."""
 from __future__ import annotations
 
-import pytest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
+import pytest
 from prachar_shared.integrations import (
     IntegrationCapability,
     IntegrationHealth,
@@ -16,7 +16,6 @@ from prachar_shared.integrations import (
 )
 from prachar_shared.integrations.google_analytics import GoogleAnalytics4
 from prachar_shared.integrations.wordpress import WordPress
-
 
 # ─── Common Interface Tests ─────────────────────────────────────────────────
 
@@ -175,45 +174,49 @@ class TestGoogleAnalytics4:
 
     def test_fetch_metrics_requires_property_id(self):
         ga4 = GoogleAnalytics4()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="property_id is required"):
-            ga4.fetch_metrics(tokens, since=datetime.now(timezone.utc))
+            ga4.fetch_metrics(tokens, since=datetime.now(UTC))
 
     def test_fetch_realtime_requires_property_id(self):
         ga4 = GoogleAnalytics4()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="property_id is required"):
             ga4.fetch_realtime(tokens)
 
     def test_attribute_conversions_requires_property_id(self):
         ga4 = GoogleAnalytics4()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="property_id is required"):
-            ga4.attribute_conversions(tokens, since=datetime.now(timezone.utc))
+            ga4.attribute_conversions(tokens, since=datetime.now(UTC))
 
     def test_unsupported_methods_raise(self):
         """GA4 should not support PUBLISH or SYNC_ASSETS."""
         ga4 = GoogleAnalytics4()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(NotImplementedError, match="does not support PUBLISH"):
             ga4.publish(tokens, payload={})
@@ -253,51 +256,55 @@ class TestWordPress:
     def test_unsupported_methods_raise(self):
         """WordPress should not support READ_METRICS or ATTRIBUTION."""
         wp = WordPress()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         # WordPress fetch_metrics returns empty list (not NotImplementedError)
-        metrics = wp.fetch_metrics(tokens, since=datetime.now(timezone.utc))
+        metrics = wp.fetch_metrics(tokens, since=datetime.now(UTC))
         assert metrics == []
 
         with pytest.raises(NotImplementedError, match="does not support ATTRIBUTION"):
-            wp.attribute_conversions(tokens, since=datetime.now(timezone.utc))
+            wp.attribute_conversions(tokens, since=datetime.now(UTC))
 
         with pytest.raises(NotImplementedError, match="does not support WRITE_BACK"):
             wp.write_back(tokens, entity_id="1", updates={})
 
     def test_manage_media_unknown_action(self):
         wp = WordPress()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="Unknown action"):
             wp.manage_media(tokens, action="invalid")
 
     def test_manage_media_upload_requires_bytes(self):
         wp = WordPress()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="file_bytes is required"):
             wp.manage_media(tokens, action="upload")
 
     def test_manage_media_delete_requires_id(self):
         wp = WordPress()
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         tokens = TokenSet(
             access_token="fake",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         with pytest.raises(ValueError, match="media_id is required"):
             wp.manage_media(tokens, action="delete")
@@ -327,11 +334,12 @@ class TestMarketingIntegrationBase:
                 )
 
             def authenticate(self, **kwargs):
-                from prachar_shared.contracts import TokenSet
                 from datetime import timedelta
+
+                from prachar_shared.contracts import TokenSet
                 return TokenSet(
                     access_token="test",
-                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                    expires_at=datetime.now(UTC) + timedelta(hours=1),
                 )
 
             def test_connection(self, tokens):
@@ -343,12 +351,13 @@ class TestMarketingIntegrationBase:
             def fetch_assets(self, tokens, asset_type="all", **kwargs):
                 return []
 
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         integration = TestIntegration()
         tokens = TokenSet(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         result = integration.sync(tokens)
         assert result.success
@@ -370,22 +379,24 @@ class TestMarketingIntegrationBase:
                 )
 
             def authenticate(self, **kwargs):
-                from prachar_shared.contracts import TokenSet
                 from datetime import timedelta
+
+                from prachar_shared.contracts import TokenSet
                 return TokenSet(
                     access_token="test",
-                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                    expires_at=datetime.now(UTC) + timedelta(hours=1),
                 )
 
             def test_connection(self, tokens):
                 return True
 
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         integration = TestHealthIntegration()
         tokens = TokenSet(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         health = integration.health(tokens)
         assert health.status == IntegrationStatus.CONNECTED
@@ -406,22 +417,24 @@ class TestMarketingIntegrationBase:
                 )
 
             def authenticate(self, **kwargs):
-                from prachar_shared.contracts import TokenSet
                 from datetime import timedelta
+
+                from prachar_shared.contracts import TokenSet
                 return TokenSet(
                     access_token="test",
-                    expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+                    expires_at=datetime.now(UTC) + timedelta(hours=1),
                 )
 
             def test_connection(self, tokens):
                 raise Exception("Connection refused")
 
-        from prachar_shared.contracts import TokenSet
         from datetime import timedelta
+
+        from prachar_shared.contracts import TokenSet
         integration = TestErrorIntegration()
         tokens = TokenSet(
             access_token="test",
-            expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
         )
         health = integration.health(tokens)
         assert health.status == IntegrationStatus.ERROR

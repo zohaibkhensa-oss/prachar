@@ -16,7 +16,6 @@ from dataclasses import is_dataclass
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded, Completion
 from prachar_shared.marketing_intelligence.strategy_engine import (
     Strategy,
@@ -24,7 +23,6 @@ from prachar_shared.marketing_intelligence.strategy_engine import (
     _default_strategies,
     _parse_strategies,
 )
-
 
 # ─── Fixtures ──────────────────────────────────────────────────────────────
 

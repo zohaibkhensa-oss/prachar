@@ -14,7 +14,7 @@ Docs: https://mailchimp.com/developer/marketing/api/
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -142,7 +142,7 @@ class Mailchimp(MarketingIntegration):
         meta = meta_resp.json()
         dc = meta.get("dc", "us1")
 
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600))
+        expires_at = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
         return TokenSet(
             access_token=access_token,
             refresh_token=data.get("refresh_token"),
@@ -358,7 +358,7 @@ class Mailchimp(MarketingIntegration):
         return {
             "native_id": campaign_id,
             "url": campaign.get("archive_url", ""),
-            "published_at": datetime.now(timezone.utc).isoformat(),
+            "published_at": datetime.now(UTC).isoformat(),
             "status": status,
             "title": campaign.get("settings", {}).get("title", ""),
         }

@@ -1,12 +1,11 @@
-from __future__ import annotations
-
 """Spend cap enforcement — checked in a DB transaction before every budget/bid call.
 Per spec 06 §"Money safety": hard cap table checked BEFORE any network call."""
+
+from __future__ import annotations
 
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -120,7 +119,6 @@ def check_idempotency(key: str) -> bool:
     False if duplicate (skip)."""
     try:
         import redis
-
         from prachar_shared.config import get_settings
 
         r = redis.from_url(get_settings().redis_url, decode_responses=True)

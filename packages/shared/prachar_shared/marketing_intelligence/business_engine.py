@@ -14,7 +14,7 @@ from typing import Any
 
 from prachar_shared.ai_gateway import Completion, Tier
 
-from .base import EngineOutput, IntelligenceEngine, Recommendation
+from .base import EngineOutput, IntelligenceEngine
 from .domain_base import DomainModel
 
 

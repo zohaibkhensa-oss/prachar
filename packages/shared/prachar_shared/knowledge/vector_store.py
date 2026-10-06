@@ -22,7 +22,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-import os
 import threading
 from dataclasses import dataclass, field
 from typing import Any
@@ -107,11 +106,7 @@ def _hash_embedding(text: str, dim: int = FALLBACK_EMBEDDING_DIM) -> list[float]
 
     # Normalise to unit length.
     norm = math.sqrt(sum(v * v for v in vec))
-    if norm == 0.0:
-        # Extremely unlikely, but guard anyway.
-        vec = [1.0 / math.sqrt(dim)] * dim
-    else:
-        vec = [v / norm for v in vec]
+    vec = [1.0 / math.sqrt(dim)] * dim if norm == 0.0 else [v / norm for v in vec]
     return vec
 
 
@@ -213,7 +208,7 @@ class EmbeddingGenerator:
                 vecs = self._openai_embed(missing_texts)
             else:
                 vecs = [_hash_embedding(t, FALLBACK_EMBEDDING_DIM) for t in missing_texts]
-            for idx, vec in zip(missing, vecs):
+            for idx, vec in zip(missing, vecs, strict=True):
                 results[idx] = vec
                 self._cache_put(texts[idx], vec)
 
@@ -448,7 +443,7 @@ class KnowledgeSearcher:
             return []
         texts = [c.get("content", "") for c in chunks]
         embeddings = self.embedder.generate_batch(texts)
-        for c, emb in zip(chunks, embeddings):
+        for c, emb in zip(chunks, embeddings, strict=True):
             cid = c["chunk_id"]
             content = c.get("content", "")
             source_id = c.get("source_id", "")
@@ -545,7 +540,7 @@ class KnowledgeSearcher:
         Uses the list-membership semantics of the metadata filter: a chunk
         matches when its ``tags`` list contains every requested tag.
         """
-        filter = {"tags": t for t in tags}
+        filter = {"tags": list(tags)}
         return self.search(query, top_k=top_k, filter=filter)
 
 

@@ -8,7 +8,6 @@ Tests:
 from __future__ import annotations
 
 import pytest
-
 from prachar_shared.agency_council import (
     COUNCIL_REVIEW_KEYWORDS,
     ConsensusDecision,

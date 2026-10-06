@@ -18,9 +18,9 @@ Mappings are:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
-
+from typing import Any
 
 # ─── Canonical CURV AI Field Definitions ─────────────────────────────────────
 
@@ -441,9 +441,12 @@ class DataMappingRegistry:
 
     def get(self, integration: str, tenant_id: str | None = None) -> DataMapping | None:
         """Get the mapping for an integration, with optional tenant overrides."""
-        if tenant_id and tenant_id in self._user_overrides:
-            if integration in self._user_overrides[tenant_id]:
-                return self._user_overrides[tenant_id][integration]
+        if (
+            tenant_id
+            and tenant_id in self._user_overrides
+            and integration in self._user_overrides[tenant_id]
+        ):
+            return self._user_overrides[tenant_id][integration]
         return self._defaults.get(integration)
 
     def set_user_override(self, tenant_id: str, integration: str, mapping: DataMapping) -> None:

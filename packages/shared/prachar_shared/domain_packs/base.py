@@ -21,7 +21,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-
 # ─── Specs (small data classes describing domain-specific UI/data) ─────────
 
 
@@ -286,13 +285,13 @@ class BaseDomainPack:
 class DomainPackRegistry:
     """Registry of available domain packs. Singleton."""
 
-    _instance: "DomainPackRegistry | None" = None
+    _instance: DomainPackRegistry | None = None
 
     def __init__(self) -> None:
         self._packs: dict[str, DomainPack] = {}
 
     @classmethod
-    def instance(cls) -> "DomainPackRegistry":
+    def instance(cls) -> DomainPackRegistry:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -330,9 +329,9 @@ def get_registry() -> DomainPackRegistry:
 def register_all() -> None:
     """Register all built-in domain packs. Called at app startup."""
     from .business.pack import BusinessPack
+    from .clinic.pack import ClinicPack
     from .creator.pack import CreatorPack
     from .restaurant.pack import RestaurantPack
-    from .clinic.pack import ClinicPack
 
     reg = get_registry()
     reg.clear()

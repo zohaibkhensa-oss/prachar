@@ -14,7 +14,6 @@ from dataclasses import dataclass, field
 
 from fastapi import HTTPException, Request, status
 
-
 # Module-level flag — tests can toggle this directly without polluting the
 # settings cache. Production reads from Settings.rate_limit_enabled once at
 # startup. Tests set _enabled = False to disable, True to re-enable.

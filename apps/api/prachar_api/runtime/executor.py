@@ -11,12 +11,11 @@ import asyncio
 import logging
 import re
 import time
-import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
 from .context import AIContext
-from .events import AIEvent, EventBus, EventPhase, OrbState, make_event
+from .events import EventBus, EventPhase, OrbState, make_event
 from .graph import ExecutionGraph, GraphNode
 from .registry import ToolRegistry, get_registry
 
@@ -130,7 +129,6 @@ class ExecutionEngine:
             cancel_event: Set this to cancel execution
             metrics: RuntimeMetrics collector (V6)
         """
-        from .metrics import ToolMetrics
 
         result = ExecutionResult(metrics=metrics)
         start_time = time.time()
@@ -147,7 +145,7 @@ class ExecutionEngine:
                 result.cancelled = True
                 result.success = False
                 # V2: Cancel all running tasks
-                for node_id, task in running_tasks.items():
+                for _node_id, task in running_tasks.items():
                     task.cancel()
                 # Wait for tasks to finish cancellation
                 if running_tasks:
@@ -360,8 +358,8 @@ class ExecutionEngine:
         V4: Failed nodes are marked completed (not blocking the graph).
         V6: Records ToolMetrics for every execution.
         """
-        from .metrics import ToolMetrics
         from .health import HealthStatus, get_health_registry
+        from .metrics import ToolMetrics
 
         # Phase E1.2: Check if the tool is offline — skip if so
         health = get_health_registry()
@@ -430,7 +428,6 @@ class ExecutionEngine:
 
         # V3: Determine timeouts from manifest (fall back to node, then default)
         hard_timeout = entry.manifest.hard_timeout_ms or node.timeout_ms or 120_000
-        soft_timeout = entry.manifest.soft_timeout_ms or 60_000
 
         # V6: Tool metrics
         tm = ToolMetrics(tool=node.tool, node_id=node.id, started_at=time.time())
@@ -548,7 +545,7 @@ class ExecutionEngine:
                 # Re-raise so the gather knows we were cancelled
                 raise
 
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # V3: Hard timeout
                 duration_ms = int((time.time() - start) * 1000)
                 if retries < max_retries:

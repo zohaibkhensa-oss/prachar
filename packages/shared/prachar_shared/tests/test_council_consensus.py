@@ -14,26 +14,22 @@ Tests:
 from __future__ import annotations
 
 import uuid
-from typing import Any
 
 import pytest
-
 from prachar_shared.agency_council import (
+    CampaignScore,
+    ConsensusDecision,
     ConsensusEngine,
+    CouncilSession,
+    DirectorOpinion,
     calculate_disagreement,
     compute_campaign_score,
     compute_weights,
     extract_all_risks,
     extract_disagreements,
     extract_minority_opinions,
-    DirectorOpinion,
-    CampaignScore,
-    ConsensusDecision,
-    CouncilSession,
 )
-from prachar_shared.agency_council.directors import ALL_DIRECTORS
 from prachar_shared.tests.council_fixtures import StubGateway
-
 
 BRIEF = {
     "business_name": "Acme Coffee",
@@ -472,7 +468,7 @@ class TestConsensusEngine:
             campaign_brief=BRIEF,
         )
         # Should have 9 opinions per round
-        for round_str, opinions in session.opinions_by_round.items():
+        for _round_str, opinions in session.opinions_by_round.items():
             assert len(opinions) == 9
 
     @pytest.mark.asyncio

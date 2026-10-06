@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import date, timedelta
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -34,12 +33,12 @@ from prachar_shared.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()
 
-from prachar_api.main import app  # noqa: E402
 from prachar_shared.marketing_intelligence.proactive_engine import (  # noqa: E402
     Anomaly,
     format_as_prachar_message,
 )
 
+from prachar_api.main import app  # noqa: E402
 
 # ─── Fixtures ────────────────────────────────────────────────────────────────
 

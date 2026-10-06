@@ -62,9 +62,10 @@ async def send_email(msg: EmailMessage) -> bool:
     # Option 2: SMTP
     if s.smtp_host:
         try:
-            import aiosmtplib
-            from email.mime.text import MIMEText
             from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            import aiosmtplib
 
             message = MIMEMultipart("alternative")
             message["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
@@ -257,10 +258,11 @@ async def send_invoice_email(
     # Option 2: SMTP (with MIME attachment)
     if s.smtp_host:
         try:
-            import aiosmtplib
-            from email.mime.text import MIMEText
-            from email.mime.multipart import MIMEMultipart
             from email.mime.application import MIMEApplication
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+
+            import aiosmtplib
 
             message = MIMEMultipart("mixed")
             message["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr

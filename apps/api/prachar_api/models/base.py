@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import DateTime, MetaData
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-from sqlalchemy.types import JSON, Numeric
+from sqlalchemy.types import JSON
 
 # Shared naming convention so Alembic autogenerate produces stable constraint names.
 NAMING_CONVENTION = {
@@ -20,7 +20,7 @@ NAMING_CONVENTION = {
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Base(DeclarativeBase):

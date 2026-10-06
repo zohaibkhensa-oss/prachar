@@ -15,7 +15,7 @@ empty list on any failure so the review workflow still works without AI.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier

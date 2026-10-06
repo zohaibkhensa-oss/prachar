@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 """Creative evolution — per spec 06 §"Creative evolution":
 losers (CTR < group median − 1σ over 7d) retired; LLM generates children of winners
 (mutation prompts). Log lineage."""
 
+from __future__ import annotations
+
 import logging
-import math
 import statistics
 import uuid
 from dataclasses import dataclass

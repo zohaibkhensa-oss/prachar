@@ -36,7 +36,7 @@ class SerpResult:
 
 def _domain_of(url: str) -> str:
     try:
-        return (urlparse(url).netloc or "").lower().lstrip("www.")
+        return (urlparse(url).netloc or "").lower().removeprefix("www.")
     except ValueError:
         return ""
 
@@ -120,7 +120,7 @@ def _mock_entries(query: str) -> list[SerpEntry]:
 
 async def serp_sample(queries: list[str], domain: str) -> SerpResult:
     """Sample SERP results for the given queries; check brand presence."""
-    brand = domain.lower().lstrip("www.")
+    brand = domain.lower().removeprefix("www.")
     use_api = _has_serp_key()
     qresults: list[QueryResult] = []
     for q in queries:

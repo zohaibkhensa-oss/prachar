@@ -1,11 +1,11 @@
 """Tests for the Creative Studio spec registry and all 10 format specs."""
 from __future__ import annotations
 
-import pytest
+from dataclasses import FrozenInstanceError
 
+import pytest
 from prachar_shared.creative_studio import (
     CreativeFormatRegistry,
-    CreativeFormatSpec,
     register_all,
 )
 from prachar_shared.creative_studio.formats import ALL_FORMATS
@@ -211,5 +211,5 @@ class TestSchemas:
 class TestImmutability:
     def test_spec_is_frozen(self, registry: CreativeFormatRegistry):
         spec = registry.get_required("poster")
-        with pytest.raises(Exception):
+        with pytest.raises(FrozenInstanceError):
             spec.id = "mutated"  # type: ignore[misc]

@@ -27,28 +27,27 @@ from __future__ import annotations
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select, delete, func, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, select
 
+from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep
 from ..models import (
-    KnowledgeSourceRecord,
+    KnowledgeAttributionRecord,
     KnowledgeChunkRecord,
     KnowledgeEmbeddingRecord,
-    KnowledgeAttributionRecord,
+    KnowledgeSourceRecord,
 )
 from ..models.enums import (
+    KnowledgeFileType,
     KnowledgeLevel,
     KnowledgeSourceStatus,
     KnowledgeSourceType,
-    KnowledgeFileType,
 )
-from ..audit import log_audit
 
 log = logging.getLogger("prachar.api.knowledge")
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
@@ -82,7 +81,7 @@ class KnowledgeSourceOut(BaseModel):
     updated_at: str = ""
 
     @classmethod
-    def from_record(cls, r: KnowledgeSourceRecord) -> "KnowledgeSourceOut":
+    def from_record(cls, r: KnowledgeSourceRecord) -> KnowledgeSourceOut:
         return cls(
             id=str(r.id),
             workspace_id=str(r.workspace_id) if r.workspace_id else None,
@@ -481,7 +480,7 @@ async def upload_document(
         source.status = KnowledgeSourceStatus.ready
         source.chunk_count = len(result.chunks)
         source.total_tokens = total_tokens
-        source.processed_at = datetime.now(timezone.utc)
+        source.processed_at = datetime.now(UTC)
         await session.commit()
 
         # Generate embeddings (best effort — don't fail if embedding fails)
@@ -586,7 +585,7 @@ async def add_url_source(
         source.status = KnowledgeSourceStatus.ready
         source.chunk_count = len(result.chunks)
         source.total_tokens = total_tokens
-        source.processed_at = datetime.now(timezone.utc)
+        source.processed_at = datetime.now(UTC)
         await session.commit()
 
     except Exception as e:
@@ -667,7 +666,7 @@ async def add_text_source(
         source.status = KnowledgeSourceStatus.ready
         source.chunk_count = len(result.chunks)
         source.total_tokens = total_tokens
-        source.processed_at = datetime.now(timezone.utc)
+        source.processed_at = datetime.now(UTC)
         await session.commit()
 
         # Generate embeddings
@@ -727,7 +726,7 @@ async def search_knowledge(
 
     Searches are workspace-isolated and can be filtered by level, tags, etc.
     """
-    from prachar_shared.knowledge.vector_store import KnowledgeSearcher, EmbeddingGenerator
+    from prachar_shared.knowledge.vector_store import EmbeddingGenerator
 
     # Generate query embedding
     gen = EmbeddingGenerator()

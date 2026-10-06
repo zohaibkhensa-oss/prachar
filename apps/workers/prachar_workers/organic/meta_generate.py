@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 """Instagram + Facebook content generation + hashtag engine + scheduler."""
+
+from __future__ import annotations
 
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -25,8 +25,8 @@ async def generate_ig_caption(
     """Generate an Instagram caption + hashtag sets via AIGateway (stub mode
     returns deterministic plausible content)."""
     try:
-        from prachar_shared.ai_gateway import AIGateway, Tier
         from prachar_shared.adapters.organic.meta_prompts import IG_CAPTION_PROMPT
+        from prachar_shared.ai_gateway import AIGateway, Tier
 
         gw = AIGateway()
         prompt = IG_CAPTION_PROMPT.format(
@@ -90,8 +90,8 @@ async def generate_fb_post(
 ) -> dict[str, Any]:
     """Generate a Facebook page post via AIGateway (stub mode fallback)."""
     try:
-        from prachar_shared.ai_gateway import AIGateway, Tier
         from prachar_shared.adapters.organic.meta_prompts import FB_POST_PROMPT
+        from prachar_shared.ai_gateway import AIGateway, Tier
 
         gw = AIGateway()
         prompt = FB_POST_PROMPT.format(
@@ -135,8 +135,8 @@ async def generate_hashtag_sets(
 ) -> dict[str, Any]:
     """Generate optimized hashtag sets via the hashtag engine (stub fallback)."""
     try:
-        from prachar_shared.ai_gateway import AIGateway, Tier
         from prachar_shared.adapters.organic.meta_prompts import HASHTAG_ENGINE_PROMPT
+        from prachar_shared.ai_gateway import AIGateway, Tier
 
         gw = AIGateway()
         prompt = HASHTAG_ENGINE_PROMPT.format(
@@ -151,12 +151,11 @@ async def generate_hashtag_sets(
     except Exception as exc:
         logger.warning("hashtag engine AI call failed, using stub: %s", exc)
 
-    seed = _stub_seed(channel, topic, locale)
     base = topic.replace(" ", "").lower()
     cat = brand_graph.get("category", "business").replace(" ", "").lower()
     return {
         "sets": [
-            [f"#{base}", f"#{cat}", f"#{locale}", f"#trending", f"#{base}tips"],
+            [f"#{base}", f"#{cat}", f"#{locale}", "#trending", f"#{base}tips"],
             [f"#{base}community", f"#{cat}life", f"#{base}lover", f"#{locale}{cat}"],
             [f"#{base}expert", f"#{cat}daily", f"#{base}guide", f"#{locale}business"],
         ],
@@ -173,7 +172,7 @@ def compute_posting_windows(
     # Stub: post at 9am, 1pm, 7pm audience-local time.
     # For now, assume single timezone.
     windows = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for day_offset in range(7):
         for hour_local in (9, 13, 19):
             # Simplified: assume audience is in UTC+5:30 (India) for stub.

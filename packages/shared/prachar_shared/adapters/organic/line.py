@@ -91,8 +91,11 @@ class LINEAdapter(ChannelAdapter):
         text = " ".join(text_parts)
         result = claims_gate(text)
         for msg in messages:
-            if isinstance(msg, dict) and isinstance(msg.get("text"), str):
-                if len(msg["text"]) > _LINE_TEXT_MAX:
+            if (
+                isinstance(msg, dict)
+                and isinstance(msg.get("text"), str)
+                and len(msg["text"]) > _LINE_TEXT_MAX
+            ):
                     result.blocked_reasons.append(
                         f"Message text exceeds {_LINE_TEXT_MAX} characters"
                     )

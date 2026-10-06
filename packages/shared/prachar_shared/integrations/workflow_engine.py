@@ -28,10 +28,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Awaitable, Callable
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Any
 
 from .base import WebhookEvent
 from .event_bus import IntegrationEventBus, get_event_bus
@@ -42,7 +43,7 @@ log = logging.getLogger("prachar.integrations.workflows")
 # ─── Workflow Definition Model ──────────────────────────────────────────────
 
 
-class ConditionOperator(str, Enum):
+class ConditionOperator(StrEnum):
     """Comparison operators for workflow conditions."""
     EQUALS = "equals"
     NOT_EQUALS = "not_equals"
@@ -58,7 +59,7 @@ class ConditionOperator(str, Enum):
     NOT_IN = "not_in"
 
 
-class ActionType(str, Enum):
+class ActionType(StrEnum):
     """Types of actions a workflow can execute."""
     SEND_EMAIL = "send_email"
     CREATE_CRM_CONTACT = "create_crm_contact"
@@ -173,8 +174,8 @@ class Workflow:
     actions: list[WorkflowAction] = field(default_factory=list)
     # State
     is_active: bool = True
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     # Execution stats
     execution_count: int = 0
     last_executed_at: datetime | None = None
@@ -186,9 +187,7 @@ class Workflow:
             return False
         if self.trigger_integration != "*" and self.trigger_integration != event.integration:
             return False
-        if self.trigger_event_type != "*" and self.trigger_event_type != event.event_type:
-            return False
-        return True
+        return not (self.trigger_event_type != "*" and self.trigger_event_type != event.event_type)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -228,7 +227,7 @@ class WorkflowExecution:
     """Record of a single workflow execution."""
     workflow_id: str
     event: WebhookEvent
-    started_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     status: str = "running"     # "running", "success", "failed", "skipped"
     conditions_met: bool = True
@@ -372,7 +371,7 @@ class WorkflowEngine:
             if not condition.evaluate(context):
                 execution.conditions_met = False
                 execution.status = "skipped"
-                execution.completed_at = datetime.now(timezone.utc)
+                execution.completed_at = datetime.now(UTC)
                 workflow.last_execution_status = "skipped"
                 self._executions.append(execution)
                 log.info("Workflow %s skipped (conditions not met)", workflow.name)
@@ -421,11 +420,11 @@ class WorkflowEngine:
         if execution.status == "running":
             execution.status = "success" if execution.actions_failed == 0 else "partial"
 
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
 
         # Update workflow stats
         workflow.execution_count += 1
-        workflow.last_executed_at = datetime.now(timezone.utc)
+        workflow.last_executed_at = datetime.now(UTC)
         workflow.last_execution_status = execution.status
 
         self._executions.append(execution)

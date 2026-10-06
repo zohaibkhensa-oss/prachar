@@ -12,7 +12,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
-from apps.api.prachar_api.main import create_app
+from prachar_api.main import create_app
 
 
 def test_creator_endpoints_require_auth() -> None:
@@ -52,7 +52,7 @@ def test_creator_consult_validates_message_length() -> None:
 
 def test_brand_schema_includes_customer_type() -> None:
     """BrandIn and BrandOut schemas must include customer_type."""
-    from apps.api.prachar_api.schemas import BrandIn, BrandOut
+    from prachar_api.schemas import BrandIn, BrandOut
 
     in_fields = BrandIn.model_fields
     assert "customer_type" in in_fields, "BrandIn must have customer_type field"
@@ -65,8 +65,9 @@ def test_brand_schema_includes_customer_type() -> None:
 
 def test_brand_in_validates_customer_type() -> None:
     """BrandIn.customer_type must only accept 'business' or 'creator'."""
-    from apps.api.prachar_api.schemas import BrandIn
     from pydantic import ValidationError
+
+    from prachar_api.schemas import BrandIn
 
     # Valid
     b1 = BrandIn(name="Test", customer_type="business")
@@ -77,14 +78,14 @@ def test_brand_in_validates_customer_type() -> None:
     # Invalid
     try:
         BrandIn(name="Test", customer_type="invalid")
-        assert False, "Should have raised ValidationError"
+        raise AssertionError("Should have raised ValidationError")
     except ValidationError:
         pass
 
 
 def test_brand_model_has_customer_type_column() -> None:
     """Brand SQLAlchemy model must have customer_type column with default 'business'."""
-    from apps.api.prachar_api.models import Brand
+    from prachar_api.models import Brand
 
     col = Brand.__table__.c.get("customer_type")
     assert col is not None, "Brand table must have customer_type column"

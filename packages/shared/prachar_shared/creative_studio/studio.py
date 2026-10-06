@@ -28,7 +28,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from prachar_shared.ai_gateway import AIGateway, Tier
@@ -112,7 +112,7 @@ class CreativeStudio:
 
         formats: dict[str, dict[str, Any]] = {}
         total_tokens = 0
-        for spec, result in zip(specs, results):
+        for spec, result in zip(specs, results, strict=True):
             formats[spec.id] = result
             total_tokens += result.get("_tokens", 0)
             # Clean up internal bookkeeping keys from the output
@@ -130,7 +130,7 @@ class CreativeStudio:
             campaign_id=campaign_id,
             creative_direction_id=cd_id,
             formats=formats,
-            generated_at=datetime.now(timezone.utc).isoformat(),
+            generated_at=datetime.now(UTC).isoformat(),
             total_tokens=total_tokens,
         )
 
@@ -209,7 +209,7 @@ class CreativeStudio:
             plan=plan,
             max_tokens=800,
             temperature=0.5,
-            prompt_version=f"creative_studio_regenerate_v1.0",
+            prompt_version="creative_studio_regenerate_v1.0",
         )
 
         # Parse the response — expect {field_name: new_value}

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import logging
-import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -30,9 +29,10 @@ log = logging.getLogger("prachar.runtime.tools_channels")
 
 async def _load_tokens(ctx: AIContext, channel: str) -> Any:
     """Load and decrypt OAuth tokens for the current brand + channel."""
-    from ..models import Connection
     from prachar_shared.contracts import TokenSet
     from prachar_shared.security import decrypt_token
+
+    from ..models import Connection
 
     session = ctx.session
     if session is None:
@@ -316,8 +316,9 @@ async def channel_publish(ctx: AIContext, input: dict[str, Any]) -> dict[str, An
         tokens = await _load_tokens(ctx, channel)
         if tokens is None:
             # No active connection — emit a connect suggestion artefact
-            from .artefacts import alert
             from prachar_shared.adapters.registry import get_organic
+
+            from .artefacts import alert
 
             auth_url = ""
             try:

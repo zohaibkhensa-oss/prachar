@@ -24,13 +24,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
-
-from prachar_shared.integrations import get_integration_registry, get_event_bus
-from prachar_shared.integrations.google_analytics import GoogleAnalytics4
-from prachar_shared.integrations.wordpress import WordPress
-from prachar_shared.integrations.shopify import Shopify
-from prachar_shared.integrations.mailchimp import Mailchimp
-from prachar_shared.integrations.hubspot import HubSpot
+from prachar_shared.integrations import get_event_bus, get_integration_registry
 
 log = logging.getLogger("prachar.api.webhooks")
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -82,10 +76,10 @@ async def receive_webhook(
         )
     except NotImplementedError:
         log.warning("Integration %s does not support webhooks", integration)
-        raise HTTPException(status_code=501, detail="Webhooks not supported for this integration")
+        raise HTTPException(status_code=501, detail="Webhooks not supported for this integration") from None
     except Exception as e:
         log.error("Webhook parsing failed for %s: %s", integration, e, exc_info=True)
-        raise HTTPException(status_code=400, detail=f"Webhook parsing failed: {e}")
+        raise HTTPException(status_code=400, detail=f"Webhook parsing failed: {e}") from e
 
     if event is None:
         # Signature verification failed or event could not be parsed

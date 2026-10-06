@@ -14,8 +14,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum
+from datetime import UTC, datetime
+from enum import StrEnum
 from typing import Any
 from uuid import UUID
 
@@ -25,7 +25,7 @@ log = logging.getLogger("prachar.runtime.automation")
 # ─── Automation Types ───────────────────────────────────────────────────────
 
 
-class AutomationType(str, Enum):
+class AutomationType(StrEnum):
     """Types of automated tasks the Runtime can perform."""
 
     CAMPAIGN_REVIEW = "campaign_review"          # weekly review of active campaigns
@@ -37,7 +37,7 @@ class AutomationType(str, Enum):
     CONTENT_CALENDAR = "content_calendar"        # auto-generate weekly content calendar
 
 
-class AutomationStatus(str, Enum):
+class AutomationStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -46,7 +46,7 @@ class AutomationStatus(str, Enum):
     AWAITING_APPROVAL = "awaiting_approval"
 
 
-class AutomationFrequency(str, Enum):
+class AutomationFrequency(StrEnum):
     ONCE = "once"
     DAILY = "daily"
     WEEKLY = "weekly"
@@ -63,7 +63,7 @@ class AutomationTask:
     tenant_id: UUID | None = None
     frequency: AutomationFrequency = AutomationFrequency.WEEKLY
     status: AutomationStatus = AutomationStatus.PENDING
-    created_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    created_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     executed_at: str = ""
     next_run_at: str = ""
     config: dict[str, Any] = field(default_factory=dict)
@@ -143,10 +143,7 @@ class AutomationRule:
             return utilisation > 0.5
 
         # Content calendar: always run weekly
-        if self.type == AutomationType.CONTENT_CALENDAR:
-            return True
-
-        return False
+        return self.type == AutomationType.CONTENT_CALENDAR
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -286,7 +283,7 @@ class AutomationEngine:
                 continue
 
             task = AutomationTask(
-                id=f"{rule.id}_{brand_id}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}",
+                id=f"{rule.id}_{brand_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}",
                 type=rule.type,
                 brand_id=brand_id,
                 tenant_id=tenant_id,
@@ -316,7 +313,7 @@ class AutomationEngine:
         for t in self._tasks:
             if t.id == task_id:
                 t.status = AutomationStatus.RUNNING
-                t.executed_at = datetime.now(timezone.utc).isoformat()
+                t.executed_at = datetime.now(UTC).isoformat()
                 break
 
     def mark_completed(self, task_id: str, result: dict[str, Any]) -> None:
@@ -371,7 +368,8 @@ async def build_automation_context(
     Queries the database for current state: active campaigns, anomalies,
     budget utilisation, days since last audit, upcoming events.
     """
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from ..models import CampaignPlanRecord
     from ..runtime.timeline import WorkspaceTimeline
 
@@ -400,7 +398,7 @@ async def build_automation_context(
                 last_audit_dt = datetime.fromisoformat(last_audit.replace("Z", "+00:00"))
             else:
                 last_audit_dt = last_audit
-            delta = datetime.now(timezone.utc) - last_audit_dt
+            delta = datetime.now(UTC) - last_audit_dt
             context["days_since_audit"] = delta.days
         else:
             context["days_since_audit"] = 999

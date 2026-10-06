@@ -19,10 +19,9 @@ from __future__ import annotations
 
 import json
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from prachar_shared.ai_gateway import Completion
 from prachar_shared.domain_packs import register_all
 
@@ -418,9 +417,6 @@ async def _run_campaign(pack_id, gateway, fake_brand, fake_user, fake_session):
             session=fake_session,
         )
     return result
-
-
-from unittest.mock import patch
 
 
 # ─── Tests: all 9 modules present ──────────────────────────────────────────

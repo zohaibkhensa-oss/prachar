@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
-import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
@@ -98,6 +97,14 @@ class XAdapter(ChannelAdapter):
     channel = "x"
 
     # ---- OAuth ----
+    def set_pkce_verifier(self, verifier: str) -> None:
+        """Set the PKCE code_verifier for token exchange.
+
+        Called by the OAuth callback handler to restore the verifier
+        that was generated during auth_url() and embedded in the signed state.
+        """
+        self._pkce_verifier = verifier
+
     def auth_url(self, state: str) -> str:
         import hashlib
         import secrets

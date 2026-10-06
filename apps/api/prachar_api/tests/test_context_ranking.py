@@ -13,17 +13,15 @@ Covers:
 """
 from __future__ import annotations
 
-import asyncio
-from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
 import pytest
 
-from prachar_api.runtime.context_builder import ContextBuilder, ContextProvider
+from prachar_api.runtime.context_builder import ContextBuilder
 from prachar_api.runtime.context_ranking import (
     BASE_SCORES,
     AdaptiveContextRankingLayer,
-    ChunkWeightAdjustment,
     ContextEvaluation,
     ContextEvaluator,
     ContextItem,
@@ -39,12 +37,9 @@ from prachar_api.runtime.context_ranking import (
     RankingFeedbackStore,
     RetrievalQuality,
     ScoringWeights,
-    SourceWeightAdjustment,
-    TypeWeightAdjustment,
     estimate_dict_tokens,
     estimate_tokens,
 )
-
 
 # ─── Token Estimation ───────────────────────────────────────────────────────
 
@@ -149,24 +144,24 @@ class TestScoring:
             type=ContextItemType.COUNCIL_DECISION,
             title="Recent",
             content="x",
-            metadata={"created_at": datetime.now(timezone.utc).isoformat()},
+            metadata={"created_at": datetime.now(UTC).isoformat()},
         )
         old = ContextItem(
             type=ContextItemType.COUNCIL_DECISION,
             title="Old",
             content="x",
-            metadata={"created_at": (datetime.now(timezone.utc) - timedelta(days=300)).isoformat()},
+            metadata={"created_at": (datetime.now(UTC) - timedelta(days=300)).isoformat()},
         )
         assert ranking.score_item(recent) > ranking.score_item(old)
 
     def test_recency_score_string_format(self):
         ranking = ContextRankingLayer()
-        score = ranking._recency_score(datetime.now(timezone.utc).isoformat())
+        score = ranking._recency_score(datetime.now(UTC).isoformat())
         assert score == 1.0
 
     def test_recency_score_old(self):
         ranking = ContextRankingLayer()
-        old = datetime.now(timezone.utc) - timedelta(days=400)
+        old = datetime.now(UTC) - timedelta(days=400)
         score = ranking._recency_score(old.isoformat())
         assert score == 0.1
 
@@ -924,7 +919,7 @@ class TestRankingFeedbackStore:
     def test_max_records_trim(self):
         """Old records should be trimmed when over capacity."""
         store = RankingFeedbackStore(max_records=5)
-        for i in range(10):
+        for _i in range(10):
             store.record(FeedbackRecord(
                 item_type="knowledge_chunk", source="knowledge",
                 kept=True, referenced=True,

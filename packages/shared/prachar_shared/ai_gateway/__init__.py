@@ -3,8 +3,8 @@ from __future__ import annotations
 from .client import AIGateway, BudgetExceeded, Completion, ProviderError
 from .json_utils import extract_json, extract_json_or_raise
 from .observability import (
-    AIRequestLog,
     AIMetrics,
+    AIRequestLog,
     estimate_cost,
     get_metrics,
     log_ai_request,

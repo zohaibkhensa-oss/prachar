@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Request, status
+from prachar_shared.config import get_settings
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
@@ -12,9 +14,8 @@ from ..deps import CurrentUser, SessionDep
 from ..email_service import (
     EmailMessage,
     password_reset_email_html,
-    verification_email_html,
-    verification_success_html,
     send_email,
+    verification_email_html,
 )
 from ..models import Actor, Billing, Plan, Role, Tenant, User
 from ..rate_limit import check_rate_limit, reset_rate_limit
@@ -31,7 +32,6 @@ from ..schemas import (
     VerifyEmailIn,
 )
 from ..security import create_token, decode_token, hash_password, verify_password
-from prachar_shared.config import get_settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -62,7 +62,7 @@ def _make_action_token(user_id: uuid.UUID, action: str, ttl_hours: int = 24) -> 
     Uses the JWT secret with a custom ``typ`` so it can't be confused with
     access/refresh tokens. The ``action`` claim distinguishes verify vs reset.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": str(user_id),
         "iat": int(now.timestamp()),
@@ -76,7 +76,8 @@ def _make_action_token(user_id: uuid.UUID, action: str, ttl_hours: int = 24) -> 
 
 def _decode_action_token(token: str, expected_action: str) -> uuid.UUID:
     """Decode and validate an action token. Returns user_id."""
-    from jose import JWTError, jwt as _jwt
+    from jose import JWTError
+    from jose import jwt as _jwt
     s = get_settings()
     try:
         payload = _jwt.decode(token, s.jwt_secret, algorithms=["HS256"])
@@ -183,10 +184,8 @@ async def login(body: LoginIn, request: Request, session: SessionDep) -> TokenOu
 
     # Reset rate limit on successful login (don't punish legit users)
     from ..rate_limit import _get_client_ip
-    try:
+    with contextlib.suppress(Exception):
         reset_rate_limit(_get_client_ip(request), "login")
-    except Exception:
-        pass
 
     return TokenOut(**_tokens(_U()))
 
@@ -229,7 +228,7 @@ async def verify_email(body: VerifyEmailIn, session: SessionDep) -> dict:
     try:
         user_id = _decode_action_token(body.token, "email_verify")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid or expired verification link: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid or expired verification link: {exc}") from exc
 
     # Look up user via SECURITY DEFINER function (bypasses RLS)
     res = await session.execute(
@@ -311,14 +310,12 @@ async def forgot_password(body: ForgotPasswordIn, request: Request, session: Ses
         user_id = row[0]
         token = _make_action_token(user_id, "password_reset", ttl_hours=1)
         reset_url = f"{s.web_url}/auth/reset-password?token={token}"
-        try:
+        with contextlib.suppress(Exception):  # Don't reveal email service errors
             await send_email(EmailMessage(
                 to=body.email,
                 subject="Reset your PRACHAR password",
                 html=password_reset_email_html(reset_url),
             ))
-        except Exception:
-            pass  # Don't reveal email service errors
     return {"status": "sent", "message": "If the email exists, a password reset link has been sent."}
 
 
@@ -331,7 +328,7 @@ async def reset_password(body: ResetPasswordIn, request: Request, session: Sessi
     try:
         user_id = _decode_action_token(body.token, "password_reset")
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid or expired reset link: {exc}")
+        raise HTTPException(status_code=400, detail=f"Invalid or expired reset link: {exc}") from exc
 
     # Look up user via SECURITY DEFINER function (bypasses RLS)
     res = await session.execute(
@@ -393,7 +390,8 @@ async def _verify_google_token(token: str) -> dict:
 async def _verify_apple_token(token: str, full_name: str | None = None) -> dict:
     """Verify an Apple Sign-In identity token (JWT) using Apple's public keys."""
     import httpx
-    from jose import jwt as _jwt, JWTError
+    from jose import JWTError
+    from jose import jwt as _jwt
 
     # Fetch Apple's public keys
     async with httpx.AsyncClient(timeout=10) as client:
@@ -409,7 +407,6 @@ async def _verify_apple_token(token: str, full_name: str | None = None) -> dict:
     # Try each key until one works
     for key in keys:
         try:
-            from jose.utils import base64url_decode
             import json
 
             # Construct JWK

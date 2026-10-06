@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 import pytest
-
+from prachar_shared.ai_gateway import Completion
 from prachar_shared.marketing_intelligence import (
     AudienceIdentified,
     BudgetCalculated,
@@ -22,7 +22,6 @@ from prachar_shared.marketing_intelligence import (
     ObjectiveDerived,
     StrategyGenerated,
 )
-from prachar_shared.ai_gateway import Completion
 
 
 class _StubGateway:
@@ -88,7 +87,8 @@ class TestEventBus:
     def test_unsubscribe(self) -> None:
         bus = EventBus()
         received: list[DomainEvent] = []
-        handler = lambda e: received.append(e)
+        def handler(e):
+            received.append(e)
         bus.subscribe(BusinessAnalysed, handler)
         bus.unsubscribe(BusinessAnalysed, handler)
         bus.publish(BusinessAnalysed())

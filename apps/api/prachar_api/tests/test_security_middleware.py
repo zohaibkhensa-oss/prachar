@@ -5,7 +5,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from prachar_api.middleware import SecurityHeadersMiddleware, GlobalRateLimitMiddleware
+from prachar_api.middleware import GlobalRateLimitMiddleware, SecurityHeadersMiddleware
 
 
 @pytest.fixture
@@ -109,7 +109,7 @@ class TestGlobalRateLimit:
 
 class TestMetricsEndpoint:
     def test_metrics_returns_prometheus_format(self):
-        from prachar_api.routers.misc import router, record_request, _request_count
+        from prachar_api.routers.misc import router
 
         app = FastAPI()
         app.include_router(router)
@@ -124,7 +124,7 @@ class TestMetricsEndpoint:
         assert "prachar_process_pid" in body
 
     def test_metrics_counts_requests(self):
-        from prachar_api.routers.misc import router, record_request
+        from prachar_api.routers.misc import router
 
         app = FastAPI()
         app.include_router(router)

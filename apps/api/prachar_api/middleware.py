@@ -178,7 +178,7 @@ class RequestMetricsMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         finally:
-            from .routers.misc import record_request, record_error
+            from .routers.misc import record_error, record_request
             latency_ms = (time.monotonic() - start) * 1000
             record_request()
             status_code = response.status_code if "response" in dir() else 500

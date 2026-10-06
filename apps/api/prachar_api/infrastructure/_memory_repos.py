@@ -89,13 +89,14 @@ class PostgresCouncilRepository:
         self._session = session
 
     async def save_session(self, session: dict[str, Any]) -> None:
+        import uuid as _uuid
+
         from .models import (
             CampaignScoreRecord,
             ConsensusDecisionRecord,
             CouncilSessionRecord,
             DirectorOpinionRecord,
         )
-        import uuid as _uuid
 
         sid = _uuid.UUID(session["session_id"]) if "session_id" in session and session["session_id"] else _uuid.uuid4()
         tenant_id = _uuid.UUID(session["tenant_id"]) if session.get("tenant_id") else None
@@ -178,8 +179,9 @@ class PostgresCouncilRepository:
         await self._session.flush()
 
     async def get_session(self, session_id: str) -> dict[str, Any] | None:
-        from .models import CouncilSessionRecord
         import uuid as _uuid
+
+        from .models import CouncilSessionRecord
 
         res = await self._session.execute(
             select(CouncilSessionRecord).where(
@@ -197,8 +199,9 @@ class PostgresCouncilRepository:
         brand_id: str | None = None,
         limit: int = 20,
     ) -> list[dict[str, Any]]:
-        from .models import CouncilSessionRecord
         import uuid as _uuid
+
+        from .models import CouncilSessionRecord
 
         stmt = select(CouncilSessionRecord).where(
             CouncilSessionRecord.tenant_id == _uuid.UUID(tenant_id)
@@ -212,8 +215,9 @@ class PostgresCouncilRepository:
     async def get_session_by_campaign(
         self, tenant_id: str, campaign_id: str
     ) -> dict[str, Any] | None:
-        from .models import CouncilSessionRecord
         import uuid as _uuid
+
+        from .models import CouncilSessionRecord
 
         stmt = (
             select(CouncilSessionRecord)
@@ -231,8 +235,9 @@ class PostgresCouncilRepository:
         return self._session_record_to_dict(record)
 
     async def save_learning(self, learning: dict[str, Any]) -> None:
-        from .models import CouncilLearningRecord
         import uuid as _uuid
+
+        from .models import CouncilLearningRecord
 
         tenant_id = _uuid.UUID(learning["tenant_id"]) if learning.get("tenant_id") else None
         brand_id = _uuid.UUID(learning["brand_id"]) if learning.get("brand_id") else None
@@ -262,8 +267,9 @@ class PostgresCouncilRepository:
         brand_id: str | None = None,
         limit: int = 50,
     ) -> list[dict[str, Any]]:
-        from .models import CouncilLearningRecord
         import uuid as _uuid
+
+        from .models import CouncilLearningRecord
 
         stmt = select(CouncilLearningRecord).where(
             CouncilLearningRecord.tenant_id == _uuid.UUID(tenant_id)
@@ -295,8 +301,9 @@ class PostgresCouncilRepository:
     async def update_learning_outcome(
         self, learning_id: str, outcome: str
     ) -> None:
-        from .models import CouncilLearningRecord
         import uuid as _uuid
+
+        from .models import CouncilLearningRecord
 
         res = await self._session.execute(
             select(CouncilLearningRecord).where(

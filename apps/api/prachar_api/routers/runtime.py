@@ -13,25 +13,23 @@ Endpoints:
 """
 from __future__ import annotations
 
-import json
 import logging
 import uuid
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from prachar_shared.ai_gateway import AIGateway
 from pydantic import BaseModel, Field
 
 from ..deps import CurrentUser, SessionDep
 from ..runtime import (
-    AIEvent,
     InvokeRequest,
     InvokeResponse,
     Runtime,
     TimelineService,
     get_session_manager,
 )
-from prachar_shared.ai_gateway import AIGateway
 
 log = logging.getLogger("prachar.api.runtime")
 
@@ -84,7 +82,8 @@ async def invoke(
         # Return a graceful error session instead of 500 — the Orb will
         # show the error message rather than hanging silently.
         import secrets as _secrets
-        from ..runtime.events import EventBus, make_event, EventPhase, OrbState
+
+        from ..runtime.events import EventBus, EventPhase, OrbState, make_event
         session_id = _secrets.token_hex(12)
         bus = EventBus(session_id=session_id)
         await bus.publish(make_event(
@@ -288,7 +287,8 @@ async def list_sessions(
     Groups runtime_events by session_id, extracts the first user message
     as the title, and returns the most recent sessions.
     """
-    from sqlalchemy import select, func, and_
+    from sqlalchemy import and_, func, select
+
     from ..models.tables import RuntimeEventRecord
 
     # Build query: group by session_id, get first + last event, event count
@@ -387,6 +387,7 @@ async def get_session_messages(
     Reconstructs the user/AI message pairs from persisted runtime events.
     """
     from sqlalchemy import select
+
     from ..models.tables import RuntimeEventRecord
 
     res = await session.execute(
@@ -500,14 +501,11 @@ async def dashboard_overview(
     Each section is composed from existing data sources. If any sub-query fails,
     that section returns null — the rest still renders.
     """
-    from sqlalchemy import select, func
+    from sqlalchemy import select
+
     from ..models import (
         Brand,
         CampaignPlanRecord,
-        BusinessMemoryRecord,
-        Connection,
-        Billing,
-        AuditEvent,
     )
 
     # Load brand
@@ -518,10 +516,11 @@ async def dashboard_overview(
 
     # Parallel queries for dashboard sections
     import asyncio
+
     from ..runtime.context import (
-        _load_memory,
         _load_billing,
         _load_connections,
+        _load_memory,
     )
 
     memory_info, billing_info, connections = await asyncio.gather(

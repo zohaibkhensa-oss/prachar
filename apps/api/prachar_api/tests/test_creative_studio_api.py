@@ -34,7 +34,6 @@ get_settings.cache_clear()
 from prachar_api.main import app  # noqa: E402
 from prachar_api.routers.creative_studio import CreativeStudioEngine  # noqa: E402
 
-
 # ─── Fixtures ───────────────────────────────────────────────────────────────
 
 

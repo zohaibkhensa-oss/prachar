@@ -275,10 +275,8 @@ async def _feed_creative_performance(
     classify winners/losers in real-time.
     """
     try:
-        from .creative_lineage import update_creative_performance
-        from sqlalchemy import text
 
-        from ..db import get_session_factory
+        from .creative_lineage import update_creative_performance
 
         creatives = perf_data.get("creatives", {})
         updated = 0

@@ -23,13 +23,12 @@ from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier
 from prachar_shared.ai_gateway.json_utils import extract_json
 from prachar_shared.domain_packs import DomainPack, get_registry
 from prachar_shared.domain_packs.base import ToolSpec
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..audit import log_audit
 from ..models.tables import Brand, CampaignPlanRecord
@@ -568,7 +567,6 @@ class ConsultEngine:
             A tuple of (strategies list, explanation dict, tokens_used).
         """
         from prachar_shared.marketing_intelligence.strategy_engine import (
-            Strategy,
             StrategyEngine,
         )
 
@@ -617,9 +615,6 @@ class ConsultEngine:
             raise
         except Exception as e:
             logger.warning("%s strategy generation failed (continuing): %s", pack.id, e)
-            from prachar_shared.marketing_intelligence.strategy_engine import (
-                Strategy as _S,
-            )
             return [], {}, 0
 
     # ─── Internal: campaign preview generation ─────────────────────────

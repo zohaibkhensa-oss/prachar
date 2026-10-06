@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from prachar_shared.adapters.organic.line import LINEAdapter
 from prachar_shared.adapters.organic.naver import NaverAdapter
 from prachar_shared.adapters.organic.reddit import RedditAdapter

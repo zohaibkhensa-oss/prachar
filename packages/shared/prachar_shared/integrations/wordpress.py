@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -86,7 +86,7 @@ class WordPress(MarketingIntegration):
             raise ValueError(f"WordPress authentication failed: {resp.status_code}")
 
         # Store the encoded credentials as the access token
-        expires_at = datetime.now(timezone.utc) + timedelta(days=365)  # App passwords don't expire
+        expires_at = datetime.now(UTC) + timedelta(days=365)  # App passwords don't expire
         return TokenSet(
             access_token=credentials,
             refresh_token=None,
@@ -224,12 +224,11 @@ class WordPress(MarketingIntegration):
 
         # Add SEO data (Yoast/RankMath compatible)
         seo = payload.get("seo", {})
-        if seo:
-            if seo.get("title"):
-                post_data["yoast_head_json"] = {
-                    "title": seo["title"],
-                    "description": seo.get("meta_description", ""),
-                }
+        if seo and seo.get("title"):
+            post_data["yoast_head_json"] = {
+                "title": seo["title"],
+                "description": seo.get("meta_description", ""),
+            }
 
         # Check if updating or creating
         post_id = payload.get("id")
@@ -256,7 +255,7 @@ class WordPress(MarketingIntegration):
         return {
             "native_id": str(result.get("id", "")),
             "url": result.get("link", ""),
-            "published_at": result.get("date", datetime.now(timezone.utc).isoformat()),
+            "published_at": result.get("date", datetime.now(UTC).isoformat()),
             "status": result.get("status", ""),
             "slug": result.get("slug", ""),
         }

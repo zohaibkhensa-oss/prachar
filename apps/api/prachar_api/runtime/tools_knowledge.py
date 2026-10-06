@@ -12,11 +12,9 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from .context import AIContext
 from .registry import SideEffects, ToolCategory, ToolManifest, register_tool
@@ -49,7 +47,7 @@ log = logging.getLogger("prachar.runtime.tools_knowledge")
 async def knowledge_stats(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Get knowledge hub statistics."""
     try:
-        from ..models import KnowledgeSourceRecord, KnowledgeChunkRecord
+        from ..models import KnowledgeChunkRecord, KnowledgeSourceRecord
 
         session = ctx.session
         if session is None:
@@ -334,7 +332,7 @@ async def knowledge_add_text(ctx: AIContext, input: dict[str, Any]) -> dict[str,
 async def knowledge_delete_source(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Delete a knowledge source and its chunks."""
     try:
-        from ..models import KnowledgeSourceRecord, KnowledgeChunkRecord, KnowledgeEmbeddingRecord
+        from ..models import KnowledgeChunkRecord, KnowledgeEmbeddingRecord, KnowledgeSourceRecord
 
         session = ctx.session
         if session is None:

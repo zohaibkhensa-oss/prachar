@@ -21,7 +21,7 @@ import logging
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Completion, Tier
+from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier
 from prachar_shared.ai_gateway.json_utils import extract_json
 
 from .base import EngineOutput, IntelligenceEngine

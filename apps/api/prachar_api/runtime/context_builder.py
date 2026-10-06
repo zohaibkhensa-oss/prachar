@@ -55,12 +55,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .context import (
     AIContext,
-    BrandInfo,
-    BillingInfo,
-    ConnectionInfo,
-    MemoryStore,
-    UserPreferences,
-    Permissions,
     assemble_context,
 )
 from .context_ranking import (
@@ -70,8 +64,6 @@ from .context_ranking import (
     ContextTrace,
     ProviderTrace,
     RankedEnrichedContext,
-    estimate_tokens,
-    estimate_dict_tokens,
 )
 
 log = logging.getLogger("prachar.runtime.context_builder")
@@ -465,9 +457,10 @@ class CapabilityProvider:
         message: str,
     ) -> dict[str, Any]:
         """Discover available capabilities dynamically."""
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from ..models import Connection, KnowledgeSourceRecord
-        from ..models.enums import KnowledgeSourceStatus, ConnectionStatus
+        from ..models.enums import ConnectionStatus, KnowledgeSourceStatus
 
         capabilities: list[dict[str, Any]] = []
 
@@ -479,7 +472,7 @@ class CapabilityProvider:
                     Connection.status == ConnectionStatus.active,
                 )
             )
-            for channel, status in res.all():
+            for channel, _status in res.all():
                 capabilities.append({
                     "name": f"{channel} connected",
                     "available": True,
@@ -580,10 +573,11 @@ class KnowledgeContextProvider:
         message: str,
     ) -> dict[str, Any]:
         """Search the Knowledge Hub for chunks relevant to the message."""
-        from sqlalchemy import select
-        from ..models import KnowledgeSourceRecord, KnowledgeChunkRecord, KnowledgeEmbeddingRecord
-        from ..models.enums import KnowledgeSourceStatus
         from prachar_shared.knowledge import EmbeddingGenerator, cosine_similarity
+        from sqlalchemy import select
+
+        from ..models import KnowledgeChunkRecord, KnowledgeEmbeddingRecord, KnowledgeSourceRecord
+        from ..models.enums import KnowledgeSourceStatus
 
         # Generate query embedding
         gen = EmbeddingGenerator()
@@ -670,10 +664,14 @@ class MarketingIntelligenceProvider:
     ) -> dict[str, Any]:
         """Load recent MI engine outputs as concise summaries."""
         from sqlalchemy import select
+
         from ..models import (
-            BusinessProfileRecord, AudienceProfileRecord,
-            CompetitorProfileRecord, MarketingStrategyRecord,
-            CreativeDirectionRecord, MediaPlanRecord,
+            AudienceProfileRecord,
+            BusinessProfileRecord,
+            CompetitorProfileRecord,
+            CreativeDirectionRecord,
+            MarketingStrategyRecord,
+            MediaPlanRecord,
         )
 
         result: dict[str, Any] = {}
@@ -783,7 +781,8 @@ class CouncilMemoryProvider:
     ) -> dict[str, Any]:
         """Load recent council decisions."""
         from sqlalchemy import select
-        from ..models import CouncilSessionRecord, ConsensusDecisionRecord
+
+        from ..models import ConsensusDecisionRecord, CouncilSessionRecord
 
         try:
             res = await session.execute(
@@ -840,7 +839,8 @@ class IntegrationsProvider:
         message: str,
     ) -> dict[str, Any]:
         """Load integration status and data summaries."""
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from ..models import KnowledgeSourceRecord
         from ..models.enums import KnowledgeSourceStatus
 
@@ -901,8 +901,9 @@ class PerformanceProvider:
         message: str,
     ) -> dict[str, Any]:
         """Load performance and attribution summaries."""
-        from sqlalchemy import select, func
-        from ..models import MetricEvent, Campaign
+        from sqlalchemy import func, select
+
+        from ..models import Campaign, MetricEvent
 
         result: dict[str, Any] = {}
 
@@ -971,7 +972,8 @@ class ReviewProvider:
         message: str,
     ) -> dict[str, Any]:
         """Load pending reviews."""
-        from sqlalchemy import select, func
+        from sqlalchemy import func, select
+
         from ..models import Campaign
         from ..models.enums import CampaignStatus
 
@@ -1000,9 +1002,7 @@ class DomainPackProvider:
 
     def is_relevant(self, message: str, intent: str = "") -> bool:
         # Load for campaign/strategy/creative intents
-        if intent in ("campaign.create", "campaign.strategy", "creative.generate", "consult"):
-            return True
-        return False
+        return intent in ("campaign.create", "campaign.strategy", "creative.generate", "consult")
 
     async def load(
         self,
@@ -1013,6 +1013,7 @@ class DomainPackProvider:
     ) -> dict[str, Any]:
         """Load domain pack info for the brand's industry."""
         from sqlalchemy import select
+
         from ..models import Brand
 
         try:
@@ -1065,8 +1066,9 @@ class AuditContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from sqlalchemy import select, desc
-        from ..models import Brand, AuditJob
+        from sqlalchemy import desc, select
+
+        from ..models import AuditJob, Brand
 
         try:
             # Get the brand's website to match audit jobs
@@ -1135,8 +1137,9 @@ class AttributionContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from sqlalchemy import select, desc, func
-        from ..models import CampaignPerformance, Campaign
+        from sqlalchemy import desc, select
+
+        from ..models import Campaign, CampaignPerformance
 
         try:
             # CampaignPerformance has campaign_id, not brand_id — join through Campaign
@@ -1266,12 +1269,11 @@ class WorkflowContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from .automation import get_automation_engine, build_automation_context
+        from .automation import build_automation_context, get_automation_engine
 
         try:
             engine = get_automation_engine()
             rules = engine.rules
-            tasks = engine.tasks
 
             active_rules = [r for r in rules if r.enabled]
             pending_tasks = engine.get_pending_tasks()
@@ -1332,7 +1334,7 @@ class ReportsContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from sqlalchemy import select, desc, func
+        from sqlalchemy import desc, select
 
         try:
             from ..models import Report
@@ -1448,10 +1450,10 @@ class CreativeStudioContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from sqlalchemy import select, desc
+        from sqlalchemy import desc, select
 
         try:
-            from ..models import Creative, Campaign
+            from ..models import Campaign, Creative
 
             # Creative has no brand_id — join through Campaign
             res = await session.execute(
@@ -1511,7 +1513,7 @@ class VideoGenContextProvider:
         brand_id: uuid.UUID,
         message: str,
     ) -> dict[str, Any]:
-        from sqlalchemy import select, desc
+        from sqlalchemy import desc, select
 
         try:
             from ..models import Asset

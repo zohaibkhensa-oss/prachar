@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 import logging
 import re
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -145,8 +144,6 @@ class GoogleAdsAdapter(AdNetworkAdapter):
             logger.warning("google_ads.create_campaign: missing customer_id in tokens")
             return ""
         url = f"{GOOGLE_ADS_API_BASE}/customers/{customer_id}/campaigns:mutate"
-        budget = campaign.get("budget_daily") or campaign.get("budget") or 0.0
-        budget_micros = int(round(float(budget) * MICROS_PER_UNIT))
         # If a campaign_budget resource name was supplied, use it directly;
         # otherwise reference a budget by the campaign id suffix.
         campaign_budget = campaign.get("campaign_budget")

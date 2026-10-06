@@ -12,13 +12,13 @@ A clinic is a business subtype with domain-specific:
 from __future__ import annotations
 
 from ..base import (
-    BaseDomainPack,
-    SubtypePreset,
-    KpiCardSpec,
     ActionCardSpec,
-    WidgetSpec,
+    BaseDomainPack,
+    KpiCardSpec,
     NavItemSpec,
     NavSectionSpec,
+    SubtypePreset,
+    WidgetSpec,
 )
 
 

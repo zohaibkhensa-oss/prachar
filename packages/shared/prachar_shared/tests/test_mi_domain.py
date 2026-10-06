@@ -10,7 +10,6 @@ Verifies that domain models own serialization:
 from __future__ import annotations
 
 import pytest
-
 from prachar_shared.marketing_intelligence import (
     AudienceProfile,
     BudgetEstimate,

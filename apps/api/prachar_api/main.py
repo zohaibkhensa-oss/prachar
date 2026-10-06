@@ -5,9 +5,41 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .middleware import TenantMiddleware, SecurityHeadersMiddleware, GlobalRateLimitMiddleware, RequestMetricsMiddleware
-from .routers import admin, agency_council, analytics, attribution, auth, audits, billing, brands, campaign_brain, campaigns, chat, connections, consult, creative_studio, creator, integrations, knowledge, misc, performance, proactive, reports, review, runtime, unified_consult, video_gen, webhooks
-from .routers import admin_runtime
+from .middleware import (
+    GlobalRateLimitMiddleware,
+    RequestMetricsMiddleware,
+    SecurityHeadersMiddleware,
+    TenantMiddleware,
+)
+from .routers import (
+    admin,
+    admin_runtime,
+    agency_council,
+    analytics,
+    attribution,
+    audits,
+    auth,
+    billing,
+    brands,
+    campaign_brain,
+    campaigns,
+    chat,
+    connections,
+    consult,
+    creative_studio,
+    creator,
+    integrations,
+    knowledge,
+    misc,
+    performance,
+    proactive,
+    reports,
+    review,
+    runtime,
+    unified_consult,
+    video_gen,
+    webhooks,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("prachar.api")

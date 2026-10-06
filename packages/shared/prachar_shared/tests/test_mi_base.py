@@ -6,9 +6,6 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import MagicMock
-
-import pytest
 
 from prachar_shared.ai_gateway import Completion
 from prachar_shared.marketing_intelligence import (
@@ -18,7 +15,6 @@ from prachar_shared.marketing_intelligence import (
     IntelligenceEngine,
     Recommendation,
 )
-
 
 # ─── Test doubles ───────────────────────────────────────────────────────────
 

@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -134,7 +134,7 @@ class Shopify(MarketingIntegration):
 
         # Shopify tokens don't expire (permanent access tokens)
         from datetime import timedelta
-        expires_at = datetime.now(timezone.utc) + timedelta(days=365 * 10)
+        expires_at = datetime.now(UTC) + timedelta(days=365 * 10)
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=None,
@@ -316,7 +316,7 @@ class Shopify(MarketingIntegration):
         if not shop:
             raise ValueError("shop domain is required")
 
-        until = until or datetime.now(timezone.utc)
+        until = until or datetime.now(UTC)
         base = self._api_base(shop)
         headers = self._headers(tokens)
 
@@ -348,7 +348,7 @@ class Shopify(MarketingIntegration):
         metrics: list[MetricEvent] = []
         for date, data in daily.items():
             try:
-                event_time = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
+                event_time = datetime.fromisoformat(date).replace(tzinfo=UTC)
             except ValueError:
                 continue
 

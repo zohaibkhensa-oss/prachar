@@ -4,8 +4,8 @@ import asyncio
 import uuid
 
 import pytest
-
 from prachar_shared.adapters.organic.youtube import YouTubeAdapter
+
 from prachar_workers.organic.youtube_engine import (
     extract_chapters,
     optimize_youtube_metadata,

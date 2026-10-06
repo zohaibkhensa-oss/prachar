@@ -5,21 +5,18 @@ logic, ToolRegistry health filtering, and ExecutionPlan health_warnings.
 """
 from __future__ import annotations
 
-import pytest
-
 from prachar_api.runtime.health import (
     HealthRegistry,
     HealthStatus,
     ToolHealth,
     get_health_registry,
 )
+from prachar_api.runtime.planner import ExecutionPlan
 from prachar_api.runtime.registry import (
     ToolCategory,
     ToolManifest,
     ToolRegistry,
 )
-from prachar_api.runtime.planner import ExecutionPlan
-
 
 # ─── HealthStatus enum ──────────────────────────────────────────────────────
 

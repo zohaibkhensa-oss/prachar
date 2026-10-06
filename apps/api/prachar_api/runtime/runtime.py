@@ -9,6 +9,7 @@ Lifecycle:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 import uuid
@@ -17,19 +18,21 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .context import AIContext, assemble_context
-from .context_builder import get_context_builder, EnrichedContext
+from .composer import ResponseComposer
+from .context import AIContext
+from .context_builder import get_context_builder
 from .context_ranking import (
-    ContextEvaluation, ContextEvaluator, ContextItem, RankingFeedbackStore,
+    ContextEvaluation,
+    ContextEvaluator,
+    ContextItem,
+    RankingFeedbackStore,
 )
 from .decision import DecisionContract, DecisionStatus
-from .events import EventBus, EventPhase, OrbState, get_session_manager, make_event
+from .events import AIEvent, EventPhase, OrbState, get_session_manager, make_event
 from .executor import ExecutionEngine, ExecutionResult
-from .composer import ResponseComposer
 from .graph import ExecutionGraph
 from .metrics import RuntimeMetrics
 from .planner import IntentEngine, Planner, RuntimeMode
-from .registry import get_registry
 from .timeline import TimelineService
 
 log = logging.getLogger("prachar.runtime")
@@ -178,10 +181,8 @@ class Runtime:
         # 2. Assemble context (adaptive — Context Builder decides what to load)
         current_campaign_id = None
         if "active_campaign_id" in request.context:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 current_campaign_id = uuid.UUID(request.context["active_campaign_id"])
-            except (ValueError, TypeError):
-                pass
 
         # Use the Context Builder for adaptive, enriched context with ranking
         builder = get_context_builder()
@@ -662,10 +663,10 @@ class Runtime:
             except Exception as exc:
                 log.warning("failed to append completion to timeline: %s", exc)
                 try:
-                    await session.rollback()
+                    await db_session.rollback()
                     if state.tenant_id is not None:
                         from sqlalchemy import text as _text
-                        await session.execute(
+                        await db_session.execute(
                             _text("SELECT set_config('app.tenant_id', :tid, true)"),
                             {"tid": str(state.tenant_id)},
                         )

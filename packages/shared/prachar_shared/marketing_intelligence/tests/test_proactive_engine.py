@@ -13,13 +13,11 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded
 from prachar_shared.marketing_intelligence.proactive_engine import (
     Anomaly,
     ProactiveEngine,
 )
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
 
@@ -469,7 +467,6 @@ def test_format_as_prachar_message_without_live_context():
 async def test_load_live_performance_summary_returns_concise_string():
     """load_live_performance_summary returns a concise per-channel summary."""
     from datetime import date, timedelta
-
     from types import SimpleNamespace
 
     brand_id = str(uuid.uuid4())
@@ -487,7 +484,6 @@ async def test_load_live_performance_summary_returns_concise_string():
             spend=0.0, revenue=0.0, channel="whatsapp",
         ),
     ]
-    campaigns = [SimpleNamespace(id=camp_id, brand_id=brand_id)]
 
     # Custom session that handles both query patterns:
     # 1. select(Campaign.id) → result.all() returns list of tuples

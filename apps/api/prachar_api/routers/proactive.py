@@ -18,17 +18,17 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select
-
-from ..deps import CurrentUser, SessionDep, get_tenant_plan
-from ..models import Brand
 from prachar_shared.ai_gateway import AIGateway
 from prachar_shared.marketing_intelligence.proactive_engine import (
     Anomaly,
     ProactiveEngine,
     format_as_prachar_message,
 )
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from ..deps import CurrentUser, SessionDep, get_tenant_plan
+from ..models import Brand
 
 router = APIRouter(prefix="/proactive", tags=["proactive"])
 

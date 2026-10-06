@@ -1,19 +1,17 @@
-from __future__ import annotations
-
 """Attribution pixel — per spec 06 §"Attribution (pragmatic tier)":
 UTM enforcement on all links + per-network click ids (gclid/fbclid/ttclid) →
 landing pixel (1st-party js snippet tenant installs) → conversions table →
 position-based model (40/20/40). Don't build MMM at MVP; expose per-network
 CPA honestly labeled 'network-reported vs pixel-verified'."""
 
+from __future__ import annotations
+
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Request, status
 from pydantic import BaseModel, Field
-
-from ..deps import SessionDep
 
 router = APIRouter(tags=["attribution"])
 
@@ -57,7 +55,7 @@ async def track_event(body: dict[str, Any], request: Request) -> dict[str, Any]:
     if not session_id:
         return {"status": "ignored", "reason": "no session_id"}
     touchpoint = {
-        "ts": datetime.now(timezone.utc).isoformat(),
+        "ts": datetime.now(UTC).isoformat(),
         "url": body.get("url", ""),
         "referrer": body.get("referrer", ""),
         "utm_source": body.get("utm_source"),

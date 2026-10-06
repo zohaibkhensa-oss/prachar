@@ -8,16 +8,13 @@ Tests that all creative formats include agency-quality fields:
 """
 from __future__ import annotations
 
-import json
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
-from prachar_shared.creative_studio.formats.poster import _normalise as normalise_poster
-from prachar_shared.creative_studio.formats.video_script import _parse_video_script as normalise_video
-from prachar_shared.creative_studio.formats.whatsapp import _normalise as normalise_whatsapp
 from prachar_shared.creative_studio.formats.facebook import _parse_facebook as normalise_facebook
 from prachar_shared.creative_studio.formats.linkedin import _parse_linkedin as normalise_linkedin
+from prachar_shared.creative_studio.formats.poster import _normalise as normalise_poster
+from prachar_shared.creative_studio.formats.video_script import (
+    _parse_video_script as normalise_video,
+)
+from prachar_shared.creative_studio.formats.whatsapp import _normalise as normalise_whatsapp
 
 
 class TestPosterIntelligence:

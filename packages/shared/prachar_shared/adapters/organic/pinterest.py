@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
-import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
@@ -119,7 +118,7 @@ class PinterestAdapter(ChannelAdapter):
             )
         s = get_settings()
         basic = base64.b64encode(
-            f"{s.pinterest_client_id}:{s.pinterest_client_secret}".encode("utf-8")
+            f"{s.pinterest_client_id}:{s.pinterest_client_secret}".encode()
         ).decode("ascii")
         resp = asyncio.run(
             _request(
@@ -196,7 +195,7 @@ class PinterestAdapter(ChannelAdapter):
         if len(description) > _DESCRIPTION_MAX:
             blocked.append(f"description exceeds {_DESCRIPTION_MAX} characters")
 
-        for field, label in ((title, "title"), (description, "description")):
+        for field, _label in ((title, "title"), (description, "description")):
             cg = claims_gate(field)
             if cg.blocked_reasons:
                 blocked.extend(cg.blocked_reasons)

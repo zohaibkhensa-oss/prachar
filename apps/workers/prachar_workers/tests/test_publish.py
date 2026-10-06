@@ -11,8 +11,6 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from prachar_workers import publish
 from prachar_workers.publish import (
     campaign_to_dict,
@@ -23,7 +21,6 @@ from prachar_workers.publish import (
     publish_to_meta,
     publish_to_whatsapp,
 )
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
 

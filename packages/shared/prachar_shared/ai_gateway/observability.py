@@ -37,9 +37,7 @@ from __future__ import annotations
 
 import json
 import logging
-import time
 import uuid
-from collections import defaultdict
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -58,7 +56,6 @@ COST_TABLE: dict[str, dict[str, float]] = {
     "llama-3.3-70b-versatile": {"input": 0.59, "output": 0.79},
     "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
     "llama-3.1-70b-versatile": {"input": 0.59, "output": 0.79},
-    "llama-3.1-8b-instant": {"input": 0.05, "output": 0.08},
     # OpenAI
     "gpt-4o": {"input": 2.50, "output": 10.00},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
@@ -213,7 +210,6 @@ class AIMetrics:
             success = int(data.get("success_count", 0))
             failure = int(data.get("failure_count", 0))
             cache_hits = int(data.get("cache_hit_count", 0))
-            cache_misses = int(data.get("cache_miss_count", 0))
             latency_sum = float(data.get("latency_sum_ms", 0))
             latency_count = int(data.get("latency_count", 0))
             tokens = int(data.get("tokens_total", 0))

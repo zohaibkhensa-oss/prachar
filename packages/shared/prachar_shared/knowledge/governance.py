@@ -28,10 +28,9 @@ shared package and the API/worker layers without creating cycles.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  Knowledge levels
@@ -245,8 +244,8 @@ class GovernanceMetadata:
     expires_at: datetime | None = None
     tags: list[str] = field(default_factory=list)
     workspace_id: str | None = None
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    modified_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    modified_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     # ─── Serialization ───────────────────────────────────────────────────
 
@@ -267,7 +266,7 @@ class GovernanceMetadata:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any] | None) -> "GovernanceMetadata":
+    def from_dict(cls, data: dict[str, Any] | None) -> GovernanceMetadata:
         """Reconstruct from a dict (e.g. a DB JSON column).
 
         Defensive: unknown keys are ignored, missing keys use defaults,
@@ -285,7 +284,7 @@ class GovernanceMetadata:
                 dt = datetime.fromisoformat(str(v))
                 # Ensure timezone-aware (assume UTC if naive).
                 if dt.tzinfo is None:
-                    dt = dt.replace(tzinfo=timezone.utc)
+                    dt = dt.replace(tzinfo=UTC)
                 return dt
             except (ValueError, TypeError):
                 return None
@@ -300,13 +299,13 @@ class GovernanceMetadata:
             expires_at=_parse_dt(data.get("expires_at")),
             tags=list(data.get("tags", [])),
             workspace_id=data.get("workspace_id"),
-            created_at=_parse_dt(data.get("created_at")) or datetime.now(timezone.utc),
-            modified_at=_parse_dt(data.get("modified_at")) or datetime.now(timezone.utc),
+            created_at=_parse_dt(data.get("created_at")) or datetime.now(UTC),
+            modified_at=_parse_dt(data.get("modified_at")) or datetime.now(UTC),
         )
 
     def touch(self) -> None:
         """Update ``modified_at`` to now (UTC). Call after any edit."""
-        self.modified_at = datetime.now(timezone.utc)
+        self.modified_at = datetime.now(UTC)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -444,9 +443,7 @@ class GovernanceChecker:
             return False
         if not self.is_accessible(governance, user_id, workspace_id):
             return False
-        if governance.confidence <= MIN_USABLE_CONFIDENCE:
-            return False
-        return True
+        return not governance.confidence <= MIN_USABLE_CONFIDENCE
 
     def confidence_label(self, confidence: float) -> str:
         """Map a 0–1 confidence score to a human-readable label.
@@ -491,14 +488,14 @@ class GovernanceChecker:
     def _now(now: datetime | None) -> datetime:
         """Return ``now`` or UTC now, guaranteed timezone-aware."""
         if now is None:
-            return datetime.now(timezone.utc)
+            return datetime.now(UTC)
         return GovernanceChecker._aware(now)
 
     @staticmethod
     def _aware(dt: datetime) -> datetime:
         """Ensure a datetime is timezone-aware (assume UTC if naive)."""
         if dt.tzinfo is None:
-            return dt.replace(tzinfo=timezone.utc)
+            return dt.replace(tzinfo=UTC)
         return dt
 
 

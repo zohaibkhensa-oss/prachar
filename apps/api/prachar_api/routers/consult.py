@@ -32,14 +32,14 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, status
+from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Actor, Brand
-from prachar_shared.ai_gateway import AIGateway, Tier, BudgetExceeded
 
 router = APIRouter(prefix="/consult", tags=["consult"])
 

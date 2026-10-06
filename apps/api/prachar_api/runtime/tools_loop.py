@@ -71,7 +71,6 @@ async def loop_trigger(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
 
             def _run() -> None:
                 try:
-                    import asyncio as _aio
                     from prachar_workers.loop import run_weekly_loop
 
                     chain_obj = run_weekly_loop(brand_id_str)
@@ -116,8 +115,9 @@ async def loop_trigger(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
 async def loop_status(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Check the loop status by querying the brand's next_loop_at field."""
     try:
-        from ..models import Brand
         from sqlalchemy import select
+
+        from ..models import Brand
 
         session = ctx.session
         if session is None:

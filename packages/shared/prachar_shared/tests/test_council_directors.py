@@ -12,24 +12,14 @@ import uuid
 from typing import Any
 
 import pytest
-
 from prachar_shared.agency_council import (
     ALL_DIRECTORS,
     DIRECTOR_NAMES,
-    ChiefAnalyticsOfficer,
-    ChiefBrandOfficer,
-    ChiefComplianceOfficer,
-    ChiefCreativeOfficer,
-    ChiefCustomerOfficer,
-    ChiefFinancialOfficer,
-    ChiefMediaOfficer,
-    ChiefPerformanceOfficer,
     ChiefStrategyOfficer,
     Director,
     DirectorOpinion,
 )
-from prachar_shared.tests.council_fixtures import StubGateway, FailingGateway
-
+from prachar_shared.tests.council_fixtures import FailingGateway, StubGateway
 
 BRIEF = {
     "business_name": "Acme Coffee",

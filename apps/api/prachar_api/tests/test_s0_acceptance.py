@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """S0 acceptance tests: register→login→create brand; cross-tenant RLS isolation.
 
 Run with: .venv/bin/pytest apps/api/prachar_api/tests/test_s0_acceptance.py -q
@@ -7,6 +5,9 @@ Run with: .venv/bin/pytest apps/api/prachar_api/tests/test_s0_acceptance.py -q
 Requires: Postgres with migrated schema + Redis (or no redis for these tests).
 These tests hit the real DB (no mocking) to verify RLS end-to-end.
 """
+
+from __future__ import annotations
+
 import os
 import uuid
 
@@ -24,12 +25,10 @@ from prachar_shared.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()
 
-from prachar_api.db import get_engine, get_sessionmaker  # noqa: E402
-from prachar_api.main import app  # noqa: E402
-from prachar_api.models import Tenant, User  # noqa: E402
-from prachar_api.security import hash_password  # noqa: E402
+from sqlalchemy import text  # noqa: E402
 
-from sqlalchemy import select, text  # noqa: E402
+from prachar_api.db import get_sessionmaker  # noqa: E402
+from prachar_api.main import app  # noqa: E402
 
 
 @pytest.fixture

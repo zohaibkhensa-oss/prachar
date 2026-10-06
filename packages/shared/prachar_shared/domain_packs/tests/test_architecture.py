@@ -14,9 +14,7 @@ If any of these tests fail, the architecture has regressed.
 """
 from __future__ import annotations
 
-import importlib
 import inspect
-import sys
 from pathlib import Path
 
 import pytest
@@ -24,11 +22,9 @@ import pytest
 from prachar_shared.domain_packs import (
     BaseDomainPack,
     DomainPack,
-    DomainPackRegistry,
     get_registry,
     register_all,
 )
-
 
 # ─── Plugin registration ──────────────────────────────────────────────────
 

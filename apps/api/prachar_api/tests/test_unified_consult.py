@@ -18,9 +18,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from prachar_shared.domain_packs import register_all
 
 from prachar_api.main import app
-from prachar_shared.domain_packs import register_all
 
 # Ensure packs are registered
 register_all()

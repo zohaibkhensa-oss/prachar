@@ -8,15 +8,15 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .artefacts import contact_card, crm_pipeline, task_list
+from .context import AIContext
+from .memory_categories import MemoryCategory
 from .registry import (
     SideEffects,
     ToolCategory,
     ToolManifest,
     register_tool,
 )
-from .memory_categories import MemoryCategory
-from .context import AIContext
-from .artefacts import crm_pipeline, contact_card, task_list
 
 log = logging.getLogger("prachar.runtime.tools.crm")
 
@@ -40,7 +40,8 @@ log = logging.getLogger("prachar.runtime.tools.crm")
 ))
 async def crm_pipeline_view(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """View the sales pipeline."""
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from ..models.tables import LeadRecord
 
     # Get leads grouped by stage
@@ -96,8 +97,10 @@ async def crm_pipeline_view(ctx: AIContext, input: dict[str, Any]) -> dict[str, 
 ))
 async def crm_follow_ups(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Get follow-up reminders."""
-    from sqlalchemy import select
     from datetime import datetime, timedelta
+
+    from sqlalchemy import select
+
     from ..models.tables import LeadRecord
 
     cutoff = datetime.now() - timedelta(days=3)
@@ -162,7 +165,8 @@ async def crm_follow_ups(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any
 ))
 async def crm_insights(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Analyse the sales pipeline and provide insights."""
-    from sqlalchemy import select, func
+    from sqlalchemy import func, select
+
     from ..models.tables import LeadRecord
 
     res = await ctx.session.execute(

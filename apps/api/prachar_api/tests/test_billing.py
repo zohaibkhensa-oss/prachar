@@ -29,10 +29,10 @@ from prachar_shared.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()
 
-from prachar_api.main import app  # noqa: E402
+from prachar_shared import plans as plans_mod  # noqa: E402
+from prachar_shared.plans import get_plan, get_plans, list_plans  # noqa: E402
 
-from prachar_shared import plans as plans_mod
-from prachar_shared.plans import get_plan, get_plans, list_plans
+from prachar_api.main import app  # noqa: E402
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ class TestPlansModule:
         assert p is not None
         assert p.price_inr > get_plan("growth").price_inr
         assert p.brands_limit == 5
-        assert p.videos_per_month == -1  # unlimited
+        assert p.videos_per_month == 50  # capped (was unlimited)
         assert p.white_label is True
         assert p.api_access is True
         assert p.video_quality_tier == "standard"
@@ -195,7 +195,7 @@ class TestBillingAPI:
         data = resp.json()
         assert data["plan"] == "agency"
         assert data["brands_limit"] == 5
-        assert data["videos_limit"] == -1  # unlimited
+        assert data["videos_limit"] == 50  # capped (was unlimited)
 
 
 # ─── Webhook tests ──────────────────────────────────────────────────────────

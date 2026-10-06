@@ -8,23 +8,20 @@ Tests verify:
 """
 from __future__ import annotations
 
-import pytest
-
-from prachar_api.runtime.registry import get_registry, ToolCategory
 from prachar_api.runtime.artefacts import (
-    website_blueprint,
-    page_content,
-    seo_audit,
+    calendar_grid,
+    contact_card,
+    crm_pipeline,
+    email_sequence,
     keyword_grid,
     landing_page,
-    crm_pipeline,
-    contact_card,
-    email_sequence,
-    whatsapp_campaign,
-    calendar_grid,
+    page_content,
+    seo_audit,
     team_board,
+    website_blueprint,
+    whatsapp_campaign,
 )
-
+from prachar_api.runtime.registry import ToolCategory, get_registry
 
 # ─── Tool Registration ─────────────────────────────────────────────────────
 

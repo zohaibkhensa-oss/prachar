@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import UTC
 from typing import Any
 from urllib.parse import urlencode
 
@@ -16,8 +17,8 @@ from prachar_shared.contracts import (
 )
 from prachar_shared.policy.claims_gate import claims_gate
 
-from .base import ChannelAdapter
 from ..registry import register_organic
+from .base import ChannelAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +64,12 @@ class FacebookAdapter(ChannelAdapter):
             )
             resp.raise_for_status()
             data = resp.json()
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600)),
+            expires_at=datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600)),
             scopes=FB_SCOPES,
         )
 
@@ -124,7 +125,7 @@ class FacebookAdapter(ChannelAdapter):
         return result
 
     async def publish(self, tokens: TokenSet, payload: dict[str, Any]) -> PublishedRef:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         # Need page access token — fetch from tokens or profile metadata.
         page_token = payload.get("_page_access_token", tokens.access_token)
@@ -149,11 +150,11 @@ class FacebookAdapter(ChannelAdapter):
             channel=self.channel,
             native_id=post_id,
             url=f"https://www.facebook.com/{post_id.replace('_', '/posts/')}",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
 
     async def metrics(self, tokens: TokenSet, since: Any) -> list[MetricEvent]:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -167,7 +168,7 @@ class FacebookAdapter(ChannelAdapter):
             resp.raise_for_status()
             data = resp.json()
         events = []
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         for metric_data in data.get("data", []):
             metric_name = f"fb_{metric_data['name']}"
             for val in metric_data.get("values", []):

@@ -23,8 +23,9 @@ import hashlib
 import json
 import logging
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any, Callable
+from typing import Any
 
 import redis
 
@@ -269,7 +270,6 @@ def retry_with_backoff(
     Raises:
         The last exception if all retries fail.
     """
-    import asyncio
 
     last_exc: Exception | None = None
     delay = initial_delay

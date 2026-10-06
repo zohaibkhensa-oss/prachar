@@ -8,11 +8,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
-from ..deps import SessionDep, current_user
 from ..audit import log_audit as audit_event
+from ..deps import SessionDep, current_user
 
 log = logging.getLogger("prachar.api.analytics")
 router = APIRouter(prefix="/analytics", tags=["analytics"])

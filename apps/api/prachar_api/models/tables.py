@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -22,9 +21,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, Timestamped, TenantScoped, UUIDPK, utcnow
+from .base import UUIDPK, Base, TenantScoped, Timestamped, utcnow
 from .enums import (
     Actor,
     AdsNetwork,
@@ -37,10 +36,7 @@ from .enums import (
     Channel,
     ConnectionStatus,
     CreativeType,
-    KnowledgeLevel,
     KnowledgeSourceStatus,
-    KnowledgeSourceType,
-    KnowledgeFileType,
     Plan,
     PolicyStatus,
     Role,

@@ -15,16 +15,14 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
-import pytest
 
-from prachar_api.runtime.metrics import RuntimeMetrics, ToolMetrics
-from prachar_api.runtime.registry import ToolManifest, ToolRegistry, ToolCategory
+from prachar_api.runtime.context import AIContext
 from prachar_api.runtime.decision import DecisionContract, DecisionStatus
 from prachar_api.runtime.events import SessionManager, make_event
-from prachar_api.runtime.graph import ExecutionGraph, GraphNode
-from prachar_api.runtime.context import AIContext
 from prachar_api.runtime.executor import ExecutionEngine
-
+from prachar_api.runtime.graph import ExecutionGraph, GraphNode
+from prachar_api.runtime.metrics import RuntimeMetrics, ToolMetrics
+from prachar_api.runtime.registry import ToolCategory, ToolManifest, ToolRegistry
 
 # ─── V1: Session Isolation ─────────────────────────────────────────────────
 

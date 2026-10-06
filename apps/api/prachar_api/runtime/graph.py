@@ -121,7 +121,7 @@ class ExecutionGraph:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ExecutionGraph":
+    def from_dict(cls, data: dict[str, Any]) -> ExecutionGraph:
         """Deserialize from dict (e.g. from Planner LLM output)."""
         graph = cls()
         node_map: dict[str, GraphNode] = {}

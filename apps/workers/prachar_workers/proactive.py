@@ -64,8 +64,8 @@ def _load_active_brands(session: Session) -> list[Any]:
 
     Returns a list of brand_id strings (deduplicated).
     """
-    from prachar_api.models.tables import Campaign
     from prachar_api.models.enums import CampaignStatus
+    from prachar_api.models.tables import Campaign
 
     rows = session.execute(
         select(Campaign.brand_id).where(Campaign.status == CampaignStatus.active).distinct()
@@ -133,8 +133,8 @@ def check_anomalies() -> dict[str, Any]:
                 """Returns the sync session — the engine's queries work with
                 both sync and async sessions via ``await session.execute()``."""
 
-                def __call__(self) -> Any:
-                    return _AsyncSessionWrapper(sync_session)
+                def __call__(self, _session=sync_session) -> Any:
+                    return _AsyncSessionWrapper(_session)
 
             anomalies = asyncio.run(_check_brand(brand_id, _AsyncSessionFactory()))
             store_anomalies(brand_id, anomalies)

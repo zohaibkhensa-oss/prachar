@@ -15,29 +15,22 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, Field
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from ..deps import CurrentUser, SessionDep
-from ..models import Connection
-from ..audit import log_audit
+from fastapi import APIRouter, HTTPException, Request
 
 # Import all integrations to trigger registration
 from prachar_shared.integrations import (
     IntegrationCapability,
-    IntegrationInfo,
     get_integration_registry,
 )
 from prachar_shared.integrations.google_analytics import GoogleAnalytics4
-from prachar_shared.integrations.wordpress import WordPress
-from prachar_shared.integrations.shopify import Shopify
-from prachar_shared.integrations.mailchimp import Mailchimp
-from prachar_shared.integrations.hubspot import HubSpot
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+
+from ..audit import log_audit
+from ..deps import CurrentUser, SessionDep
+from ..models import Connection
 
 log = logging.getLogger("prachar.api.integrations")
 router = APIRouter(prefix="/integrations", tags=["integrations"])
@@ -209,7 +202,7 @@ async def connect_integration(
                 "refresh_token": tokens.refresh_token,
                 "expires_at": tokens.expires_at.isoformat(),
                 "scopes": tokens.scopes,
-                "connected_at": datetime.now(timezone.utc).isoformat(),
+                "connected_at": datetime.now(UTC).isoformat(),
                 "last_sync": None,
                 "last_error": None,
             }
@@ -230,7 +223,7 @@ async def connect_integration(
                     "refresh_token": tokens.refresh_token,
                     "expires_at": tokens.expires_at.isoformat(),
                     "scopes": tokens.scopes,
-                    "connected_at": datetime.now(timezone.utc).isoformat(),
+                    "connected_at": datetime.now(UTC).isoformat(),
                     "last_sync": None,
                     "last_error": None,
                     **({"property_id": body.property_id} if body.property_id else {}),
@@ -262,7 +255,7 @@ async def connect_integration(
         raise
     except Exception as e:
         log.error("Failed to connect %s: %s", name, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Connection failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Connection failed: {e}") from e
 
 
 @router.delete("/{name}", response_model=dict)
@@ -326,7 +319,7 @@ async def sync_integration(
     tokens = TokenSet(
         access_token=metadata.get("access_token", ""),
         refresh_token=metadata.get("refresh_token"),
-        expires_at=datetime.fromisoformat(metadata["expires_at"]) if "expires_at" in metadata else datetime.now(timezone.utc),
+        expires_at=datetime.fromisoformat(metadata["expires_at"]) if "expires_at" in metadata else datetime.now(UTC),
         scopes=metadata.get("scopes", []),
     )
 
@@ -342,7 +335,7 @@ async def sync_integration(
         # Update last_sync
         conn.metadata = {
             **metadata,
-            "last_sync": datetime.now(timezone.utc).isoformat(),
+            "last_sync": datetime.now(UTC).isoformat(),
             "last_error": "; ".join(result.errors) if result.errors else None,
         }
         await session.commit()
@@ -396,7 +389,7 @@ async def integration_health(
     tokens = TokenSet(
         access_token=metadata.get("access_token", ""),
         refresh_token=metadata.get("refresh_token"),
-        expires_at=datetime.fromisoformat(metadata["expires_at"]) if "expires_at" in metadata else datetime.now(timezone.utc),
+        expires_at=datetime.fromisoformat(metadata["expires_at"]) if "expires_at" in metadata else datetime.now(UTC),
         scopes=metadata.get("scopes", []),
     )
 

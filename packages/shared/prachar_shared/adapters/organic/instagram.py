@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-import re
+from datetime import UTC
 from typing import Any
 from urllib.parse import urlencode
 
@@ -17,8 +17,8 @@ from prachar_shared.contracts import (
 )
 from prachar_shared.policy.claims_gate import claims_gate
 
-from .base import ChannelAdapter
 from ..registry import register_organic
+from .base import ChannelAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +46,7 @@ class InstagramAdapter(ChannelAdapter):
         client_id = s.meta_app_id or "PLACEHOLDER"
         params = urlencode({
             "client_id": client_id,
-            "redirect_uri": fself.redirect_uri,
+            "redirect_uri": self.redirect_uri,
             "scope": ",".join(IG_SCOPES),
             "response_type": "code",
             "state": state,
@@ -70,12 +70,12 @@ class InstagramAdapter(ChannelAdapter):
             )
             resp.raise_for_status()
             data = resp.json()
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
-            expires_at=datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600)),
+            expires_at=datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600)),
             scopes=IG_SCOPES,
         )
 
@@ -151,7 +151,7 @@ class InstagramAdapter(ChannelAdapter):
 
     async def publish(self, tokens: TokenSet, payload: dict[str, Any]) -> PublishedRef:
         # Two-step IG publishing: create media container, then publish.
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         profile_meta = payload.get("_profile_metadata", {})
         ig_id = profile_meta.get("ig_id", "")
@@ -196,11 +196,11 @@ class InstagramAdapter(ChannelAdapter):
             channel=self.channel,
             native_id=media_id,
             url=f"https://www.instagram.com/p/{media_id}",
-            published_at=datetime.now(timezone.utc),
+            published_at=datetime.now(UTC),
         )
 
     async def metrics(self, tokens: TokenSet, since: Any) -> list[MetricEvent]:
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         # Pull IG insights: impressions, reach, engagement.
         async with httpx.AsyncClient() as client:
@@ -215,7 +215,7 @@ class InstagramAdapter(ChannelAdapter):
             resp.raise_for_status()
             data = resp.json()
         events = []
-        ts = datetime.now(timezone.utc)
+        ts = datetime.now(UTC)
         for metric_data in data.get("data", []):
             metric_name = f"ig_{metric_data['name']}"
             for val in metric_data.get("values", []):

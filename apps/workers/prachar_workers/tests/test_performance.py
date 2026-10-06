@@ -7,7 +7,7 @@ Run with:
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from types import SimpleNamespace
 from typing import Any
 
@@ -22,7 +22,6 @@ from prachar_workers.performance import (
     run_pull,
     upsert_performance,
 )
-
 
 # ─── Fakes ────────────────────────────────────────────────────────────────────
 

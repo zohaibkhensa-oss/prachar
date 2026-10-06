@@ -1,7 +1,7 @@
-from __future__ import annotations
-
 """S9 — Agency tier: multi-brand management, white-label PDF, API access tokens,
 admin cost dashboards. Per spec 09 §"S9 — Agency tier"."""
+
+from __future__ import annotations
 
 import csv
 import io
@@ -11,11 +11,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 
-from ..deps import CurrentUser, SessionDep, require_role
-from ..models import Billing, Brand, Campaign, MetricEvent, Tenant, User
-from ..models.enums import Plan
+from ..deps import SessionDep, require_role
+from ..models import Billing, Brand, Campaign, Tenant, User
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -442,8 +441,9 @@ async def admin_integration_health(
     For admin/ops monitoring. Shows which platforms are connected, when
     they last synced, and how many errors occurred in the last 24h.
     """
-    from ..models import Connection, AuditEvent
-    from datetime import datetime, timedelta, UTC
+    from datetime import UTC, datetime, timedelta
+
+    from ..models import AuditEvent, Connection
 
     cutoff = datetime.now(UTC) - timedelta(hours=24)
 

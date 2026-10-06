@@ -7,8 +7,6 @@ from __future__ import annotations
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
-
 from prachar_api.runtime.automation import (
     AutomationEngine,
     AutomationFrequency,
@@ -16,8 +14,8 @@ from prachar_api.runtime.automation import (
     AutomationStatus,
     AutomationTask,
     AutomationType,
-    create_default_rules,
     build_automation_context,
+    create_default_rules,
 )
 
 

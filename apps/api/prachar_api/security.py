@@ -2,12 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
-
 from prachar_shared.config import get_settings
 
 
@@ -37,13 +36,17 @@ def _ttl(kind: str) -> timedelta:
 
 
 def create_token(sub: str | uuid.UUID, kind: str = "access", extra: dict[str, Any] | None = None) -> str:
-    now = datetime.now(timezone.utc)
+    import secrets as _secrets
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": str(sub),
         "iat": int(now.timestamp()),
         "exp": int((now + _ttl(kind)).timestamp()),
         "typ": kind,
     }
+    # Add jti (JWT ID) to refresh tokens for rotation/reuse detection
+    if kind == "refresh":
+        payload["jti"] = _secrets.token_urlsafe(16)
     if extra:
         payload.update(extra)
     return jwt.encode(payload, _secret(kind), algorithm="HS256")

@@ -36,6 +36,26 @@ Clean architecture:
 """
 from __future__ import annotations
 
+from .bro_integration import (
+    COUNCIL_REVIEW_KEYWORDS,
+    is_council_review_request,
+    summarise_council_decision,
+)
+from .consensus import (
+    ConsensusEngine,
+    analyze_disagreements,
+    calculate_disagreement,
+    compute_agreement_score,
+    compute_campaign_score,
+    compute_confidence_interval,
+    compute_weights,
+    extract_all_risks,
+    extract_disagreements,
+    extract_minority_opinions,
+    generate_suggested_revisions,
+    identify_missing_information,
+    prioritize_risks,
+)
 from .director_base import Director
 from .directors import (
     ALL_DIRECTORS,
@@ -50,37 +70,17 @@ from .directors import (
     ChiefPerformanceOfficer,
     ChiefStrategyOfficer,
 )
-from .models import (
-    CampaignScore,
-    CouncilLearning,
-    CouncilSession,
-    ConsensusDecision,
-    DirectorOpinion,
-)
 from .memory import (
     CouncilMemoryRepository,
     CouncilMemoryStore,
     InMemoryCouncilRepository,
 )
-from .consensus import (
-    ConsensusEngine,
-    compute_weights,
-    calculate_disagreement,
-    extract_minority_opinions,
-    extract_disagreements,
-    extract_all_risks,
-    compute_campaign_score,
-    compute_agreement_score,
-    analyze_disagreements,
-    prioritize_risks,
-    identify_missing_information,
-    generate_suggested_revisions,
-    compute_confidence_interval,
-)
-from .bro_integration import (
-    is_council_review_request,
-    summarise_council_decision,
-    COUNCIL_REVIEW_KEYWORDS,
+from .models import (
+    CampaignScore,
+    ConsensusDecision,
+    CouncilLearning,
+    CouncilSession,
+    DirectorOpinion,
 )
 
 __all__ = [

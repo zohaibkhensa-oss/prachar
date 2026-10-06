@@ -15,7 +15,7 @@ from .budget import BudgetGuard
 from .cache import Cache, ttl_for
 from .json_utils import extract_json
 from .observability import estimate_cost, log_ai_request, new_request_id
-from .safety import check_output_for_leaks, detect_injection, sanitize_input
+from .safety import check_output_for_leaks, detect_injection
 from .tiering import Tier, pick_model
 
 logger = logging.getLogger(__name__)
@@ -200,11 +200,10 @@ class AIGateway:
                     comp.json_value = None
 
         # Check output for system prompt leaks
-        if user_input and comp.text:
-            if not check_output_for_leaks(comp.text):
-                logger.warning("output leak detected for request %s", request_id)
-                comp.text = "I can only help with CURV AI platform questions and advertising expertise."
-                comp.confidence = 0.0
+        if user_input and comp.text and not check_output_for_leaks(comp.text):
+            logger.warning("output leak detected for request %s", request_id)
+            comp.text = "I can only help with CURV AI platform questions and advertising expertise."
+            comp.confidence = 0.0
 
         # Estimate confidence based on response quality signals
         if not comp.confidence:
@@ -336,13 +335,7 @@ class AIGateway:
         s = get_settings()
         configured = []
         for p in fallback_chain:
-            if p == "groq" and s.groq_api_key.strip():
-                configured.append(p)
-            elif p == "gemini" and s.gemini_api_key.strip():
-                configured.append(p)
-            elif p == "anthropic" and s.anthropic_api_key.strip():
-                configured.append(p)
-            elif p == "openai" and s.openai_api_key.strip():
+            if p == "groq" and s.groq_api_key.strip() or p == "gemini" and s.gemini_api_key.strip() or p == "anthropic" and s.anthropic_api_key.strip() or p == "openai" and s.openai_api_key.strip():
                 configured.append(p)
 
         if not configured:
@@ -390,7 +383,7 @@ class AIGateway:
             if is_groq_model:
                 return model
             # Map non-Groq models to Groq equivalents
-            if "pro" in model or "large" in model or "sonnet" in model or "gpt-4o" == model:
+            if "pro" in model or "large" in model or "sonnet" in model or model == "gpt-4o":
                 return s.ai_large_model if ("llama" in s.ai_large_model or "gpt-oss" in s.ai_large_model) else "openai/gpt-oss-120b"
             # Small/default models
             return s.ai_small_model if ("llama" in s.ai_small_model or "gpt-oss" in s.ai_small_model) else "groq/compound-mini"
@@ -400,7 +393,7 @@ class AIGateway:
             if is_gemini_model:
                 return model
             # Map non-Gemini models to Gemini equivalents
-            if "70b" in model or "large" in model or "sonnet" in model or "gpt-4o" == model:
+            if "70b" in model or "large" in model or "sonnet" in model or model == "gpt-4o":
                 return s.ai_large_model if "gemini" in s.ai_large_model else "gemini-pro-latest"
             return s.ai_small_model if "gemini" in s.ai_small_model else "gemini-flash-latest"
             

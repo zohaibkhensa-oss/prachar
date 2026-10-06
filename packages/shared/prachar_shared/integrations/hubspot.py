@@ -14,7 +14,7 @@ Docs: https://developers.hubspot.com/docs/api/crm
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -131,7 +131,7 @@ class HubSpot(MarketingIntegration):
         resp.raise_for_status()
         data = resp.json()
 
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600))
+        expires_at = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token"),
@@ -153,7 +153,7 @@ class HubSpot(MarketingIntegration):
         )
         resp.raise_for_status()
         data = resp.json()
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=data.get("expires_in", 3600))
+        expires_at = datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600))
         return TokenSet(
             access_token=data["access_token"],
             refresh_token=data.get("refresh_token", refresh_token),
@@ -370,7 +370,7 @@ class HubSpot(MarketingIntegration):
         metrics: list[MetricEvent] = []
         for date, data in daily.items():
             try:
-                event_time = datetime.fromisoformat(date).replace(tzinfo=timezone.utc)
+                event_time = datetime.fromisoformat(date).replace(tzinfo=UTC)
             except ValueError:
                 continue
 

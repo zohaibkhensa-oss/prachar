@@ -9,20 +9,21 @@ Constitution Rule 7: The Planner reasons from manifests. Never hard-code.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
-import uuid
+from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 
+from .context import AIContext
+from .memory_categories import MemoryCategory
 from .registry import (
     SideEffects,
     ToolCategory,
     ToolManifest,
     register_tool,
 )
-from .context import AIContext
-from .memory_categories import MemoryCategory
 
 log = logging.getLogger("prachar.runtime.tools_phase2")
 
@@ -53,6 +54,7 @@ async def knowledge_search(ctx: AIContext, input: dict[str, Any]) -> dict[str, A
     """Search knowledge chunks via cosine similarity over embeddings."""
     try:
         from prachar_shared.knowledge import EmbeddingGenerator, cosine_similarity
+
         from ..models import KnowledgeChunkRecord, KnowledgeEmbeddingRecord, KnowledgeSourceRecord
 
         query = (input.get("query") or "").strip()
@@ -214,13 +216,6 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
     together using ffmpeg into a single seamless video.
     """
     try:
-        from ..routers.video_gen import (
-            _get_gemini_api_key,
-            _call_gemini_veo,
-            _call_fal_video,
-            VideoGenRequest,
-        )
-        from prachar_shared.config import get_settings
 
         prompt = (input.get("prompt") or "").strip()
         if not prompt:
@@ -389,13 +384,14 @@ async def video_gen_generate(ctx: AIContext, input: dict[str, Any]) -> dict[str,
 
 async def _generate_single_clip(prompt: str, duration_sec: int, aspect_ratio: str) -> str:
     """Generate a single video clip. Returns the video URL or empty string."""
-    from ..routers.video_gen import (
-        _get_gemini_api_key,
-        _call_gemini_veo,
-        _call_fal_video,
-        VideoGenRequest,
-    )
     from prachar_shared.config import get_settings
+
+    from ..routers.video_gen import (
+        VideoGenRequest,
+        _call_fal_video,
+        _call_gemini_veo,
+        _get_gemini_api_key,
+    )
 
     # Clamp to valid range for single clip
     duration_sec = max(5, min(15, duration_sec))
@@ -499,7 +495,9 @@ async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str
     import asyncio
     import os
     import tempfile
+
     import httpx
+
     from ..routers.video_gen import _store_video_bytes
 
     if len(clip_urls) < 2:
@@ -515,8 +513,7 @@ async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str
                 async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
                     resp = await client.get(url, timeout=120)
                     resp.raise_for_status()
-                    with open(clip_path, "wb") as f:
-                        f.write(resp.content)
+                    await asyncio.to_thread(Path(clip_path).write_bytes, resp.content)
                 clip_paths.append(clip_path)
             except Exception as exc:
                 log.warning("failed to download clip %d: %s", i, str(exc)[:200])
@@ -526,9 +523,9 @@ async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str
 
         # Create ffmpeg concat file
         concat_file = os.path.join(tmpdir, "concat.txt")
-        with open(concat_file, "w") as f:
-            for path in clip_paths:
-                f.write(f"file '{path}'\n")
+        await asyncio.to_thread(
+            Path(concat_file).write_text, "".join(f"file '{p}'\n" for p in clip_paths)
+        )
 
         # Stitch with ffmpeg (re-encode for compatibility)
         output_path = os.path.join(tmpdir, "stitched.mp4")
@@ -555,8 +552,7 @@ async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str
             return ""
 
         # Read the stitched video
-        with open(output_path, "rb") as f:
-            video_bytes = f.read()
+        video_bytes = await asyncio.to_thread(Path(output_path).read_bytes)
 
         # Store and get URL
         final_url = await _store_video_bytes(video_bytes, "stitched_video.mp4")
@@ -569,10 +565,8 @@ async def _stitch_clips_with_ffmpeg(clip_urls: list[str], ctx: AIContext) -> str
     finally:
         # Clean up temp files
         import shutil
-        try:
+        with contextlib.suppress(Exception):
             shutil.rmtree(tmpdir)
-        except Exception:
-            pass
 
 
 # ─── audit.run — Run a brand audit ─────────────────────────────────────────
@@ -720,7 +714,7 @@ async def review_list(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
 async def council_history(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Query recent CouncilSessionRecord + ConsensusDecisionRecord."""
     try:
-        from ..models import CouncilSessionRecord, ConsensusDecisionRecord
+        from ..models import ConsensusDecisionRecord, CouncilSessionRecord
 
         session = ctx.session
         if session is None:
@@ -915,9 +909,11 @@ async def domain_pack_apply(ctx: AIContext, input: dict[str, Any]) -> dict[str, 
 async def attribution_query(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Query campaign performance and attribution data."""
     try:
-        from ..models import CampaignPerformance, Campaign
-        from sqlalchemy import select, desc, func
         from datetime import date, timedelta
+
+        from sqlalchemy import func, select
+
+        from ..models import Campaign, CampaignPerformance
 
         session = ctx.session
         if session is None or ctx.brand_id is None:
@@ -1063,7 +1059,7 @@ async def timeline_query(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any
 async def workflow_query(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
     """Query automation rules and tasks."""
     try:
-        from .automation import get_automation_engine, build_automation_context
+        from .automation import build_automation_context, get_automation_engine
 
         engine = get_automation_engine()
         rules = engine.rules

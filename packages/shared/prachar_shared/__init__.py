@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .config import Settings, get_settings
 from .contracts import (
     AudienceSpec,
     BrandGraph,
@@ -12,7 +13,6 @@ from .contracts import (
     TokenSet,
     VisibilityScore,
 )
-from .config import Settings, get_settings
 
 __all__ = [
     "AudienceSpec",

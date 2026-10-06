@@ -4,18 +4,15 @@ Tests the evaluation framework: datasets, quality scorer, regression suite.
 """
 from __future__ import annotations
 
-import pytest
-
 from prachar_api.runtime.evaluation import (
-    CaseResult,
     EvaluationCase,
     QualityScorer,
     RegressionSuite,
     SuiteResult,
     create_default_datasets,
     export_datasets,
-    import_datasets,
     get_regression_suite,
+    import_datasets,
 )
 
 
@@ -184,21 +181,21 @@ class TestRegressionSuite:
         suite = RegressionSuite()
         # Build perfect outputs for each case
         outputs = {}
-        for dataset_name, cases in suite.datasets.items():
+        for _dataset_name, cases in suite.datasets.items():
             for case in cases:
                 output = {}
                 for field in case.expected_fields:
                     if field in case.expected_types:
                         t = case.expected_types[field]
-                        if t == str:
+                        if t is str:
                             output[field] = "test value that is long enough"
-                        elif t == list:
+                        elif t is list:
                             output[field] = [1, 2, 3]
-                        elif t == dict:
+                        elif t is dict:
                             output[field] = {"key": "value"}
-                        elif t == float:
+                        elif t is float:
                             output[field] = 1.0
-                        elif t == int:
+                        elif t is int:
                             output[field] = 1
                     else:
                         output[field] = "test value"
@@ -253,7 +250,7 @@ class TestExportImport:
         analyse_case = next(c for c in cb_cases if c.id == "cb_analyse_business")
         assert analyse_case.category == "campaign_brain.analyse"
         assert "business_profile" in analyse_case.expected_fields
-        assert analyse_case.expected_types["business_profile"] == dict
+        assert analyse_case.expected_types["business_profile"] is dict
 
 
 class TestScoringEdgeCases:

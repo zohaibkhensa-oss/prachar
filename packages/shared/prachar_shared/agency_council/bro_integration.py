@@ -13,7 +13,6 @@ from typing import Any
 
 from .models import ConsensusDecision
 
-
 # Keywords that indicate the user is asking for a council review
 COUNCIL_REVIEW_KEYWORDS = [
     "review my campaign",

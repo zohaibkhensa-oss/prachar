@@ -1,9 +1,10 @@
-from __future__ import annotations
-
 """Tests for the CampaignPerformance model (P4.1).
 
 Run with: .venv/bin/python -m pytest apps/api/prachar_api/tests/test_campaign_performance_model.py -q
 """
+
+from __future__ import annotations
+
 import datetime as _dt
 import uuid
 

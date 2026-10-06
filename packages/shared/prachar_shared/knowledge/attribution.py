@@ -32,9 +32,8 @@ Architecture rules:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
-
 
 # ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,7 +79,7 @@ class SourceCitation:
     chunk_snippet: str = ""  # The specific text that was used
     page_number: int | None = None
     retrieved_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -112,7 +111,7 @@ class SourceCitation:
         elif isinstance(retrieved_raw, str) and retrieved_raw:
             retrieved_at = datetime.fromisoformat(retrieved_raw)
         else:
-            retrieved_at = datetime.now(timezone.utc)
+            retrieved_at = datetime.now(UTC)
         return cls(
             source_id=data.get("source_id", ""),
             title=data.get("title", ""),
@@ -169,7 +168,7 @@ class AttributionRecord:
     query: str = ""  # The query that was used to retrieve knowledge
     citations: list[SourceCitation] = field(default_factory=list)
     created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
+        default_factory=lambda: datetime.now(UTC)
     )
 
     def format_for_display(self) -> str:
@@ -257,7 +256,7 @@ class AttributionRecord:
         elif isinstance(created_raw, str) and created_raw:
             created_at = datetime.fromisoformat(created_raw)
         else:
-            created_at = datetime.now(timezone.utc)
+            created_at = datetime.now(UTC)
 
         return cls(
             output_type=data.get("output_type", ""),

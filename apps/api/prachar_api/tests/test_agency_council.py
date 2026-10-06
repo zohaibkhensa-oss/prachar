@@ -9,12 +9,10 @@ Tests:
 from __future__ import annotations
 
 import uuid
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 
 # ─── DB model tests ─────────────────────────────────────────────────────────
 
@@ -156,8 +154,9 @@ class TestAgencyCouncilRouter:
 class TestSchemaValidation:
     def test_review_request_validates_max_rounds(self) -> None:
         """max_rounds must be between 1 and 3."""
-        from prachar_api.routers.agency_council import ReviewRequest
         from pydantic import ValidationError
+
+        from prachar_api.routers.agency_council import ReviewRequest
 
         # Valid
         ReviewRequest(brand_id=uuid.uuid4(), campaign_brief={}, max_rounds=1)
@@ -172,8 +171,9 @@ class TestSchemaValidation:
             ReviewRequest(brand_id=uuid.uuid4(), campaign_brief={}, max_rounds=0)
 
     def test_history_request_validates_limit(self) -> None:
-        from prachar_api.routers.agency_council import HistoryRequest
         from pydantic import ValidationError
+
+        from prachar_api.routers.agency_council import HistoryRequest
 
         HistoryRequest(limit=1)
         HistoryRequest(limit=100)
@@ -203,6 +203,7 @@ class TestReviewIntegration:
     def test_review_returns_decision(self, monkeypatch: pytest.MonkeyPatch, mock_auth_user) -> None:
         """Test that /review returns a consensus decision when properly mocked."""
         from prachar_shared.agency_council import ConsensusDecision, CouncilSession
+
         from prachar_api.routers import agency_council as router_mod
 
         # Create mock decision and session
@@ -242,7 +243,6 @@ class TestReviewIntegration:
             return decision, session
 
         # Mock the PostgresCouncilRepository and _get_brand
-        mock_session = AsyncMock()
         mock_repo = MagicMock()
         mock_repo.save_session = AsyncMock()
 
@@ -263,7 +263,11 @@ class TestReviewIntegration:
 
         # We can't easily test the full flow without DB, but we can verify
         # the schema conversion works
-        from prachar_api.routers.agency_council import _decision_to_out, _score_to_out, _opinion_to_out
+        from prachar_api.routers.agency_council import (
+            _decision_to_out,
+            _opinion_to_out,
+            _score_to_out,
+        )
         dec_out = _decision_to_out(decision.to_dict())
         assert dec_out.executive_decision == "Council approves"
         assert dec_out.approval_status == "approved"

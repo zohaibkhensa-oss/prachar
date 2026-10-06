@@ -31,12 +31,12 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
-from prachar_shared.ai_gateway import AIGateway, Completion, Tier
+from prachar_shared.ai_gateway import AIGateway, Tier
 
 from .director_base import Director
-from .directors import ALL_DIRECTORS, DIRECTOR_NAMES
+from .directors import ALL_DIRECTORS
 from .models import CampaignScore, ConsensusDecision, CouncilSession, DirectorOpinion
 
 logger = logging.getLogger(__name__)
@@ -788,7 +788,6 @@ class ConsensusEngine:
             round_dicts: list[dict[str, Any]] = []
 
             # Previous round opinions (for rounds 2+)
-            prev_for_directors = round_dicts if round_num > 1 else None
             prev_opinions = opinions_by_round.get(str(round_num - 1), [])
 
             for director in directors:

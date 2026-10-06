@@ -13,13 +13,11 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
-
 from prachar_shared.ai_gateway import BudgetExceeded, Completion, Tier
 from prachar_shared.creative_studio.formats.whatsapp import (
     WHATSAPP,
     generate_whatsapp,
 )
-
 
 # ─── Helpers ───────────────────────────────────────────────────────────────
 

@@ -20,15 +20,15 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request, status
+from fastapi import APIRouter, Header, HTTPException, Request
+from prachar_shared.config import get_settings
+from prachar_shared.plans import PlanSpec, get_plan, list_plans
 from pydantic import BaseModel
 from sqlalchemy import select
 
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Billing, Tenant
 from ..models.enums import BillingProvider, BillingStatus
-from prachar_shared.config import get_settings
-from prachar_shared.plans import get_plan, get_plans, list_plans, PlanSpec
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 log = logging.getLogger(__name__)
@@ -250,7 +250,7 @@ async def _stripe_checkout(
             )
     except Exception as e:
         log.error("Stripe checkout failed: %s", str(e)[:300])
-        raise HTTPException(status_code=502, detail=f"Stripe error: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Stripe error: {str(e)[:200]}") from e
 
     return CheckoutResponse(
         checkout_url=checkout_session.url,
@@ -322,7 +322,7 @@ async def _razorpay_checkout(
             session_id = link.get("id", "")
     except Exception as e:
         log.error("Razorpay checkout failed: %s", str(e)[:300])
-        raise HTTPException(status_code=502, detail=f"Razorpay error: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Razorpay error: {str(e)[:200]}") from e
 
     return CheckoutResponse(
         checkout_url=checkout_url,
@@ -362,9 +362,9 @@ async def stripe_webhook(
             secret=s.stripe_webhook_secret,
         )
     except stripe.error.SignatureVerificationError:
-        raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+        raise HTTPException(status_code=400, detail="Invalid Stripe signature") from None
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)[:200]}")
+        raise HTTPException(status_code=400, detail=f"Webhook error: {str(e)[:200]}") from e
 
     return await _handle_stripe_event(event, session)
 
@@ -442,7 +442,7 @@ async def razorpay_webhook(
     try:
         body = json.loads(payload)
     except json.JSONDecodeError:
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
     event = body.get("event", "")
     payload_data = body.get("payload", {})
@@ -514,7 +514,7 @@ async def cancel_subscription(
         raise
     except Exception as e:
         log.error("Cancel failed: %s", str(e)[:200])
-        raise HTTPException(status_code=502, detail=f"Cancel failed: {str(e)[:200]}")
+        raise HTTPException(status_code=502, detail=f"Cancel failed: {str(e)[:200]}") from e
 
     return {"status": "ok", "message": "Subscription will cancel at end of billing period"}
 
@@ -641,7 +641,6 @@ async def list_invoices(
     if not billing or not billing.sub_id:
         return InvoicesResponse(invoices=[])
 
-    s = _settings()
     plan_key = await get_tenant_plan(session, user)
     plan = get_plan(plan_key) or get_plan("starter")
 
@@ -689,11 +688,12 @@ def _generate_invoice_pdf(
     Reusable: called from both the download endpoint and the webhook handlers
     (for emailing invoices after payment).
     """
-    import io
     import datetime
+    import io
+
+    from reportlab.lib.colors import HexColor
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
-    from reportlab.lib.colors import HexColor
     from reportlab.pdfgen import canvas as rl_canvas
 
     if now is None:
@@ -936,8 +936,9 @@ async def download_invoice_pdf(
         now=now,
     )
 
-    from fastapi.responses import StreamingResponse
     import io
+
+    from fastapi.responses import StreamingResponse
     filename = f"{invoice_number}.pdf"
     return StreamingResponse(
         io.BytesIO(pdf_bytes),

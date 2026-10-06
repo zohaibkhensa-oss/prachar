@@ -10,16 +10,15 @@ shared with all other domains.
 from __future__ import annotations
 
 from ..base import (
-    BaseDomainPack,
-    SubtypePreset,
-    KpiCardSpec,
     ActionCardSpec,
-    WidgetSpec,
+    BaseDomainPack,
+    KpiCardSpec,
     NavItemSpec,
     NavSectionSpec,
+    SubtypePreset,
     ToolSpec,
+    WidgetSpec,
 )
-
 
 # ─── Creator tools (domain-specific, invoked via /consult/tool/{tool_id}) ──
 

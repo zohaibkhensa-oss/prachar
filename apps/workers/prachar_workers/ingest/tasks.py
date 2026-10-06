@@ -83,7 +83,6 @@ def transcribe(asset_id: str) -> dict[str, Any]:
 def extract_entities(text: str) -> dict[str, Any]:
     logger.info("extract_entities len=%d", len(text))
     from .audit import extract_entities as _extract
-
     from .crawl import CrawlResult
 
     page = CrawlResult(url="", text_snippet=text)

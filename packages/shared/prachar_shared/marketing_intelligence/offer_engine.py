@@ -15,7 +15,7 @@ Each ``Offer`` carries:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from typing import TYPE_CHECKING, Any
 
 from prachar_shared.ai_gateway import AIGateway, BudgetExceeded, Tier

@@ -235,7 +235,7 @@ class YouTubeAdapter(ChannelAdapter):
             )
 
         # claims_gate over title + description.
-        for field, label in ((title, "title"), (description, "description")):
+        for field, _label in ((title, "title"), (description, "description")):
             cg = claims_gate(field)
             if cg.blocked_reasons:
                 blocked.extend(cg.blocked_reasons)
@@ -315,7 +315,7 @@ class YouTubeAdapter(ChannelAdapter):
         events: list[MetricEvent] = []
         if rows:
             row = rows[0]
-            mapping = dict(zip(column_headers, row))
+            mapping = dict(zip(column_headers, row, strict=False))
             metric_names = {
                 "views": "views",
                 "impressions": "impressions",

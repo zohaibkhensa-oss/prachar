@@ -22,12 +22,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Flag, auto
 from typing import Any
 
 from ..contracts import MetricEvent, TokenSet
-
 
 # ─── Capabilities ───────────────────────────────────────────────────────────
 
@@ -132,7 +131,7 @@ class WebhookEvent:
     entity_id: str                 # ID of the entity in the external system
     entity_type: str               # "order", "post", "deal", "campaign"
     payload: dict[str, Any] = field(default_factory=dict)
-    received_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    received_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -329,14 +328,14 @@ class MarketingIntegration(ABC):
         Override in subclasses for custom sync logic.
         Default implementation calls fetch_metrics and fetch_assets.
         """
-        start = datetime.now(timezone.utc)
+        start = datetime.now(UTC)
         errors: list[str] = []
         synced = 0
 
         info = self.info()
         if info.capabilities & IntegrationCapability.READ_METRICS:
             try:
-                metrics = self.fetch_metrics(tokens, since=datetime.min.replace(tzinfo=timezone.utc))
+                metrics = self.fetch_metrics(tokens, since=datetime.min.replace(tzinfo=UTC))
                 synced += len(metrics)
             except Exception as e:
                 errors.append(f"metrics: {e}")
@@ -348,7 +347,7 @@ class MarketingIntegration(ABC):
             except Exception as e:
                 errors.append(f"assets: {e}")
 
-        duration = (datetime.now(timezone.utc) - start).total_seconds() * 1000
+        duration = (datetime.now(UTC) - start).total_seconds() * 1000
         return SyncResult(
             success=len(errors) == 0,
             synced_count=synced,

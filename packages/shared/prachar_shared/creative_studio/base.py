@@ -21,7 +21,7 @@ logic lives in a separate layer (future parts).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 
@@ -57,9 +57,9 @@ class CreativeFormatRegistry:
     auto-registered formats.
     """
 
-    _instance: "CreativeFormatRegistry | None" = None
+    _instance: CreativeFormatRegistry | None = None
 
-    def __new__(cls) -> "CreativeFormatRegistry":
+    def __new__(cls) -> CreativeFormatRegistry:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls._instance._specs = {}  # type: ignore[attr-defined]
@@ -71,7 +71,7 @@ class CreativeFormatRegistry:
             self._specs: dict[str, CreativeFormatSpec] = {}
 
     @classmethod
-    def instance(cls) -> "CreativeFormatRegistry":
+    def instance(cls) -> CreativeFormatRegistry:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance

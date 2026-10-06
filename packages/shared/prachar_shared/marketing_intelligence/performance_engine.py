@@ -21,9 +21,10 @@ inside the FastAPI router where the session is provided by ``SessionDep``.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from sqlalchemy import select
 
@@ -549,7 +550,6 @@ class PerformanceEngine:
         avg_daily_convs = sum(d["conversions"] for _, d in recent_7) / max(1, len(recent_7))
         avg_daily_spend = sum(d["spend"] for _, d in recent_7) / max(1, len(recent_7))
         avg_daily_impressions = sum(d["impressions"] for _, d in recent_7) / max(1, len(recent_7))
-        avg_daily_clicks = sum(d["clicks"] for _, d in recent_7) / max(1, len(recent_7))
 
         # Calculate trend velocity
         prev_convs = sum(d["conversions"] for _, d in prev_7) / max(1, len(prev_7)) if prev_7 else avg_daily_convs
@@ -617,7 +617,6 @@ class PerformanceEngine:
     def _assess_business_impact(self, top_metrics: dict[str, Any], causes: list[dict[str, Any]]) -> dict[str, Any]:
         """Assess the business impact of the current performance."""
         roas = top_metrics.get("avg_roas", 0.0)
-        ctr = top_metrics.get("avg_ctr", 0.0)
         conversions = top_metrics.get("conversions", 0)
         spend = top_metrics.get("spend", 0.0)
         revenue = top_metrics.get("revenue", 0.0)
@@ -800,7 +799,6 @@ class PerformanceEngine:
 
     def _estimate_business_impact(self, top_metrics: dict[str, Any], recs: list[dict[str, Any]]) -> dict[str, Any]:
         """Estimate the business impact of implementing all recommendations."""
-        roas = top_metrics.get("avg_roas", 0.0)
         spend = top_metrics.get("spend", 0.0)
         conversions = top_metrics.get("conversions", 0)
         revenue = top_metrics.get("revenue", 0.0)
@@ -1401,10 +1399,7 @@ class PerformanceEngine:
                 diff = actual - benchmark
             else:
                 # Higher is better for CTR / ROAS.
-                if actual >= benchmark:
-                    status = "better"
-                else:
-                    status = "worse"
+                status = "better" if actual >= benchmark else "worse"
                 diff = actual - benchmark
             result[metric] = {
                 "actual": round(float(actual), 6),

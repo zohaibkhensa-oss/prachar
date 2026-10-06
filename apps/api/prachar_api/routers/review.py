@@ -6,6 +6,10 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+from prachar_shared.ai_gateway import AIGateway
+from prachar_shared.marketing_intelligence.review_engine import (
+    generate_suggestions,
+)
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 
@@ -14,11 +18,6 @@ from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Actor, Brand, Campaign, ReviewComment, ReviewVersion, User
 from ..models.enums import CampaignStatus
 from ..schemas import CampaignOut
-from prachar_shared.ai_gateway import AIGateway
-from prachar_shared.marketing_intelligence.review_engine import (
-    Suggestion,
-    generate_suggestions,
-)
 
 router = APIRouter(prefix="/review", tags=["review"])
 

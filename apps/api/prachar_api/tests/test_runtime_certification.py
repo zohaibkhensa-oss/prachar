@@ -5,34 +5,26 @@ Constitution: Before Phase A is considered complete, all 10 must be YES.
 from __future__ import annotations
 
 import asyncio
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "packages", "shared"))
 
-import pytest
 
-from apps.api.prachar_api.runtime import (
-    AIContext,
+from prachar_api.runtime import (
     AIEvent,
     DecisionContract,
     EventBus,
-    ExecutionGraph,
     ExecutionEngine,
+    ExecutionGraph,
     GraphNode,
     OrbState,
-    Runtime,
     TimelineService,
-    ToolManifest,
-    ToolRegistry,
     get_registry,
-    get_session_manager,
 )
-from apps.api.prachar_api.runtime.registry import ToolCategory, SideEffects
-from apps.api.prachar_api.runtime.planner import RuntimeMode, IntentResult
-from apps.api.prachar_api.runtime.decision import RiskLevel, DecisionStatus
-
+from prachar_api.runtime.decision import DecisionStatus, RiskLevel
+from prachar_api.runtime.registry import SideEffects, ToolCategory
 
 # ─── Certification Checklist ────────────────────────────────────────────────
 
@@ -217,10 +209,10 @@ class TestEventBus:
 class TestExecutionGraph:
     def test_topological_order(self):
         graph = ExecutionGraph()
-        n1 = graph.add_node(GraphNode(id="n1", tool="a", deps=[]))
-        n2 = graph.add_node(GraphNode(id="n2", tool="b", deps=["n1"]))
-        n3 = graph.add_node(GraphNode(id="n3", tool="c", deps=["n1"]))
-        n4 = graph.add_node(GraphNode(id="n4", tool="d", deps=["n2", "n3"]))
+        graph.add_node(GraphNode(id="n1", tool="a", deps=[]))
+        graph.add_node(GraphNode(id="n2", tool="b", deps=["n1"]))
+        graph.add_node(GraphNode(id="n3", tool="c", deps=["n1"]))
+        graph.add_node(GraphNode(id="n4", tool="d", deps=["n2", "n3"]))
 
         levels = graph.topological_order()
         assert levels[0] == ["n1"]

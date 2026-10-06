@@ -23,8 +23,9 @@ from __future__ import annotations
 import asyncio
 import inspect
 import logging
+from collections.abc import Callable, Iterable
 from datetime import UTC, date, datetime, timedelta
-from typing import Any, Callable, Iterable, Protocol
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -980,8 +981,8 @@ def run_pull(
 
 
 def _load_active_campaigns(session: Session) -> list[Any]:
-    from prachar_api.models.tables import Campaign
     from prachar_api.models.enums import CampaignStatus
+    from prachar_api.models.tables import Campaign
 
     return list(
         session.execute(

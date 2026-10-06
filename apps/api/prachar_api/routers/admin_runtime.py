@@ -59,9 +59,9 @@ async def get_session_events(
     bus is no longer available, so post-mortem debugging works even after
     the session has been evicted from memory.
     """
-    from .events import get_session_manager
     from ..db import get_sessionmaker
     from ..runtime.event_replay import get_session_events as fetch_persisted
+    from .events import get_session_manager
 
     manager = get_session_manager()
     bus = await manager.get_bus(session_id)
@@ -177,8 +177,9 @@ async def list_automation_tasks(
     brand_id: str | None = None,
 ):
     """List automation tasks (optionally filtered by brand)."""
-    from ..runtime.automation import get_automation_engine
     from uuid import UUID
+
+    from ..runtime.automation import get_automation_engine
 
     engine = get_automation_engine()
     if brand_id:
@@ -203,9 +204,10 @@ async def evaluate_automation(
     against the brand's current state and creates AutomationTask objects
     for any rules whose conditions are met.
     """
-    from ..runtime.automation import get_automation_engine, build_automation_context
-    from ..db import get_sessionmaker
     from uuid import UUID
+
+    from ..db import get_sessionmaker
+    from ..runtime.automation import build_automation_context, get_automation_engine
 
     engine = get_automation_engine()
     bid = UUID(brand_id) if brand_id else None

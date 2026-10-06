@@ -12,8 +12,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -83,7 +82,7 @@ async def test_proactive_notifications_requires_auth(client: AsyncClient):
 async def test_notifications_returns_200_with_empty_list(client: AsyncClient):
     tok = await _register(client, f"pr{uuid.uuid4().hex[:8]}@test.com", "Proactive Tenant")
     headers = {"Authorization": f"Bearer {tok['access_token']}"}
-    brand_id = await _create_brand(client, headers)
+    await _create_brand(client, headers)
 
     with patch(
         "prachar_workers.proactive.get_anomalies",

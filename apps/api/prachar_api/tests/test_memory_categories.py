@@ -7,17 +7,14 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
+from prachar_api.runtime.context import AIContext, MemoryInfo
 from prachar_api.runtime.memory_categories import (
     ALL_CATEGORIES,
     MemoryCategory,
     MemoryEntry,
     MemoryStore,
 )
-from prachar_api.runtime.registry import ToolManifest, ToolRegistry, ToolCategory
-from prachar_api.runtime.context import AIContext, MemoryInfo
-
+from prachar_api.runtime.registry import ToolCategory, ToolManifest, ToolRegistry
 
 # ─── MemoryCategory enum ────────────────────────────────────────────────────
 
@@ -427,9 +424,11 @@ class TestRegisteredToolsMemoryCategories:
     """Verify the real tool registrations declare memory categories."""
 
     def test_campaign_brain_analyse_categories(self):
-        from prachar_api.runtime import get_registry
         # Ensure tools are imported/registered
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("campaign_brain.analyse").manifest
         cats = set(manifest.memory_categories)
@@ -440,8 +439,10 @@ class TestRegisteredToolsMemoryCategories:
         assert MemoryCategory.CREATIVE not in cats
 
     def test_creative_studio_generate_categories(self):
-        from prachar_api.runtime import get_registry
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("creative_studio.generate").manifest
         cats = set(manifest.memory_categories)
@@ -452,8 +453,10 @@ class TestRegisteredToolsMemoryCategories:
         assert MemoryCategory.PERFORMANCE not in cats
 
     def test_performance_story_categories(self):
-        from prachar_api.runtime import get_registry
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("performance.story").manifest
         cats = set(manifest.memory_categories)
@@ -461,15 +464,19 @@ class TestRegisteredToolsMemoryCategories:
         assert MemoryCategory.CAMPAIGN in cats
 
     def test_memory_retrieve_empty_categories(self):
-        from prachar_api.runtime import get_registry
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("memory.retrieve").manifest
         assert manifest.memory_categories == []  # all categories
 
     def test_review_publish_categories(self):
-        from prachar_api.runtime import get_registry
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("review.publish").manifest
         cats = set(manifest.memory_categories)
@@ -477,8 +484,10 @@ class TestRegisteredToolsMemoryCategories:
         assert MemoryCategory.WORKSPACE in cats
 
     def test_chat_respond_categories(self):
-        from prachar_api.runtime import get_registry
-        from prachar_api.runtime import tools  # noqa: F401
+        from prachar_api.runtime import (
+            get_registry,
+            tools,  # noqa: F401
+        )
         registry = get_registry()
         manifest = registry.get("chat.respond").manifest
         cats = set(manifest.memory_categories)

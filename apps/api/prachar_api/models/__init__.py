@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from .base import Base, TenantScoped, Timestamped, UUIDPK, utcnow
-from .enums import *
+# AI Runtime — WorkspaceTimeline is defined in runtime/timeline.py to keep
+# the runtime package self-contained, but it uses the same Base/metadata.
+from ..runtime.timeline import WorkspaceTimeline
+from .base import UUIDPK, Base, TenantScoped, Timestamped, utcnow
+from .enums import *  # noqa: F403
 from .tables import (
     Asset,
     AudienceProfileRecord,
@@ -40,9 +43,6 @@ from .tables import (
     Tenant,
     User,
 )
-# AI Runtime — WorkspaceTimeline is defined in runtime/timeline.py to keep
-# the runtime package self-contained, but it uses the same Base/metadata.
-from ..runtime.timeline import WorkspaceTimeline
 
 __all__ = [
     "Base",

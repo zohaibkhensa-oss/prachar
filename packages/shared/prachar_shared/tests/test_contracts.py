@@ -3,9 +3,8 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-from pydantic import ValidationError
-
 from prachar_shared.contracts import AudienceSpec, VisibilityScore
+from pydantic import ValidationError
 
 
 def test_visibility_score_compute_weighted_sum() -> None:
