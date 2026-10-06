@@ -11,14 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:16
         env:
-          POSTGRES_USER: prachar
-          POSTGRES_PASSWORD: prachar
-          POSTGRES_DB: prachar
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prachar_test
         ports: ["5432:5432"]
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U postgres"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -31,8 +31,8 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      DATABASE_URL: postgresql+asyncpg://prachar:prachar@localhost:5432/prachar
-      DATABASE_URL_SYNC: postgresql+psycopg://prachar:prachar@localhost:5432/prachar
+      DATABASE_URL: postgresql+asyncpg://prachar:prachar@localhost:5432/prachar_test
+      DATABASE_URL_SYNC: postgresql+psycopg://prachar:prachar@localhost:5432/prachar_test
       REDIS_URL: redis://localhost:6379/0
       JWT_SECRET: ci-test-secret-jwt-xxxxxxxxxxxxxxxxxxxxxx
       JWT_REFRESH_SECRET: ci-test-secret-refresh-xxxxxxxxxxxxxxxxxxxx
@@ -50,9 +50,28 @@ jobs:
           pip install -e packages/shared[dev] -e apps/api[dev] -e apps/workers[dev]
       - name: Lint (ruff)
         run: ruff check apps packages
+      - name: Create non-superuser role for tests
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d prachar_test -c "
+            CREATE ROLE prachar LOGIN PASSWORD 'prachar';"
       - name: Migrate
-        run: alembic -c apps/api/alembic.ini upgrade head
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/prachar_test
+        run: |
+          cd apps/api && alembic upgrade head
+      - name: Grant schema privileges to test role
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d prachar_test -c "
+            GRANT USAGE ON SCHEMA public TO prachar;
+            GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO prachar;
+            GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO prachar;"
       - name: Seed
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/prachar_test
         run: python scripts/seed.py
       - name: Test
         run: pytest packages/shared/prachar_shared/tests apps/workers/prachar_workers/tests apps/api/prachar_api/tests -q
