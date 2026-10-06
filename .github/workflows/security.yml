@@ -24,7 +24,7 @@ jobs:
           pip install -e packages/shared -e apps/api -e apps/workers
       - name: Audit Python dependencies
         run: |
-          pip-audit --strict
+          pip-audit --strict --skip-editable
 
   # ─── npm audit ──────────────────────────────────────────────────────────────
   npm-audit:
@@ -38,9 +38,9 @@ jobs:
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: apps/web-v2/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install
-        run: cd apps/web-v2 && pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter web-v2...
       - name: Audit
         run: cd apps/web-v2 && pnpm audit --audit-level=high
 
@@ -67,9 +67,13 @@ jobs:
           python-version: "3.12"
       - name: Install cyclonedx
         run: pip install cyclonedx-bom
+      - name: Install project dependencies
+        run: |
+          pip install -e packages/shared -e apps/api -e apps/workers
       - name: Generate Python SBOM
         run: |
-          cyclonedx-py environment -o sbom-python.json --format-json
+          pip freeze --exclude-editable > /tmp/requirements-sbom.txt
+          cyclonedx-py requirements -i /tmp/requirements-sbom.txt -o sbom-python.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
