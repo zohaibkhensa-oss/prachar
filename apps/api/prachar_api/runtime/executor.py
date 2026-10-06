@@ -40,6 +40,10 @@ class NodeResult:
     cancelled: bool = False       # V2: was this node cancelled?
     timed_out: bool = False       # V3: did this node time out?
     tokens_used: int = 0
+    # Machine-readable failure details (e.g. BudgetExceeded.code) so the
+    # session.error event can carry actionable codes instead of free text.
+    code: str | None = None
+    upgrade_required: bool = False
 
 
 @dataclass
@@ -51,6 +55,8 @@ class ExecutionResult:
     total_duration_ms: int = 0
     total_cost_usd: float = 0.0
     error: str | None = None
+    error_code: str | None = None
+    upgrade_required: bool = False
     cancelled: bool = False
     waiting_for_approval: bool = False
     approval_node_id: str | None = None
@@ -607,9 +613,18 @@ class ExecutionEngine:
                     error=str(exc),
                     duration_ms=duration_ms,
                     retries=retries,
+                    code=getattr(exc, "code", None),
+                    upgrade_required=bool(getattr(exc, "upgrade_required", False)),
                 )
                 result.node_results[node.id] = nr
                 completed.add(node.id)
+                # Surface failure details to the session level — the V4
+                # partial-failure check below decides success vs warnings;
+                # session.error used to publish error: null because
+                # result.error was never set.
+                result.error = nr.error
+                result.error_code = nr.code
+                result.upgrade_required = nr.upgrade_required
 
                 if metrics:
                     metrics.record_tool(tm)
@@ -623,7 +638,14 @@ class ExecutionEngine:
                     phase=EventPhase.ERROR.value,
                     decision_id=decision_id,
                     tool=node.tool,
-                    data={"node_id": node.id, "error": str(exc), "retries": retries},
+                    data={
+                        "node_id": node.id,
+                        "error": str(exc),
+                        "retries": retries,
+                        "code": nr.code,
+                        "upgrade_required": nr.upgrade_required,
+                        "message": getattr(exc, "user_message", None),
+                    },
                 ))
                 log.warning("tool %s failed after %d retries: %s", node.tool, retries, exc)
                 return

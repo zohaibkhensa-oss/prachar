@@ -39,6 +39,8 @@ interface SessionState {
   progress: { completed: number; total: number; label: string } | null;
   approvalRequest: { node_id: string; tool: string; reason: string } | null;
   error: string | null;
+  errorCode?: string | null;
+  upgradeRequired?: boolean;
 }
 
 const INITIAL_STATE: SessionState = {
@@ -219,14 +221,21 @@ export function useRuntimeSession() {
         };
       }
 
-      // Handle session error
+      // Handle session error — prefer the machine-readable code when present
       if (event.type === "runtime.session.error") {
+        const data = event.data || {};
+        const error =
+          data.code === "AI_BUDGET_EXCEEDED"
+            ? "AI usage limit reached — upgrade your plan to continue."
+            : data.error || "Session failed";
         return {
           ...prev,
           events,
           progress,
           status: "error",
-          error: event.data?.error || "Session failed",
+          error,
+          errorCode: data.code || null,
+          upgradeRequired: data.upgrade_required === true,
         };
       }
 

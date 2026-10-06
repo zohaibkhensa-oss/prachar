@@ -22,7 +22,15 @@ logger = logging.getLogger(__name__)
 
 
 class BudgetExceeded(Exception):
-    pass
+    """Raised when a tenant's monthly AI token budget is exhausted.
+
+    Carries a machine-readable code so callers (chat router, runtime
+    executor) can surface a proper upgrade UX instead of a generic error.
+    """
+
+    code = "AI_BUDGET_EXCEEDED"
+    upgrade_required = True
+    user_message = "Your AI usage limit has been reached. Upgrade your plan to continue."
 
 
 class ProviderError(Exception):
@@ -90,6 +98,7 @@ class AIGateway:
         prompt_version: str = "",
         campaign_id: str = "",
         model_override: str | None = None,
+        reasoning_effort: str | None = None,
     ) -> Completion:
         # ─── Safety: check for prompt injection ───────────────────────────
         if user_input:
@@ -143,6 +152,7 @@ class AIGateway:
                 logger.debug("cache parse failed, recomputing", exc_info=True)
 
         if not self.budget.check_and_reserve(tenant_id, max_tokens, plan):
+            # Reservation path only — settle is a no-op on rejection
             log_ai_request(
                 request_id=request_id,
                 tenant_id=str(tenant_id),
@@ -169,9 +179,12 @@ class AIGateway:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     retries=retries,
+                    reasoning_effort=reasoning_effort,
                 )
             except Exception as exc:
                 latency_ms = round((time.monotonic() - t0) * 1000, 2)
+                # Release the up-front reservation — nothing was consumed
+                self.budget.record_usage(tenant_id, 0, plan, reserved=max_tokens)
                 log_ai_request(
                     request_id=request_id,
                     tenant_id=str(tenant_id),
@@ -214,7 +227,8 @@ class AIGateway:
         comp.cost_usd = estimate_cost(comp.model, comp.tokens_used)
         comp.request_id = request_id
 
-        self.budget.record_usage(tenant_id, comp.tokens_used or max_tokens, plan)
+        # Settle: actual tokens replace the max_tokens reservation
+        self.budget.record_usage(tenant_id, comp.tokens_used or max_tokens, plan, reserved=max_tokens)
         self.cache.set(key, comp.model_dump_json(), ttl_for(task))
 
         # Log successful request
@@ -322,6 +336,7 @@ class AIGateway:
         max_tokens: int,
         temperature: float,
         retries: int,
+        reasoning_effort: str | None = None,
     ) -> Completion:
         settings = get_settings()
         primary = settings.ai_default_provider.lower()
@@ -354,6 +369,7 @@ class AIGateway:
                     max_tokens=max_tokens,
                     temperature=temperature,
                     feedback=feedback,
+                    reasoning_effort=reasoning_effort,
                 )
             except Exception as e:
                 logger.warning("provider %s failed: %s", provider, e)
@@ -423,11 +439,12 @@ class AIGateway:
         max_tokens: int,
         temperature: float,
         feedback: str | None,
+        reasoning_effort: str | None = None,
     ) -> Completion:
         if provider == "anthropic":
             return self._call_anthropic(prompt, model, schema, max_tokens, temperature, feedback)
         if provider == "groq":
-            return self._call_groq(prompt, model, schema, max_tokens, temperature, feedback)
+            return self._call_groq(prompt, model, schema, max_tokens, temperature, feedback, reasoning_effort)
         if provider == "gemini":
             return self._call_gemini(prompt, model, schema, max_tokens, temperature, feedback)
         return self._call_openai(prompt, model, schema, max_tokens, temperature, feedback)
@@ -440,6 +457,7 @@ class AIGateway:
         max_tokens: int,
         temperature: float,
         feedback: str | None,
+        reasoning_effort: str | None = None,
     ) -> Completion:
         """Call Groq API (OpenAI-compatible)."""
         import openai as openai_lib
@@ -452,6 +470,14 @@ class AIGateway:
             max_retries=1,  # Don't retry 429s internally — let fallback chain handle it
         )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
+        # gpt-oss models on Groq are reasoning models — hidden reasoning tokens
+        # count toward usage. Default "low" effort keeps chat-tier costs sane;
+        # callers can request "medium"/"high" for complex reasoning tasks.
+        extra_body = (
+            {"reasoning_effort": reasoning_effort}
+            if reasoning_effort and "gpt-oss" in model
+            else None
+        )
         if schema is not None:
             resp = client.chat.completions.create(
                 model=model,
@@ -462,6 +488,7 @@ class AIGateway:
                     {"role": "system", "content": f"Return JSON matching this schema: {json.dumps(schema)}"},
                     {"role": "user", "content": full_prompt},
                 ],
+                extra_body=extra_body,
             )
             content = resp.choices[0].message.content or "{}"
             # Use universal JSON extractor (handles markdown fences, prose, etc.)
@@ -476,6 +503,7 @@ class AIGateway:
             max_tokens=max_tokens,
             temperature=temperature,
             messages=[{"role": "user", "content": full_prompt}],
+            extra_body=extra_body,
         )
         text = resp.choices[0].message.content or ""
         tokens = resp.usage.total_tokens if resp.usage else 0

@@ -26,7 +26,7 @@ class _FakeBudget(BudgetGuard):
     def check_and_reserve(self, tenant_id, tokens: int, plan: str) -> bool:
         return True
 
-    def record_usage(self, tenant_id, tokens: int, plan: str) -> None:
+    def record_usage(self, tenant_id, tokens: int, plan: str, reserved: int = 0) -> None:
         self.used += tokens
 
     def remaining(self, tenant_id, plan: str) -> int:

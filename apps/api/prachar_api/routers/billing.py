@@ -24,7 +24,7 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from prachar_shared.config import get_settings
 from prachar_shared.plans import PlanSpec, get_plan, list_plans
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Billing, Tenant
@@ -1003,4 +1003,26 @@ async def validate_coupon(
         discount_pct=coupon["discount_pct"],
         discount_amount=discount_amount,
         message=f"{coupon['discount_pct']}% off applied",
+    )
+
+
+async def record_ai_usage(
+    session: Any,
+    tenant_id: uuid.UUID,
+    tokens: int,
+) -> None:
+    """Mirror Redis budget enforcement into the persistent billing ledger.
+
+    BudgetGuard (Redis) is the live enforcement counter; this keeps
+    billing.ai_tokens_used_month in sync so /billing/usage and admin cost
+    reports match the enforcement view. Callers commit via their own
+    transaction boundary (SessionDep handlers commit explicitly; runtime
+    tools inherit session_scope's auto-commit).
+    """
+    if tokens <= 0:
+        return
+    await session.execute(
+        update(Billing)
+        .where(Billing.tenant_id == tenant_id)
+        .values(ai_tokens_used_month=Billing.ai_tokens_used_month + int(tokens))
     )

@@ -493,7 +493,11 @@ class Runtime:
                     phase=EventPhase.ERROR.value,
                     decision_id=state.decision.id,
                     orb_state=OrbState.ERROR.value,
-                    data={"error": str(exc)},
+                    data={
+                        "error": str(exc),
+                        "code": getattr(exc, "code", None),
+                        "upgrade_required": bool(getattr(exc, "upgrade_required", False)),
+                    },
                 ))
                 await bus.close()
             state.completed = True
@@ -567,7 +571,11 @@ class Runtime:
                     phase=EventPhase.ERROR.value,
                     decision_id=state.decision.id,
                     orb_state=OrbState.ERROR.value,
-                    data={"error": result.error},
+                    data={
+                        "error": result.error,
+                        "code": result.error_code,
+                        "upgrade_required": result.upgrade_required,
+                    },
                 ))
                 await bus.close()
                 state.completed = True
@@ -706,7 +714,11 @@ class Runtime:
                 phase=EventPhase.ERROR.value,
                 decision_id=state.decision.id,
                 orb_state=OrbState.ERROR.value,
-                data={"error": str(exc)},
+                data={
+                    "error": str(exc),
+                    "code": getattr(exc, "code", None),
+                    "upgrade_required": bool(getattr(exc, "upgrade_required", False)),
+                },
             ))
             await bus.close()
             state.completed = True

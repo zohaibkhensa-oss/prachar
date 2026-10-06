@@ -123,13 +123,18 @@ export function OrbPanel({ brandId, onClose }: OrbPanelProps) {
       }
     }
 
-    // Handle error
+    // Handle error — map machine-readable codes to user-friendly text
     if (latest.type === "runtime.session.error") {
+      const data = latest.data || {};
+      const content =
+        data.code === "AI_BUDGET_EXCEEDED"
+          ? "You've reached your AI usage limit for this month. Upgrade your plan in Settings to keep using me."
+          : data.error || "Something went wrong. Let me try again.";
       setMessages((prev) => [
         ...prev,
         {
           role: "ai",
-          content: latest.data?.error || "Something went wrong. Let me try again.",
+          content,
           timestamp: latest.timestamp,
         },
       ]);

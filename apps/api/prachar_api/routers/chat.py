@@ -21,6 +21,7 @@ from sqlalchemy import select
 
 from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Brand
+from .billing import record_ai_usage
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -417,6 +418,10 @@ class ChatResponse(BaseModel):
     confidence: float = 0.0
     request_id: str = ""
     campaign_brain_used: bool = False
+    # Machine-readable outcome — lets the frontend render upgrade UX instead
+    # of parsing free-text replies.
+    code: str = ""
+    upgrade_required: bool = False
 
 
 # ─── Strategic question detection ───────────────────────────────────────────
@@ -449,6 +454,7 @@ def _is_strategic_question(message: str) -> bool:
 async def chat(
     body: ChatRequest,
     user: CurrentUser,
+    session: SessionDep,
 ) -> ChatResponse:
     """Send a message to the CURV AI assistant and get a response.
 
@@ -489,6 +495,8 @@ async def chat(
             confidence=0.0,
         )
 
+    plan = await get_tenant_plan(session, user)
+
     # ─── Agency Council integration for campaign review requests ─────────
     # CURV AI never exposes raw Director discussions. When a user asks for a
     # council review, it delegates to CampaignBrain.review_with_council()
@@ -501,13 +509,16 @@ async def chat(
             brain = CampaignBrain()
             decision, _session = await brain.review_with_council(
                 tenant_id=user.tenant_id,
-                plan="agency",
+                plan=plan,
                 brand_id=body.brand_id,
                 industry="",
                 objective="",
             )
             # Convert the council decision into a CURV AI summary
             summary = _summarise(decision)
+            if decision.total_tokens:
+                await record_ai_usage(session, user.tenant_id, decision.total_tokens)
+                await session.commit()
             return ChatResponse(
                 reply=summary,
                 tokens_used=decision.total_tokens,
@@ -522,11 +533,13 @@ async def chat(
                 reply=(
                     "Hey! I've hit my AI token budget for this month. "
                     "The council review requires AI tokens to run all 9 directors. "
-                    "Contact your admin to upgrade your plan."
+                    "Upgrade your plan to continue."
                 ),
                 tokens_used=0,
                 model="budget-exceeded",
                 confidence=0.0,
+                code=BudgetExceeded.code,
+                upgrade_required=True,
             )
         except Exception as e:
             import logging
@@ -547,7 +560,7 @@ async def chat(
             brain = CampaignBrain()
             result = await brain.consult(
                 tenant_id=user.tenant_id,
-                plan="agency",
+                plan=plan,
                 question=last_user_msg,
                 brand_id=body.brand_id,
             )
@@ -578,8 +591,9 @@ async def chat(
                 tier=Tier.small,
                 task="chat",
                 tenant_id=user.tenant_id,
-                plan="agency",
+                plan=plan,
                 max_tokens=512,
+            reasoning_effort="low",
                 temperature=0.7,
                 user_input=last_user_msg,
                 prompt_version="chat_brain_v2.0",
@@ -589,6 +603,9 @@ async def chat(
                 eo.get("tokens_used", 0)
                 for eo in result.get("engine_outputs", {}).values()
             )
+            if comp.tokens_used + engine_tokens:
+                await record_ai_usage(session, user.tenant_id, comp.tokens_used + engine_tokens)
+                await session.commit()
             return ChatResponse(
                 reply=comp.text.strip(),
                 tokens_used=comp.tokens_used + engine_tokens,
@@ -603,11 +620,13 @@ async def chat(
                 reply=(
                     "Hey! I've hit my AI token budget for this month. "
                     "You can still navigate the platform — try saying 'take me to campaigns' "
-                    "or 'open analytics'. Contact your admin to upgrade your plan for more tokens."
+                    "or 'open analytics'. Upgrade your plan for more tokens."
                 ),
                 tokens_used=0,
                 model="budget-exceeded",
                 confidence=0.0,
+                code=BudgetExceeded.code,
+                upgrade_required=True,
             )
         except Exception as e:
             import logging
@@ -637,8 +656,9 @@ async def chat(
             tier=Tier.small,
             task="chat",
             tenant_id=user.tenant_id,
-            plan="agency",
+            plan=plan,
             max_tokens=512,
+            reasoning_effort="low",
             temperature=0.7,  # More creative/conversational
             user_input=last_user_msg,
             prompt_version="chat_system_v1.1",
@@ -648,11 +668,13 @@ async def chat(
             reply=(
                 "Hey! I've hit my AI token budget for this month. "
                 "You can still navigate the platform — try saying 'take me to campaigns' "
-                "or 'open analytics'. Contact your admin to upgrade your plan for more tokens."
+                "or 'open analytics'. Upgrade your plan for more tokens."
             ),
             tokens_used=0,
             model="budget-exceeded",
             confidence=0.0,
+            code=BudgetExceeded.code,
+            upgrade_required=True,
         )
     except Exception as e:
         # LLM call failed — NEVER leak provider error messages to the user
@@ -682,6 +704,10 @@ async def chat(
             model="error",
             confidence=0.0,
         )
+
+    if comp.tokens_used:
+        await record_ai_usage(session, user.tenant_id, comp.tokens_used)
+        await session.commit()
 
     return ChatResponse(
         reply=comp.text.strip(),

@@ -151,7 +151,14 @@ async def chat_respond(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
         plan=ctx.billing.plan,
         max_tokens=500,
         temperature=0.4,
+        reasoning_effort="low",
     )
+
+    # Mirror token usage into the billing ledger (session_scope commits)
+    if ctx.session is not None and completion.tokens_used:
+        from ..routers.billing import record_ai_usage
+
+        await record_ai_usage(ctx.session, ctx.tenant_id, completion.tokens_used)
 
     # Collect source citations from knowledge chunks
     sources = []
