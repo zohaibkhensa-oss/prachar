@@ -59,6 +59,7 @@ jobs:
       - name: Migrate
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/prachar_test
+          DATABASE_URL_SYNC: postgresql+psycopg://postgres:postgres@localhost:5432/prachar_test
         run: |
           cd apps/api && alembic upgrade head
       - name: Grant schema privileges to test role
