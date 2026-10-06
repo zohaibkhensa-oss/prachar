@@ -9,7 +9,9 @@
     "start": "next start -p 3002",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"no tests yet\""
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:install": "playwright install chromium"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.16",
@@ -29,20 +31,21 @@
     "cmdk": "^1.1.1",
     "framer-motion": "^12.42.2",
     "lucide-react": "^0.451.0",
-    "next": "^15.0.0",
+    "next": "^15.5.27",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "recharts": "^2.12.0",
+    "recharts": "^2.15.4",
     "tailwind-merge": "^2.5.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@types/node": "^22.7.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.13",
+    "postcss": "^8.5.29",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.6.0"
   }
 }

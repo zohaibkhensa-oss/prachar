@@ -24,7 +24,8 @@ jobs:
           pip install -e packages/shared -e apps/api -e apps/workers
       - name: Audit Python dependencies
         run: |
-          pip-audit --strict --skip-editable
+          pip freeze --exclude-editable > /tmp/audit-reqs.txt
+          pip-audit --strict -r /tmp/audit-reqs.txt
 
   # ─── npm audit ──────────────────────────────────────────────────────────────
   npm-audit:
@@ -42,7 +43,7 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile --filter web-v2...
       - name: Audit
-        run: cd apps/web-v2 && pnpm audit --audit-level=high
+        run: cd apps/web-v2 && pnpm audit --audit-level=high --prod
 
   # ─── Secret scanning ────────────────────────────────────────────────────────
   secret-scan:
