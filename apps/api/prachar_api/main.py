@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json as _json
 import logging
 
 from fastapi import FastAPI
@@ -44,11 +45,68 @@ from .routers import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger("prachar.api")
 
+# Use structured JSON logging in non-local environments for CloudWatch
+
+
+class _JsonFormatter(logging.Formatter):
+    """Structured JSON log formatter for CloudWatch compatibility."""
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[1]:
+            log_entry["error"] = str(record.exc_info[1])
+        return _json.dumps(log_entry, default=str)
+
+# Apply JSON formatter in non-local environments
+_settings = None  # lazy
+try:
+    _s = __import__("prachar_shared.config", fromlist=["get_settings"]).get_settings()
+    if _s.app_env != "local":
+        for handler in logging.root.handlers:
+            handler.setFormatter(_JsonFormatter())
+except Exception:
+    pass
+
+
+def _get_cors_origins() -> list[str]:
+    """Build CORS origins list from env or defaults."""
+    from prachar_shared.config import get_settings
+    s = get_settings()
+    if s.cors_origins:
+        return [o.strip() for o in s.cors_origins.split(",") if o.strip()]
+    # Dev defaults — production must set CORS_ORIGINS env
+    return [
+        "http://localhost:3000", "http://127.0.0.1:3000",
+        "http://localhost:3001", "http://127.0.0.1:3001",
+        "http://localhost:3002", "http://127.0.0.1:3002",
+    ]
+
 
 def create_app() -> FastAPI:
+    # Production safety check — reject placeholder secrets in staging/production
+    from prachar_shared.config import get_settings
+    s = get_settings()
+    errors = s.validate_production()
+    if errors:
+        for err in errors:
+            log.error("PRODUCTION SAFETY: %s", err)
+        if s.app_env in ("staging", "production"):
+            raise RuntimeError(
+                f"Production safety check failed ({len(errors)} errors). "
+                f"Set real secrets before starting in {s.app_env} mode."
+            )
+
     app = FastAPI(
         title="CURV AI API",
         version="1.0.0",
+        # Disable docs in production/staging for security; keep in local/test
+        docs_url="/docs" if s.app_env in ("local", "test") else None,
+        redoc_url="/redoc" if s.app_env in ("local", "test") else None,
+        openapi_url="/openapi.json" if s.app_env in ("local", "test") else None,
         description="""# CURV AI API
 
 AI-driven global advertising agency platform.
@@ -133,20 +191,10 @@ See `LAUNCH_READINESS.md` for the feature matrix.
             {"name": "runtime", "description": "Orb Runtime (invoke, sessions, events)"},
             {"name": "unified-consult", "description": "Universal consult (all domain packs)"},
         ],
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
     )
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3000", "http://127.0.0.1:3000",
-            "http://localhost:3001", "http://127.0.0.1:3001",
-            "http://localhost:3002", "http://127.0.0.1:3002",
-            "https://prachar-web.onrender.com",
-            "https://prachar.app",
-            "https://www.prachar.app",
-        ],
+        allow_origins=_get_cors_origins(),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
