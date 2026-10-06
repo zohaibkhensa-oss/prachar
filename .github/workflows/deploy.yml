@@ -16,9 +16,9 @@ on:
           - production
 
 # Required GitHub secrets:
-#   AWS_REGION — e.g. ap-south-1
+#   AWS_REGION — e.g. ap-southeast-2
 #   AWS_ROLE_ARN — IAM role ARN for OIDC (do NOT use access keys)
-#   ECR_REGISTRY — e.g. <account>.dkr.ecr.ap-south-1.amazonaws.com
+#   ECR_REGISTRY — e.g. <account>.dkr.ecr.ap-southeast-2.amazonaws.com
 #   STAGING_PRIVATE_SUBNETS — comma-separated subnet IDs
 #   STAGING_SG — security group ID for staging
 #   PROD_PRIVATE_SUBNETS — comma-separated subnet IDs
@@ -60,6 +60,20 @@ jobs:
   # ─── Test gate — must pass before any deployment ────────────────────────────
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: prachar_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,6 +82,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e packages/shared -e apps/api -e apps/workers
+          pip install pytest pytest-asyncio httpx ruff
       - name: Lint
         run: ruff check apps/api packages/shared apps/workers
       - name: Run migrations (test DB)

@@ -238,6 +238,58 @@ resource "aws_ecs_task_definition" "api" {
   }
 }
 
+# ─── Migration task definition (one-off alembic runs via ecs run-task) ────────
+
+resource "aws_cloudwatch_log_group" "migrate" {
+  name              = "/ecs/${var.project_name}/migrate"
+  retention_in_days = 30
+
+  tags = {
+    Name        = "${var.project_name}-migrate-logs"
+    Environment = var.environment
+  }
+}
+
+resource "aws_ecs_task_definition" "migrate" {
+  family                   = "${var.project_name}-migrate"
+  network_mode             = "awsvpc"
+  requires_compatibilities = ["FARGATE"]
+  cpu                      = "256"
+  memory                   = "512"
+  execution_role_arn       = aws_iam_role.ecs_task_execution.arn
+  task_role_arn            = aws_iam_role.ecs_task.arn
+
+  container_definitions = jsonencode([
+    {
+      name             = "migrate"
+      image            = var.ecr_api_image != "" ? var.ecr_api_image : "public.ecr.aws/docker/library/python:3.12-slim"
+      essential        = true
+      workingDirectory = "/app"
+      command          = ["/bin/sh", "-c", "cd apps/api && alembic upgrade head"]
+
+      environment = [
+        { name = "ENVIRONMENT", value = var.environment },
+        { name = "DATABASE_URL", value = "postgresql+asyncpg://prachar_admin:${random_password.db_password.result}@${aws_db_instance.main.address}:5432/prachar" },
+        { name = "AWS_REGION", value = var.aws_region },
+      ]
+
+      logConfiguration = {
+        logDriver = "awslogs"
+        options = {
+          "awslogs-group"         = aws_cloudwatch_log_group.migrate.name
+          "awslogs-region"        = var.aws_region
+          "awslogs-stream-prefix" = "migrate"
+        }
+      }
+    }
+  ])
+
+  tags = {
+    Name        = "${var.project_name}-migrate-task"
+    Environment = var.environment
+  }
+}
+
 # ─── API ECS service ─────────────────────────────────────────────────────────
 
 resource "aws_ecs_service" "api" {
