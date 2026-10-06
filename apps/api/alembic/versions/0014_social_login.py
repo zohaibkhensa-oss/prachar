@@ -44,9 +44,10 @@ def upgrade() -> None:
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE email = p_email LIMIT 1;
         $$;
         DO $$ BEGIN
-            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
-        EXCEPTION WHEN undefined_object THEN
-            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO postgres;
+            IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'prachar') THEN
+                GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+            END IF;
+            EXECUTE format('GRANT EXECUTE ON FUNCTION auth_lookup(text) TO %I', current_user);
         END $$;
     """)
 
@@ -58,9 +59,10 @@ def upgrade() -> None:
           SELECT id, tenant_id, pw_hash, role::text, is_active, email_verified FROM users WHERE id::text = p_uid LIMIT 1;
         $$;
         DO $$ BEGIN
-            GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO prachar;
-        EXCEPTION WHEN undefined_object THEN
-            GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO postgres;
+            IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'prachar') THEN
+                GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO prachar;
+            END IF;
+            EXECUTE format('GRANT EXECUTE ON FUNCTION auth_lookup_by_id(text) TO %I', current_user);
         END $$;
     """)
 

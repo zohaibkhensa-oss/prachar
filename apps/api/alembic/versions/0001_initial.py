@@ -339,9 +339,10 @@ def upgrade() -> None:
     # Grant to prachar role if it exists (local dev), else grant to postgres (Supabase)
     op.execute("""
         DO $$ BEGIN
-            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
-        EXCEPTION WHEN undefined_object THEN
-            GRANT EXECUTE ON FUNCTION auth_lookup(text) TO postgres;
+            IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'prachar') THEN
+                GRANT EXECUTE ON FUNCTION auth_lookup(text) TO prachar;
+            END IF;
+            EXECUTE format('GRANT EXECUTE ON FUNCTION auth_lookup(text) TO %I', current_user);
         END $$;
     """)
 

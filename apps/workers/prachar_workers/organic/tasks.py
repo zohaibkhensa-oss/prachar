@@ -163,7 +163,7 @@ def generate_content(brand_id: str, channel: str, locale: str) -> dict[str, Any]
 
         with session_scope() as session:
             row = session.execute(
-                text("SELECT tenant_id FROM brands WHERE id = :bid"), {"bid": brand_id}
+                text("SELECT brand_tenant_id(:bid)"), {"bid": brand_id}
             ).first()
             tenant_id = str(row[0]) if row else None
             if tenant_id:

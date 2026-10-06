@@ -45,11 +45,10 @@ def _audit(event: str, brand_id: str, stage: str, payload: dict[str, Any] | None
         from prachar_workers.db import session_scope
 
         with session_scope() as session:
-            # Look up tenant_id for this brand (brands table has no RLS issue
-            # because we're using a sync session without tenant context — but
-            # we need the tenant_id for the audit_events row).
+            # Resolve brand -> tenant via the SECURITY DEFINER lookup (brands
+            # is RLS-protected and no app.tenant_id is set yet — chicken/egg).
             row = session.execute(
-                text("SELECT tenant_id FROM brands WHERE id = :bid"), {"bid": brand_id}
+                text("SELECT brand_tenant_id(:bid)"), {"bid": brand_id}
             ).first()
             tenant_id = str(row[0]) if row else None
             if tenant_id is None:
@@ -98,22 +97,34 @@ def dispatch_due() -> dict[str, Any]:
 
         from prachar_workers.db import session_scope
 
+        # Cross-tenant discovery goes through a narrowly-scoped SECURITY
+        # DEFINER function — the worker role does NOT get BYPASSRLS, and the
+        # function exposes only due (tenant_id, brand_id) identifiers.
         with session_scope() as session:
-            try:
-                rows = session.execute(
-                    text("SELECT id FROM brands WHERE next_loop_at <= now() OR next_loop_at IS NULL")
-                ).all()
-                due = [str(r[0]) for r in rows]
-            except Exception:
-                rows = session.execute(text("SELECT id FROM brands")).all()
+            rows = session.execute(
+                text("SELECT brand_id FROM due_brands_for_dispatch(now())")
+            ).all()
+            due = [str(r[0]) for r in rows]
+    except Exception as exc:
+        logger.warning("dispatch_due privileged read failed: %s", exc)
+        # Fallback hash distribution — a NEW session so a failed transaction
+        # above cannot leak InFailedSqlTransaction into this read. Under RLS
+        # this simply returns no rows; it exists for DBs without the function.
+        try:
+            from sqlalchemy import text as _text
+
+            from prachar_workers.db import session_scope as _ss
+
+            with _ss() as session:
+                rows = session.execute(_text("SELECT id FROM brands")).all()
                 now = _now()
                 due = [
                     str(r[0])
                     for r in rows
                     if (hash(str(r[0])) % 168) <= now.hour
                 ]
-    except Exception as exc:  # pragma: no cover
-        logger.warning("dispatch_due DB read failed: %s", exc)
+        except Exception as fb_exc:  # pragma: no cover
+            logger.warning("dispatch_due fallback read failed: %s", fb_exc)
 
     # Batch enqueue to avoid Redis spike when dispatching 10K+ brands at once.
     # Each brand is routed to its shard queue so multiple workers can process
@@ -241,10 +252,11 @@ def run_learning_checkpoint(brand_id: Any) -> dict[str, Any]:  # noqa: ANN001
 
         from prachar_workers.db import session_scope
 
-        # Look up tenant_id for this brand
+        # Resolve brand -> tenant via the SECURITY DEFINER lookup (brands is
+        # RLS-protected and no app.tenant_id is set yet — chicken/egg).
         with session_scope() as session:
             row = session.execute(
-                text("SELECT tenant_id FROM brands WHERE id = :bid"),
+                text("SELECT brand_tenant_id(:bid)"),
                 {"bid": str(brand_id)},
             ).first()
             if not row:

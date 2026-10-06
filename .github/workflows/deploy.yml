@@ -85,18 +85,24 @@ jobs:
           pip install pytest pytest-asyncio httpx ruff
       - name: Lint
         run: ruff check apps/api packages/shared apps/workers
+      - name: Create non-superuser role for tests
+        # Created before migrations so SECURITY DEFINER grants find it; RLS
+        # is bypassed for superusers so tests must connect as a normal role.
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d prachar_test -c "
+            CREATE ROLE prachar LOGIN PASSWORD 'prachar';"
       - name: Run migrations (test DB)
         env:
           DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/prachar_test
         run: |
           cd apps/api && alembic upgrade head
-      - name: Create non-superuser role for tests
-        # RLS is bypassed for superusers; tests must connect as a normal role
+      - name: Grant schema privileges to test role
         env:
           PGPASSWORD: postgres
         run: |
           psql -h localhost -U postgres -d prachar_test -c "
-            CREATE ROLE prachar LOGIN PASSWORD 'prachar';
             GRANT USAGE ON SCHEMA public TO prachar;
             GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO prachar;
             GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO prachar;"

@@ -72,7 +72,7 @@ def _insert_campaign_row(struct: dict[str, Any]) -> str | None:
         brand_id = struct["brand_id"]
         with session_scope() as session:
             row = session.execute(
-                text("SELECT tenant_id FROM brands WHERE id = :bid"),
+                text("SELECT brand_tenant_id(:bid)"),
                 {"bid": brand_id},
             ).first()
             if row is None:
