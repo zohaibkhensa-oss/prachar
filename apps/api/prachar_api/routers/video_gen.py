@@ -775,7 +775,7 @@ async def _call_fal_video(fal_key: str, req: VideoGenRequest, prompt: str, aspec
     return VideoGenResponse(
         video_url=video_url,
         model=model_id,
-        duration=req.duration,
+        duration=str(req.duration),
         resolution="720p",
         quality_tier="kling-turbo",
         gpu_cost_estimate=f"~${cost:.2f} (Kling 2.5 Turbo 720p + audio)",
