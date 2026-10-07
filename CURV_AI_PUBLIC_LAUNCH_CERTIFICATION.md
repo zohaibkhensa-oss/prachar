@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-07 · Deploys: `5e88e26`, `03a3b0d` (green) · API task-def :31+ (36 secrets)
 **Executive Verdict: 🟡 READY WITH NON-BLOCKING LIMITATIONS**
-*(everything code-side is verified working; two credential inputs remain user-owned — see §12)*
+*(everything code-side is verified working; Stripe key + SMTP creds remain user-owned — see §12)*
 
 ## 1. AI Brain — 🟢 CERTIFIED
 `/runtime/invoke` live: real session_id, planner decision, SSE stream URL. 75 tools, 17 context providers, Campaign Brain, Council, Consult→plan, RAG — all verified this session.
@@ -21,8 +21,8 @@ OAuth URLs return **real client_ids** for Meta (`163310***`) and Google (`934681
 ## 5. Advertising — 🟡 CODE-READY
 Meta `act_` discovery + `fb_exchange_token` + encrypted-token hydration fixed & tested (`test_meta_account_discovery.py`, 6 tests). Worker `_stub_tokens` eliminated from publish/metrics/watchdog/resume. First real Meta campaign needs OAuth completion + a funded ad account.
 
-## 6. Billing — 🟠 BLOCKED BY CREDENTIALS
-Ledger, atomic budgets, `AI_BUDGET_EXCEEDED` all live ✓. **Stripe keys empty; Razorpay keys invalid (401).** Webhook handlers + signed-payload tests pass — waiting on real dashboard keys only.
+## 6. Billing — 🟢 RAZORPAY CERTIFIED / 🟠 STRIPE PENDING
+Ledger, atomic budgets, `AI_BUDGET_EXCEEDED` live ✓. **Razorpay: live-verified** — real keys + registered webhook `TkyI3vmczWKJhA`; unsigned→400, signed `subscription.activated`→tenant plan `starter→growth` on staging ✓. Stripe: `STRIPE_API_KEY` still empty — needs dashboard key.
 
 ## 7. Email — 🟡 DEFERRED (user choice)
 `SMTP_*` wired into task defs (empty placeholders, port 587). Fill `SMTP_USER/PASSWORD` in `.env`/secrets → M365 activate instantly. Verify/reset emails currently log-only.
@@ -56,8 +56,8 @@ ECS api/worker/beat stable on task-defs with 36 secrets; Terraform is the durabl
 | 11 | Brand reports | ✅ `/reports/brands/{id}/reports` 200 |
 | 12 | Campaign budget | ✅ new endpoint live |
 | 13 | Budget-exceeded UX | ✅ correct `AI_BUDGET_EXCEEDED` surface |
-| 14 | Razorpay webhook | ⚠ creds invalid (401) |
-| 15 | Stripe webhook | ⚠ no Stripe key yet |
+| 14 | Razorpay webhook | ✅ signed→plan flip starter→growth live |
+| 15 | Stripe webhook | ⚠ `STRIPE_API_KEY` empty — needs dashboard key |
 | 16 | Email send | ⚠ deferred — no SMTP creds |
 | 17 | Meta OAuth completion | ⏳ needs human consent in browser |
 | 18 | Scheduled worker | ✅ dispatch firing |
@@ -68,7 +68,7 @@ ECS api/worker/beat stable on task-defs with 36 secrets; Terraform is the durabl
 `5fd1839` Meta/token fixes+contracts · `88f4250` fal/genai deps · `ec710a9` OAuth callback page · `4906c85`+`14e50a7` secret wiring · `0c3b822`/`5e88e26` worker test conftest · `03a3b0d` video duration fix.
 
 ## Remaining to reach 🟢
-1. Real Razorpay keys (current pair 401s) → `.env`, I sync to AWS.
+1. ~~Real Razorpay keys~~ ✅ done — live keys + webhook `TkyI3vmczWKJhA` verified.
 2. Real `STRIPE_API_KEY` + Stripe webhook endpoint → `STRIPE_WEBHOOK_SECRET`.
 3. M365 `SMTP_USER`/`SMTP_PASSWORD` → `.env`.
 4. Register OAuth redirect URIs in Meta/Google consoles; one human OAuth connect.
