@@ -8,6 +8,8 @@ version = "0.1.0"
 description = "PRACHAR Celery workers: ingest, organic, ads, measure, creative + weekly loop"
 requires-python = ">=3.12"
 dependencies = [
+  "fal-client>=1.0",
+  "google-genai>=1.0",
     "celery[redis]>=5.4",
     "prachar-shared",
     "sqlalchemy>=2",
