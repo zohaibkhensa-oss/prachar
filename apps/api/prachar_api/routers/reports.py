@@ -47,7 +47,47 @@ async def list_reports(brand_id: uuid.UUID, user: CurrentUser, session: SessionD
             "week": r.week,
             "pdf_s3_key": r.pdf_s3_key,
             "score_snapshot": r.score_snapshot,
+            "status": "ready" if r.pdf_s3_key else "generating",
+            "download_url": f"/reports/brands/{brand_id}/reports/{r.id}/download" if r.pdf_s3_key else None,
             "created_at": r.created_at.isoformat() if r.created_at else None,
         }
         for r in res.scalars().all()
     ]
+
+
+@router.get("/brands/{brand_id}/reports/{report_id}/download")
+async def get_report_download_url(
+    brand_id: uuid.UUID, report_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict[str, Any]:
+    """Return a time-limited presigned download URL for the report PDF."""
+    res = await session.execute(
+        select(Report).where(
+            Report.id == report_id,
+            Report.brand_id == brand_id,
+            Report.tenant_id == user.tenant_id,
+        )
+    )
+    report = res.scalar_one_or_none()
+    if report is None or not report.pdf_s3_key:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "report PDF not found")
+
+    try:
+        import boto3
+        from prachar_shared.config import get_settings
+
+        s = get_settings()
+        client = boto3.client(
+            "s3",
+            endpoint_url=s.s3_endpoint,
+            aws_access_key_id=s.s3_access_key,
+            aws_secret_access_key=s.s3_secret_key,
+            region_name=s.s3_region,
+        )
+        url = client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": s.s3_bucket, "Key": report.pdf_s3_key},
+            ExpiresIn=3600,
+        )
+        return {"url": url, "expires_in": 3600}
+    except Exception as exc:  # noqa: BLE001 — storage may be unconfigured locally
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, f"storage unavailable: {exc}") from exc

@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep
-from ..models import Actor, Brand
+from ..models import Actor, Brand, ContentItem
 from ..schemas import BrandIn, BrandOut, VisibilityScoreOut
 
 router = APIRouter(prefix="/brands", tags=["brands"])
@@ -43,6 +43,35 @@ async def get_brand(brand_id: uuid.UUID, user: CurrentUser, session: SessionDep)
     if brand is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
     return BrandOut.model_validate(brand)
+
+
+@router.get("/{brand_id}/content")
+async def list_brand_content(brand_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[dict]:
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+    res = await session.execute(
+        select(ContentItem)
+        .where(ContentItem.brand_id == brand_id, ContentItem.tenant_id == user.tenant_id)
+        .order_by(ContentItem.created_at.desc())
+        .limit(200)
+    )
+    out = []
+    for c in res.scalars().all():
+        payload = c.payload or {}
+        out.append({
+            "id": str(c.id),
+            "type": "copy",
+            "locale": c.locale or "en",
+            "channel": c.channel,
+            "variant_group": str(c.parent_id or c.id),
+            "policy_status": c.policy_status.value if hasattr(c.policy_status, "value") else str(c.policy_status),
+            "copy": payload.get("copy") or payload.get("text") or "",
+            "image_url": payload.get("image_url") or "",
+        })
+    return out
 
 
 @router.get("/{brand_id}/score", response_model=VisibilityScoreOut)

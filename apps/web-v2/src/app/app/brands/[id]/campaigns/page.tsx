@@ -21,7 +21,7 @@ export default function CampaignsPage({
 
   const { data: campaigns, isLoading } = useQuery<Campaign[]>({
     queryKey: ["campaigns", id],
-    queryFn: () => apiGet<Campaign[]>(`/brands/${id}/campaigns`),
+    queryFn: () => apiGet<Campaign[]>(`/campaigns?brand_id=${id}`),
     retry: 0,
   });
 

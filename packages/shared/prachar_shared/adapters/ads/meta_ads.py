@@ -83,11 +83,15 @@ class MetaAdsAdapter(AdNetworkAdapter):
     def _get_account_id(tokens: TokenSet) -> str | None:
         """Extract the Meta ad account ID from the token set.
 
-        Looks for an ``act_<digits>`` pattern in the token scopes (Meta encodes
-        the ad account in granted scopes such as ``ads_management`` plus an
-        ``act_<id>`` entry). Returns the bare numeric account id (without the
-        ``act_`` prefix) or ``None`` if it cannot be determined.
+        Primary source: ``tokens.metadata["ad_account_id"]`` populated by the
+        OAuth callback's ``/me/adaccounts`` discovery. Falls back to an
+        ``act_<digits>`` entry in scopes for backwards compatibility. Returns
+        the bare numeric account id (without the ``act_`` prefix) or ``None``.
         """
+        meta = getattr(tokens, "metadata", None) or {}
+        acct = meta.get("ad_account_id")
+        if acct:
+            return str(acct).removeprefix("act_")
         for scope in tokens.scopes:
             m = re.match(r"^act_(\d+)$", scope)
             if m:

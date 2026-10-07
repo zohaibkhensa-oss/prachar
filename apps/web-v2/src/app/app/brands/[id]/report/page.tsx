@@ -13,20 +13,17 @@ import type { Brand } from "@/lib/schemas";
 type Report = {
   id: string;
   week: string;
-  url: string;
+  url: string | null;
   status: "ready" | "generating";
 };
 
-const MOCK: Report[] = Array.from({ length: 6 }).map((_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() - i * 7);
-  return {
-    id: `r${i}`,
-    week: d.toISOString().slice(0, 10),
-    url: `#report-${i}`,
-    status: i === 0 ? "generating" : "ready",
-  };
-});
+type ApiReport = {
+  id: string;
+  week: string;
+  status: "ready" | "generating";
+  download_url: string | null;
+  pdf_s3_key: string | null;
+};
 
 export default function ReportPage({
   params,
@@ -41,13 +38,24 @@ export default function ReportPage({
     retry: 0,
   });
 
-  const { data: reports, isLoading } = useQuery<Report[]>({
+  const { data: reports, isLoading } = useQuery<ApiReport[]>({
     queryKey: ["reports", id],
-    queryFn: () => apiGet<Report[]>(`/brands/${id}/reports`),
+    queryFn: () => apiGet<ApiReport[]>(`/reports/brands/${id}/reports`),
     retry: 0,
   });
 
-  const list = reports ?? MOCK;
+  const list: Report[] = (reports ?? []).map((r) => ({
+    id: r.id,
+    week: r.week,
+    url: r.download_url,
+    status: r.status,
+  }));
+
+  const download = async (r: Report) => {
+    if (!r.url) return;
+    const { url } = await apiGet<{ url: string }>(r.url);
+    window.open(url, "_blank");
+  };
 
   return (
     <div>
@@ -82,7 +90,7 @@ export default function ReportPage({
                     variant="ink"
                     size="sm"
                     disabled={r.status !== "ready"}
-                    onClick={() => window.open(r.url, "_blank")}
+                    onClick={() => void download(r)}
                   >
                     Download PDF
                   </Button>

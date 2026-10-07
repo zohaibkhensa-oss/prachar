@@ -206,7 +206,11 @@ def watchdog() -> dict[str, Any]:
                     from prachar_shared.adapters.registry import get_ads
 
                     adapter = get_ads(network)
-                    events = adapter.stats(_stub_tokens(), ncid, datetime.now(UTC) - timedelta(days=3))
+                    tokens = _resolve_tokens_for_campaign(cid, network)
+                    if tokens is None:
+                        logger.warning("watchdog stats skipped cid=%s: no OAuth tokens", cid)
+                        continue
+                    events = adapter.stats(tokens, ncid, datetime.now(UTC) - timedelta(days=3))
                 except Exception as exc:
                     logger.warning("watchdog stats pull failed cid=%s: %s", cid, exc)
                     continue
@@ -254,10 +258,30 @@ def _consecutive_cpa_breach_days(events: list[Any], max_cpa: float) -> int:
     return breach
 
 
-def _stub_tokens() -> Any:
-    from prachar_shared.contracts import TokenSet
+_TOKEN_CHANNEL_ALIASES = {
+    "meta_ads": ["facebook", "meta"],
+    "google_ads": ["google_ads", "google", "gsc"],
+}
 
-    return TokenSet(access_token="stub", expires_at=datetime.now(UTC) + timedelta(hours=1))
+
+def _resolve_tokens_for_campaign(campaign_id: str, network: str) -> Any:
+    """Decrypt the campaign's brand OAuth tokens for an ads-network call."""
+    from sqlalchemy import text
+
+    from prachar_workers.db import session_scope
+    from prachar_workers.tokens import load_connection_tokens
+
+    with session_scope() as session:
+        row = session.execute(
+            text("SELECT brand_id FROM campaigns WHERE id = :cid"), {"cid": campaign_id}
+        ).first()
+    if not row:
+        return None
+    for ch in [network, *_TOKEN_CHANNEL_ALIASES.get(network, [])]:
+        tokens = load_connection_tokens(str(row[0]), ch)
+        if tokens is not None:
+            return tokens
+    return None
 
 
 def _pause_campaign_internal(campaign_id: str, network: str, network_campaign_id: str) -> None:
@@ -266,7 +290,11 @@ def _pause_campaign_internal(campaign_id: str, network: str, network_campaign_id
         from prachar_shared.adapters.registry import get_ads
 
         adapter = get_ads(network)
-        adapter.pause(_stub_tokens(), network_campaign_id)
+        tokens = _resolve_tokens_for_campaign(campaign_id, network)
+        if tokens is None:
+            logger.warning("adapter.pause skipped cid=%s: no OAuth tokens for %s", campaign_id, network)
+        else:
+            adapter.pause(tokens, network_campaign_id)
     except Exception as exc:
         logger.warning("adapter.pause failed cid=%s: %s", campaign_id, exc)
     try:
@@ -318,7 +346,9 @@ def resume_campaign(campaign_id: str) -> dict[str, Any]:
             # Adapters expose pause(); resume is modeled as re-enabling via set_budget_bid
             # with the existing budget (stub no-ops the network call).
             adapter = get_ads(network)
-            adapter.set_budget_bid(_stub_tokens(), ncid, 0.0, {"action": "resume"})
+            tokens = _resolve_tokens_for_campaign(campaign_id, network)
+            if tokens is not None:
+                adapter.set_budget_bid(tokens, ncid, 0.0, {"action": "resume"})
         except Exception as exc:
             logger.warning("adapter resume failed cid=%s: %s", campaign_id, exc)
     try:

@@ -66,12 +66,55 @@ class FacebookAdapter(ChannelAdapter):
             data = resp.json()
         from datetime import datetime, timedelta
 
+        access_token = data["access_token"]
+        expires_in = data.get("expires_in", 3600)
+
+        # Exchange the short-lived user token for a long-lived one (~60 days).
+        try:
+            async with httpx.AsyncClient() as client:
+                ll = await client.get(
+                    f"{FB_GRAPH_BASE}/oauth/access_token",
+                    params={
+                        "grant_type": "fb_exchange_token",
+                        "client_id": s.meta_app_id,
+                        "client_secret": s.meta_app_secret,
+                        "fb_exchange_token": access_token,
+                    },
+                )
+                if ll.status_code == 200:
+                    ll_data = ll.json()
+                    access_token = ll_data.get("access_token", access_token)
+                    expires_in = ll_data.get("expires_in", expires_in)
+        except Exception:
+            logger.warning("facebook fb_exchange_token failed; using short-lived token", exc_info=True)
+
         return TokenSet(
-            access_token=data["access_token"],
-            refresh_token=data.get("refresh_token"),
-            expires_at=datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600)),
+            access_token=access_token,
+            refresh_token=None,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
             scopes=FB_SCOPES,
         )
+
+    async def fetch_ad_accounts(self, tokens: TokenSet) -> list[dict[str, Any]]:
+        """Discover Meta ad accounts owned by the authenticated user.
+
+        Returns ``[{"id": "act_123", "account_id": "123", "name": "...", "business": {...}}, ...]``.
+        Empty list on error or when the user has no ad accounts.
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"{FB_GRAPH_BASE}/me/adaccounts",
+                    params={
+                        "fields": "id,account_id,name,business,account_status",
+                        "access_token": tokens.access_token,
+                    },
+                )
+                resp.raise_for_status()
+            return resp.json().get("data", [])
+        except Exception:
+            logger.warning("facebook.fetch_ad_accounts failed", exc_info=True)
+            return []
 
     async def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         async with httpx.AsyncClient() as client:

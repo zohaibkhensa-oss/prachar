@@ -34,7 +34,6 @@ import json
 import logging
 import uuid
 from collections.abc import Callable, Iterable
-from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import select
@@ -48,11 +47,29 @@ logger = logging.getLogger(__name__)
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _stub_tokens() -> Any:
-    """Build a placeholder ``TokenSet`` (oauth_tokens_enc decryption not yet wired)."""
-    from prachar_shared.contracts import TokenSet
+# Ads networks share the organic connection's OAuth token where the platform
+# uses a single app (Meta) or dedicated credentials are stored on the organic
+# channel row (Google, TikTok, ...). Maps ads-network → token channel lookup order.
+_TOKEN_CHANNEL_ALIASES: dict[str, list[str]] = {
+    "meta_ads": ["facebook", "meta"],
+    "google_ads": ["google_ads", "google", "gsc"],
+}
 
-    return TokenSet(access_token="stub", expires_at=datetime.now(UTC) + timedelta(hours=1))
+
+def _resolve_tokens(brand_id: Any, channel: str) -> Any:
+    """Decrypt the stored OAuth bundle for ``channel`` into a ``TokenSet``.
+
+    Falls back to alias channels for ads networks. Raises ``RuntimeError`` when
+    no usable connection exists so callers surface ``error`` instead of making
+    API calls with fabricated tokens.
+    """
+    from prachar_workers.tokens import load_connection_tokens
+
+    for ch in [channel, *_TOKEN_CHANNEL_ALIASES.get(channel, [])]:
+        tokens = load_connection_tokens(str(brand_id), ch)
+        if tokens is not None:
+            return tokens
+    raise RuntimeError(f"channel {channel}: OAuth tokens unavailable — reconnect required")
 
 
 def campaign_to_dict(campaign: Any) -> dict[str, Any]:
@@ -197,7 +214,7 @@ def publish_to_gbp(
         if adapter is None:
             adapter = get_organic_adapter(channel)
         if tokens is None:
-            tokens = _stub_tokens()
+            tokens = _resolve_tokens(campaign.brand_id, channel)
         payload = _build_gbp_payload(campaign, brand)
         policy = adapter.policy_gate(payload)
         if not policy.passed:
@@ -248,7 +265,7 @@ def publish_to_meta(
             if adp is None:
                 adp = get_organic_adapter(ch)
             if tokens is None:
-                tokens = _stub_tokens()
+                tokens = _resolve_tokens(campaign.brand_id, ch)
             if ch == "facebook":
                 payload = _build_facebook_payload(campaign, brand)
             else:
@@ -325,7 +342,7 @@ def publish_to_whatsapp(
         if adapter is None:
             adapter = get_organic_adapter(channel)
         if tokens is None:
-            tokens = _stub_tokens()
+            tokens = _resolve_tokens(campaign.brand_id, channel)
 
         sent: list[dict[str, Any]] = []
         for recipient in opted_in:
@@ -385,7 +402,7 @@ def launch_google_ads(
         if adapter is None:
             adapter = get_ads_adapter(network)
         if tokens is None:
-            tokens = _stub_tokens()
+            tokens = _resolve_tokens(campaign.brand_id, network)
         native_id = adapter.create_campaign(tokens, campaign_to_dict(campaign))
         return {
             "channel": network,
@@ -421,7 +438,7 @@ def launch_meta_ads(
         if adapter is None:
             adapter = get_ads_adapter(network)
         if tokens is None:
-            tokens = _stub_tokens()
+            tokens = _resolve_tokens(campaign.brand_id, network)
         native_id = adapter.create_campaign(tokens, campaign_to_dict(campaign))
         return {
             "channel": network,
@@ -469,7 +486,10 @@ def publish_for_campaign(
             continue
         try:
             adapter = adapter_factory(str(channel))
-            native_id = adapter.create_campaign(_stub_tokens(), campaign_to_dict(campaign))
+            native_id = adapter.create_campaign(
+                _resolve_tokens(getattr(conn, "brand_id", None) or campaign.brand_id, str(channel)),
+                campaign_to_dict(campaign),
+            )
             channels_result[str(channel)] = {
                 "status": "ok",
                 "network_campaign_id": native_id,

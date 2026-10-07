@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+import hmac
 import json
 import logging
+import secrets
+import time
 import uuid
 from urllib.parse import urlencode
 
@@ -17,6 +21,51 @@ from ..schemas import ConnectionOut
 log = logging.getLogger("prachar_api.connections")
 
 router = APIRouter(prefix="/connections", tags=["connections"])
+
+# ─── OAuth state signing ─────────────────────────────────────────────────────
+# OAuth state is a signed JWT-like token containing:
+#   - nonce: random unique value (CSRF protection)
+#   - brand_id: the brand to connect
+#   - tenant_id: the tenant that initiated the flow
+#   - user_id: the user who initiated
+#   - exp: expiration timestamp (10 minutes)
+#   - pkce_verifier: optional PKCE code_verifier (for X/Twitter)
+# This prevents CSRF/account-linking attacks and allows the callback to
+# retrieve the PKCE verifier without server-side session storage.
+
+_STATE_TTL_SECONDS = 600  # 10 minutes
+
+
+def _sign_state(payload: dict) -> str:
+    """Sign a state payload using HMAC-SHA256 with the JWT secret."""
+    s = get_settings()
+    body = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).rstrip(b"=").decode()
+    sig = hmac.new(s.jwt_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    return f"{body}.{sig}"
+
+
+def _verify_state(state: str) -> dict:
+    """Verify and decode a signed state token."""
+    s = get_settings()
+    try:
+        body, sig = state.rsplit(".", 1)
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state format") from None
+
+    expected_sig = hmac.new(s.jwt_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected_sig):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state signature")
+
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(body + "=="))
+    except Exception:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state payload") from None
+
+    if time.time() > payload.get("exp", 0):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "state expired")
+
+    return payload
+
 
 # ─── OAuth URL builders for each channel ─────────────────────────────────────
 
@@ -111,16 +160,16 @@ def _build_linkedin_oauth(state: str) -> str:
     return f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(params)}"
 
 
-def _build_x_oauth(state: str) -> str:
-    import hashlib
-    import secrets
-
+def _build_x_oauth(state: str, pkce_verifier: str | None = None) -> str:
     s = get_settings()
     client_id = s.x_client_id or "placeholder"
-    # PKCE: use S256 (secure) instead of plain
-    verifier = secrets.token_urlsafe(64)
+    # PKCE: use S256 (secure) — verifier is embedded in the signed state token
+    # so the callback can retrieve it without server-side session storage.
+    if not pkce_verifier:
+        # This shouldn't happen — start_oauth generates and passes it
+        pkce_verifier = secrets.token_urlsafe(64)
     challenge = base64.urlsafe_b64encode(
-        hashlib.sha256(verifier.encode("ascii")).digest()
+        hashlib.sha256(pkce_verifier.encode("ascii")).digest()
     ).rstrip(b"=").decode("ascii")
     params = {
         "client_id": client_id,
@@ -240,7 +289,16 @@ async def list_connections(user: CurrentUser, session: SessionDep) -> list[Conne
 
 @router.post("/{channel}/oauth", status_code=status.HTTP_200_OK)
 async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> dict:
-    """Returns the OAuth URL the frontend should redirect to."""
+    """Returns the OAuth URL the frontend should redirect to.
+
+    Generates a cryptographically secure signed state token containing:
+    - nonce (CSRF protection)
+    - brand_id (which brand to connect)
+    - tenant_id (tenant that initiated)
+    - user_id (user who initiated)
+    - exp (10-minute expiration)
+    - pkce_verifier (for X/Twitter PKCE flow)
+    """
     if not channel:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "channel required")
 
@@ -248,8 +306,27 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
     if not builder:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}")
 
-    state = str(brand_id)
-    auth_url = builder(state)
+    # Generate PKCE verifier for X/Twitter (embedded in state for callback retrieval)
+    pkce_verifier = secrets.token_urlsafe(64) if channel in ("x", "twitter") else None
+
+    # Build signed state token
+    state_payload = {
+        "nonce": secrets.token_urlsafe(16),
+        "brand_id": str(brand_id),
+        "tenant_id": str(user.tenant_id),
+        "user_id": str(user.id),
+        "exp": int(time.time()) + _STATE_TTL_SECONDS,
+    }
+    if pkce_verifier:
+        state_payload["pkce_verifier"] = pkce_verifier
+
+    state = _sign_state(state_payload)
+
+    # X/Twitter builder needs the verifier to generate the challenge
+    if channel in ("x", "twitter"):
+        auth_url = _build_x_oauth(state, pkce_verifier=pkce_verifier)
+    else:
+        auth_url = builder(state)
     return {"auth_url": auth_url, "channel": channel}
 
 
@@ -257,19 +334,23 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
 async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser, session: SessionDep) -> ConnectionOut:
     """OAuth callback — exchanges code for tokens via the channel adapter.
 
-    1. Validates state (brand_id) belongs to the current tenant
+    1. Verifies signed state (CSRF protection + brand/tenant binding)
     2. Loads the channel adapter
     3. Calls adapter.exchange_code(code) to get tokens
+       - For X/Twitter, passes the PKCE verifier from the state token
     4. Encrypts tokens with AES-GCM
     5. Creates/updates Connection record with encrypted tokens
     """
     import asyncio
 
-    # 1. Parse and validate state
-    try:
-        brand_id = uuid.UUID(state)
-    except ValueError:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "invalid state parameter") from None
+    # 1. Verify and decode signed state
+    state_payload = _verify_state(state)
+
+    brand_id = uuid.UUID(state_payload["brand_id"])
+
+    # Verify the callback is for the same tenant/user that initiated
+    if state_payload.get("tenant_id") != str(user.tenant_id):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "state tenant mismatch")
 
     # 2. Map channel names (facebook → meta, twitter → x)
     adapter_channel = channel
@@ -287,8 +368,14 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
     except KeyError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}") from None
 
+    # For X/Twitter, retrieve the PKCE verifier from the state
+    pkce_verifier = state_payload.get("pkce_verifier")
+
     try:
         # exchange_code is async in some adapters, sync in others
+        # For X/Twitter, pass the PKCE verifier if available
+        if pkce_verifier and hasattr(adapter, 'set_pkce_verifier'):
+            adapter.set_pkce_verifier(pkce_verifier)
         result = adapter.exchange_code(code)
         if asyncio.iscoroutine(result):
             tokens = await result
@@ -309,11 +396,33 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
     # 4. Encrypt tokens
     from prachar_shared.security import encrypt_token
 
+    # Meta: discover ad accounts so the ads adapter can address act_{id}.
+    token_metadata: dict = {}
+    if adapter_channel == "facebook" and hasattr(adapter, "fetch_ad_accounts"):
+        try:
+            accounts = await adapter.fetch_ad_accounts(tokens)
+            if accounts:
+                token_metadata["ad_accounts"] = [
+                    {
+                        "id": a.get("id"),
+                        "account_id": a.get("account_id"),
+                        "name": a.get("name"),
+                        "business": (a.get("business") or {}).get("name"),
+                        "account_status": a.get("account_status"),
+                    }
+                    for a in accounts
+                ]
+                # Default to the first discovered account; selection UI can update later.
+                token_metadata["ad_account_id"] = token_metadata["ad_accounts"][0]["account_id"]
+        except Exception:
+            log.warning("ad-account discovery failed for %s", channel)
+
     token_bundle = {
         "access_token": tokens.access_token,
         "refresh_token": tokens.refresh_token,
         "expires_at": tokens.expires_at.isoformat() if tokens.expires_at else None,
         "scopes": tokens.scopes,
+        "metadata": token_metadata,
         "channel": channel,
     }
     encrypted = encrypt_token(json.dumps(token_bundle, default=str))

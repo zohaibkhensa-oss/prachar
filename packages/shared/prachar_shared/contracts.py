@@ -169,6 +169,7 @@ class TokenSet(BaseModel):
     refresh_token: str | None = None
     expires_at: datetime
     scopes: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("expires_at")
     @classmethod

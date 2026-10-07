@@ -24,7 +24,7 @@ import asyncio
 import inspect
 import logging
 from collections.abc import Callable, Iterable
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import select
@@ -220,11 +220,6 @@ def aggregate_events(
     return agg
 
 
-def _stub_tokens() -> Any:
-    """Build a placeholder ``TokenSet`` (decryption of oauth_tokens_enc not yet wired)."""
-    from prachar_shared.contracts import TokenSet
-
-    return TokenSet(access_token="stub", expires_at=datetime.now(UTC) + timedelta(hours=1))
 
 
 # ─── Upsert ───────────────────────────────────────────────────────────────────
@@ -368,7 +363,15 @@ def ingest_gbp_metrics(
             }
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     try:
@@ -439,7 +442,15 @@ def ingest_meta_metrics(
         organic_adapter_factory = _default_organic_factory
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     ncid = getattr(campaign, "network_campaign_id", None)
@@ -545,7 +556,15 @@ def ingest_linkedin_metrics(
             }
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     try:
@@ -618,7 +637,15 @@ def ingest_whatsapp_metrics(
             }
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     try:
@@ -688,7 +715,15 @@ def ingest_google_ads_metrics(
         }
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     try:
@@ -762,7 +797,15 @@ def ingest_youtube_metrics(
             }
 
     if tokens is None:
-        tokens = _stub_tokens()
+        from prachar_workers.tokens import load_connection_tokens
+
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        if tokens is None:
+            return {
+                "channel": GBP_CHANNEL,
+                "status": "skipped",
+                "reason": "tokens_unavailable",
+            }
 
     since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
     try:
@@ -893,7 +936,16 @@ def pull_for_campaign(
         try:
             adapter = adapter_factory(str(channel))
             since = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
-            events = adapter.stats(_stub_tokens(), str(ncid), since)
+            from prachar_workers.tokens import load_connection_tokens
+
+            tokens = load_connection_tokens(
+                str(getattr(conn, "brand_id", None) or getattr(campaign, "brand_id", "")),
+                str(channel),
+            )
+            if tokens is None:
+                channels_result[str(channel)] = {"status": "skipped", "reason": "tokens_unavailable"}
+                continue
+            events = adapter.stats(tokens, str(ncid), since)
             agg = aggregate_events(events, target_date)
             upsert_performance(store, campaign_id, target_date, str(channel), agg)
             channels_result[str(channel)] = {

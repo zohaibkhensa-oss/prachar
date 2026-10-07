@@ -99,6 +99,7 @@ def _load_connection_tokens(brand_id: str, channel: str) -> Any:
                 refresh_token=data.get("refresh_token"),
                 expires_at=datetime.fromisoformat(data["expires_at"]),
                 scopes=data.get("scopes", []),
+                metadata=data.get("metadata", {}),
             )
     except Exception as exc:  # pragma: no cover - DB optional in S0
         logger.warning("load connection tokens failed: %s", exc)
