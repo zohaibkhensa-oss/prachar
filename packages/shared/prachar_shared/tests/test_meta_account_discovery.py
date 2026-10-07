@@ -9,9 +9,7 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from prachar_shared.adapters.ads.meta_ads import MetaAdsAdapter
 from prachar_shared.adapters.organic.facebook import FacebookAdapter
