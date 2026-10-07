@@ -1,44 +1,36 @@
 # CURV AI — Launch Blocker Matrix
 
-**Date:** 2026-10-06 · All findings re-validated live on staging + code.
+**Date:** 2026-10-07 · Post-activation pass. Legend: ✅ resolved / 🟡 pending creds / 🔴 blocking.
 
-## BLOCKING — cannot launch without fixing
+## Resolution status
 
-| # | Issue | Severity | User impact | Fix | Credential required | Engineering | ETA* |
-|---|---|---|---|---|---|---|---|
-| B1 | Media gen unconfigured on staging — `/video/generate` + images return 503 | P0 | Core promise "AI makes your ads" fails | sync `FAL_KEY` + `GEMINI_API_KEY` → `/prachar/staging/app/env` | yes (have them locally) | none | ~15 min |
-| B2 | Every channel OAuth URL carries `client_id=placeholder` — no social connect possible | P0 | Connections UI is a dead end; nothing can publish | sync Google/Meta creds → AWS secrets | yes (local .env has real ones) | none | ~15 min |
-| B3 | Payment webhooks rejected (503) — paying customer stays on Starter | P0 | Paid users get no entitlement → support/complaints | `STRIPE_WEBHOOK_SECRET` + `RAZORPAY_WEBHOOK_SECRET` + register endpoints in dashboards | yes (new secrets from dashboards) | none — code verified w/ signed test | ~30 min |
-| B4 | Transactional email dead — verify-email/reset links log-only | P0 | Forgot-password broken; unverified signups pile up | M365 SMTP (`smtp.office365.com:587`, `founder@curvai.org` app password) → `SMTP_*` + `EMAIL_FROM` | yes (mailbox exists) | none | ~30 min |
-| B5 | Meta ad-account discovery missing — `act_{id}` read from scopes that never contain it | P0 for paid | Meta campaigns silently get fake `meta-<sha>` ids | call `/me/adaccounts` post-OAuth, persist `act_id` in Connection metadata | META_* (already needed) | ~½ day | ½ day |
-
-## IMPORTANT — should fix before broad public release
-
-| # | Issue | Severity | User impact | Fix | Cred | Eng |
-|---|---|---|---|---|---|---|
-| I1 | Meta long-lived token exchange absent — tokens expire with no renewal | P1 | Connections die silently ~60d | `fb_exchange_token` flow + refresh beat | — | ½ day |
-| I2 | Anthropic/OpenAI fallback tiers untested live (keys set, never exercised) | P1 | single-provider dependency on Groq | exercise fallback path | have | 1 h |
-| I3 | Stripe/Razorpay checkout untested end-to-end live | P1 | unknown checkout UX edge cases | sandbox test post-secrets | dashboard | 1 h |
-| I4 | Frontend mock fallbacks mask API failures (content page showed MOCK on error) | P1 | users see fake data on outages | remove silent-MOCK on error path | — | 1 h |
-| I5 | `apps/web` legacy app still in workspace → inflates vuln surface | P1 | audit noise, stale vulns (`braces`) | move to `archive/` or remove | — | 1 h |
-| I6 | Report PDFs have no frontend download wiring until this fix (now fixed) | P1 | reports existed but undownloadable | **DONE today** | — | done |
-
-## POST-LAUNCH — safe to defer
-
-| # | Issue | Cred | Eng |
+| # | Issue | Status | Evidence |
 |---|---|---|---|
-| P1 | Tier-3 channels (TikTok/Pinterest/Reddit/LINE/VK/Naver/Kakao) — creds absent | register apps | per-channel |
-| P2 | GA4/HubSpot/Mailchimp/Shopify/WordPress — classes exist, only GA registered | configure | per-integration |
-| P3 | Apple social sign-in (`APPLE_SIGN_IN_CLIENT_ID`) | register | small |
-| P4 | SSE `?token=` in ALB logs → short-lived stream tokens | — | small |
-| P5 | Redis-backed rate limiter (fine at desired=1) | — | small |
+| B1 | Media gen creds missing on staging | ✅ **FIXED** — FAL_KEY+GEMINI_API_KEY synced; **image gen live-verified** (real fal.media URL, Seedream v4.5); video accepted by fal.ai queue (Wan-3.0) | fal queue 200s in logs |
+| B2 | OAuth `client_id=placeholder` everywhere | ✅ **FIXED** — Google/Meta/LinkedIn/X/WhatsApp/Telegram/LINE/GSC/YouTube creds synced to AWS secrets + task defs | live probe: meta `163310***`, google `93468144004-***` |
+| B3 | Webhook secrets missing | 🟡 **PARTIAL** — Razorpay test keys provided but **401 invalid**; STRIPE_API_KEY is empty string everywhere. Need real dashboard keys + webhook secrets | Razorpay API 401 |
+| B4 | SMTP not configured | 🟡 **DEFERRED** (user choice). `SMTP_*` placeholders wired into task defs — fill to activate | awaiting creds |
+| B5 | Meta `act_{id}` from scopes → silent fake campaigns | ✅ **FIXED** — `/me/adaccounts` discovery persisted into token bundle metadata; `MetaAdsAdapter` reads it | `test_meta_account_discovery.py` |
+| B6 (new) | Worker `_stub_tokens()` — publish/metrics/pause/resume called APIs with `access_token="stub"` | ✅ **FIXED** — shared `prachar_workers.tokens.load_connection_tokens` decrypts `oauth_tokens_enc` in all worker paths | 84 worker tests green |
+| B7 (new) | OAuth redirect → frontend callback page didn't exist | ✅ **FIXED** — `/app/connections/[channel]/callback` page added | typecheck+build |
+| B8 (new) | `fal_client`/`google-genai` not in deps — every media call crashed | ✅ **FIXED** — added to api+workers pyproject | image gen works |
+| B9 (new) | `VideoGenResponse` rejected int `duration` → 500 after successful render | ✅ **FIXED** — `str()` coercion | pushed `03a3b0d` |
+| B10 (new) | `RAZORPAY_SECRET` env name ≠ `razorpay_key_secret` field | ✅ **FIXED** — task def now maps `RAZORPAY_KEY_SECRET` | ecs.tf |
+| B11 (new) | Empty `SMTP_PORT=""` crashed app startup (pydantic int) | ✅ **FIXED** — `587` default in secrets | api :31 running |
 
-## DEPRECATED — should not be activated
+## Remaining blockers — need YOU
 
-| # | Component | Why | Disposition |
-|---|---|---|---|
-| D1 | `apps/ai-gen` Modal GPU service | never called by API path (fal.ai is canonical); never deployed | DEPRECATE → archive |
-| D2 | `apps/web` legacy Next app | superseded by web-v2; deployed nowhere | DEPRECATE → archive |
-| D3 | `apps/api/routers/`, `apps/workers/{ads,organic,ingest,measure,creative}` | empty skeleton dirs | REMOVE (empty) |
+| Issue | Needed | Impact |
+|---|---|---|
+| **Stripe keys absent entirely** | real `STRIPE_API_KEY` (test or live) + dashboard webhook → `STRIPE_WEBHOOK_SECRET` | paid upgrades can't activate |
+| **Razorpay keys invalid** | correct `RAZORPAY_KEY_ID`+`RAZORPAY_KEY_SECRET` (paste into `.env`, not chat) + `RAZORPAY_WEBHOOK_SECRET` | INR payments can't activate |
+| **SMTP creds** | `SMTP_USER`/`SMTP_PASSWORD`/`EMAIL_FROM` in `.env` (M365 app password) | verify/reset emails stay log-only |
+| **Gemini credits depleted** | top up AI Studio billing | Veo fallback + gemini LLM fallback dead |
+| **Groq TPD at ~100%** | upgrade Groq org tier | 429s under real load |
+| Meta/Google OAuth app consoles | add redirect URIs `https://app.curvai.org/app/connections/{channel}/callback` + complete scopes approval | OAuth consent flow completes |
 
-*ETAs are effort estimates for the listed fix only, not calendar commitments.
+## IMPORTANT (engineering, non-blocking)
+
+- Meta token refresh on expiry (long-lived exchange exists; renewal job absent)
+- Silent-MOCK fallbacks in frontend error paths
+- `apps/web` + `apps/ai-gen` retirement (dependency-proven)
