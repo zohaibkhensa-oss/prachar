@@ -212,7 +212,7 @@ resource "aws_ecs_task_definition" "api" {
         { name = "GROQ_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:GROQ_API_KEY::" },
         { name = "STRIPE_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:STRIPE_API_KEY::" },
         { name = "RAZORPAY_KEY_ID", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_KEY_ID::" },
-        { name = "RAZORPAY_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_SECRET::" },
+        { name = "RAZORPAY_KEY_SECRET", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:RAZORPAY_KEY_SECRET::" },
         { name = "FAL_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:FAL_KEY::" },
         { name = "GEMINI_API_KEY", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:GEMINI_API_KEY::" },
         { name = "GOOGLE_CLIENT_ID", valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:GOOGLE_CLIENT_ID::" },
