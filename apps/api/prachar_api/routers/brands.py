@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep
-from ..models import Actor, Brand, ContentItem
+from ..models import Actor, Brand, ContentItem, PolicyStatus
 from ..schemas import BrandIn, BrandOut, VisibilityScoreOut
 
 router = APIRouter(prefix="/brands", tags=["brands"])
@@ -72,6 +74,50 @@ async def list_brand_content(brand_id: uuid.UUID, user: CurrentUser, session: Se
             "image_url": payload.get("image_url") or "",
         })
     return out
+
+
+class ContentCreateIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    channel: str = Field(min_length=1, max_length=40)
+    copy_: str = Field(default="", alias="copy")
+    image_url: str | None = None
+    locale: str | None = None
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
+@router.post("/{brand_id}/content", status_code=status.HTTP_201_CREATED)
+async def create_brand_content(
+    brand_id: uuid.UUID, body: ContentCreateIn, user: CurrentUser, session: SessionDep
+) -> dict:
+    """Save a generated post/content item as a draft (policy pending)."""
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+    payload = dict(body.payload)
+    if body.copy_:
+        payload.setdefault("copy", body.copy_)
+    if body.image_url:
+        payload.setdefault("image_url", body.image_url)
+    item = ContentItem(
+        brand_id=brand_id,
+        tenant_id=user.tenant_id,
+        channel=body.channel,
+        locale=body.locale,
+        payload=payload,
+        policy_status=PolicyStatus.pending,
+    )
+    session.add(item)
+    await session.flush()
+    await log_audit(
+        session, tenant_id=user.tenant_id, actor=Actor.user, action="content.draft",
+        entity_type="content_item", entity_id=item.id,
+        payload={"channel": body.channel, "brand_id": str(brand_id)},
+    )
+    await session.commit()
+    return {"id": str(item.id), "status": "draft", "channel": body.channel}
 
 
 @router.get("/{brand_id}/score", response_model=VisibilityScoreOut)

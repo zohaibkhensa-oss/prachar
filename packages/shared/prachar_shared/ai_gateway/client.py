@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 import uuid
 from typing import Any
@@ -360,23 +361,51 @@ class AIGateway:
         last_err: Exception | None = None
         feedback: str | None = None
         for provider in configured:
-            try:
-                return self._call_provider(
-                    provider=provider,
-                    prompt=prompt,
-                    model=self._pick_model_for_provider(provider, model),
-                    schema=schema,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                    feedback=feedback,
-                    reasoning_effort=reasoning_effort,
-                )
-            except Exception as e:
-                logger.warning("provider %s failed: %s", provider, e)
-                last_err = e
-                feedback = f"Previous attempt failed: {e}"
+            for attempt in range(3):
+                try:
+                    return self._call_provider(
+                        provider=provider,
+                        prompt=prompt,
+                        model=self._pick_model_for_provider(provider, model),
+                        schema=schema,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        feedback=feedback,
+                        reasoning_effort=reasoning_effort,
+                    )
+                except Exception as e:
+                    logger.warning("provider %s failed (attempt %d): %s", provider, attempt + 1, e)
+                    last_err = e
+                    feedback = f"Previous attempt failed: {e}"
+                    retry_after = self._rate_limit_retry_seconds(e)
+                    if retry_after is None or attempt == 2:
+                        break  # not rate-limited, or retries exhausted → next provider
+                    logger.info("provider %s rate-limited — retrying in %.1fs", provider, retry_after)
+                    time.sleep(retry_after)
 
         raise RuntimeError(f"all providers failed: {last_err}") from last_err
+
+    @staticmethod
+    def _rate_limit_retry_seconds(exc: Exception) -> float | None:
+        """Retry delay for transient provider failures, or None.
+
+        Rate limits get the provider's hinted delay; malformed-JSON and
+        schema flakes get a short delay (a fresh generation usually passes).
+        """
+        msg = str(exc)
+        if "429" in msg or "rate_limit" in msg.lower() or "Rate limit" in msg:
+            match = re.search(r"try again in ([\d.]+)s", msg)
+            delay = float(match.group(1)) + 1.0 if match else 10.0
+            return min(delay, 35.0)
+        transient_markers = (
+            "json_validate_failed",
+            "schema validation failed",
+            "returned non-JSON",
+            "Failed to generate JSON",
+        )
+        if any(m in msg for m in transient_markers):
+            return 3.0
+        return None
 
     @staticmethod
     def _pick_model_for_provider(provider: str, model: str) -> str:

@@ -52,6 +52,9 @@ from ..models.enums import (
 log = logging.getLogger("prachar.api.knowledge")
 router = APIRouter(prefix="/knowledge", tags=["knowledge"])
 
+# Maximum upload size: 50 MB (prevents OOM from unbounded file reads)
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
 
 # ─── Schemas ────────────────────────────────────────────────────────────────
 
@@ -373,6 +376,55 @@ async def delete_source(
     return {"status": "deleted", "source_id": source_id}
 
 
+@router.get("/sources/{source_id}/download")
+async def get_source_download_url(
+    source_id: str,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Get a presigned download URL for the original uploaded file.
+
+    Returns a time-limited S3 presigned URL (valid for 1 hour).
+    Only works for sources that have been persisted to S3.
+    """
+    res = await session.execute(
+        select(KnowledgeSourceRecord).where(
+            KnowledgeSourceRecord.id == uuid.UUID(source_id),
+            KnowledgeSourceRecord.tenant_id == user.tenant_id,
+        )
+    )
+    source = res.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Knowledge source not found")
+
+    s3_key = getattr(source, "s3_key", None)
+    if not s3_key:
+        raise HTTPException(status_code=404, detail="Source file not stored in S3")
+
+    try:
+        import boto3
+        from prachar_shared.config import get_settings
+        s = get_settings()
+        client = boto3.client(
+            "s3",
+            endpoint_url=s.s3_endpoint,
+            aws_access_key_id=s.s3_access_key,
+            aws_secret_access_key=s.s3_secret_key,
+            region_name=s.s3_region,
+        )
+        url = client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": s.s3_bucket, "Key": s3_key},
+            ExpiresIn=3600,
+        )
+        return {"url": url, "expires_in": 3600}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate presigned URL: {str(e)[:200]}",
+        ) from e
+
+
 @router.post("/upload", response_model=KnowledgeSourceOut, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     user: CurrentUser,
@@ -396,6 +448,13 @@ async def upload_document(
     file_type = _detect_file_type(file.filename, file.content_type or "")
     file_bytes = await file.read()
     file_size = len(file_bytes)
+
+    # Enforce maximum upload size to prevent OOM from unbounded reads
+    if file_size > MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large: {file_size} bytes. Maximum allowed: {MAX_UPLOAD_SIZE} bytes (50 MB)",
+        )
 
     # Content hash for deduplication
     content_hash = hashlib.sha256(file_bytes).hexdigest()
@@ -436,6 +495,33 @@ async def upload_document(
     session.add(source)
     await session.commit()
     await session.refresh(source)
+
+    # Persist uploaded file bytes to S3 for durable storage
+    # Falls back to local filesystem if S3 is not configured
+    s3_key = f"knowledge/{user.tenant_id}/{source.id}/{file.filename}"
+    try:
+        from prachar_shared.config import get_settings
+        s = get_settings()
+        if s.s3_access_key and s.s3_secret_key:
+            import boto3
+            client = boto3.client(
+                "s3",
+                endpoint_url=s.s3_endpoint,
+                aws_access_key_id=s.s3_access_key,
+                aws_secret_access_key=s.s3_secret_key,
+                region_name=s.s3_region,
+            )
+            client.put_object(
+                Bucket=s.s3_bucket,
+                Key=s3_key,
+                Body=file_bytes,
+                ContentType=file.content_type or "application/octet-stream",
+            )
+            source.s3_key = s3_key
+            await session.commit()
+            log.info("Knowledge file persisted to S3: %s", s3_key)
+    except Exception as e:
+        log.warning("S3 persistence failed for knowledge upload: %s", str(e)[:200])
 
     # Process the document (inline for now; in production this would be a Celery task)
     try:

@@ -867,6 +867,8 @@ class KnowledgeSourceRecord(Base, UUIDPK, TenantScoped, Timestamped):
     integration_name: Mapped[str | None] = mapped_column(String(50), index=True)
     # Content hash for deduplication
     content_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    # S3 key for durable file storage (presigned URL download)
+    s3_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
     __table_args__ = (
         Index("idx_knowledge_sources_workspace", "workspace_id"),
         Index("idx_knowledge_sources_level", "level"),

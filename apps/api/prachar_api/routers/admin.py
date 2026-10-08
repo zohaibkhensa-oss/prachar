@@ -6,6 +6,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
+from datetime import UTC
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -115,8 +116,15 @@ class APITokenOut(BaseModel):
     created_at: str
 
 
-# In-memory token store (production: dedicated api_tokens table with hashed tokens).
+# In-memory token store — stores SHA-256 hashes, not raw tokens.
+# Raw token is only returned once at creation time.
 _api_tokens: dict[str, dict[str, Any]] = {}
+
+
+def _hash_token(raw: str) -> str:
+    """Hash an API token with SHA-256 for safe storage."""
+    import hashlib
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 @router.post("/api-tokens", response_model=APITokenOut, status_code=status.HTTP_201_CREATED)
@@ -126,24 +134,32 @@ async def create_api_token(
     session: SessionDep,
 ) -> APITokenOut:
     """Create an API access token for programmatic access.
-    Per spec 09 §"S9 — Agency tier": 'API access'."""
+    Per spec 09 §"S9 — Agency tier": 'API access'.
+
+    The raw token is returned only once — store it securely.
+    Internally, only the SHA-256 hash is kept.
+    """
     import secrets
+    from datetime import datetime
 
     token_id = uuid.uuid4()
     raw_token = f"prachar_{secrets.token_urlsafe(32)}"
-    _api_tokens[raw_token] = {
+    token_hash = _hash_token(raw_token)
+    now = datetime.now(UTC).isoformat()
+    _api_tokens[token_hash] = {
         "id": token_id,
         "name": body.name,
         "scopes": body.scopes,
         "tenant_id": user.tenant_id,
-        "created_at": "2026-07-16T00:00:00Z",
+        "created_at": now,
+        "prefix": raw_token[:12],  # for display only
     }
     return APITokenOut(
         id=token_id,
         name=body.name,
         token=raw_token,
         scopes=body.scopes,
-        created_at="2026-07-16T00:00:00Z",
+        created_at=now,
     )
 
 
@@ -152,14 +168,14 @@ async def list_api_tokens(
     user: Annotated[User, Depends(require_role("owner", "admin"))],
     session: SessionDep,
 ) -> list[APITokenOut]:
-    """List all API tokens for this tenant."""
+    """List all API tokens for this tenant. Tokens are masked."""
     result = []
-    for token, info in _api_tokens.items():
+    for _token_hash, info in _api_tokens.items():
         if info["tenant_id"] == user.tenant_id:
             result.append(APITokenOut(
                 id=info["id"],
                 name=info["name"],
-                token=token[:12] + "...",  # masked
+                token=info.get("prefix", "prachar_***") + "...",  # masked
                 scopes=info["scopes"],
                 created_at=info["created_at"],
             ))

@@ -1315,6 +1315,63 @@ async def review_publish(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any
     }
 
 
+@register_tool(ToolManifest(
+    name="content.save_draft",
+    display_name="Save Content Draft",
+    description=(
+        "Saves generated post copy/creative as a draft on the brand's content "
+        "library. Use when the user asks to save, draft, or keep generated content."
+    ),
+    category=ToolCategory.CREATIVE,
+    input_schema={
+        "channel": "string",
+        "copy": "string",
+        "image_url": "string (optional)",
+        "title": "string (optional)",
+    },
+    output_schema={"id": "string", "status": "string", "channel": "string"},
+    estimated_cost_usd=0.0,
+    estimated_time_ms=200,
+    estimated_tokens=0,
+    estimated_latency_ms=200,
+    quality_score=1.0,
+    requires_brand=True,
+    side_effects=SideEffects.WRITES,
+))
+async def content_save_draft(ctx: AIContext, input: dict[str, Any]) -> dict[str, Any]:
+    """Persist a content draft to the brand's content library."""
+    if ctx.session is None or ctx.brand_id is None:
+        return {"error": "draft saving requires a brand and database session"}
+
+    from ..audit import log_audit
+    from ..models import Actor, ContentItem, PolicyStatus
+
+    channel = str(input.get("channel") or "general")[:40]
+    copy = str(input.get("copy") or input.get("text") or "")
+    title = str(input.get("title") or "")
+    payload: dict[str, Any] = {"copy": copy}
+    if title:
+        payload["title"] = title
+    if input.get("image_url"):
+        payload["image_url"] = str(input["image_url"])
+
+    item = ContentItem(
+        brand_id=ctx.brand_id,
+        tenant_id=ctx.tenant_id,
+        channel=channel,
+        payload=payload,
+        policy_status=PolicyStatus.pending,
+    )
+    ctx.session.add(item)
+    await ctx.session.flush()
+    await log_audit(
+        ctx.session, tenant_id=ctx.tenant_id, actor=Actor.ai,
+        action="content.draft", entity_type="content_item", entity_id=item.id,
+        payload={"channel": channel, "brand_id": str(ctx.brand_id)},
+    )
+    return {"id": str(item.id), "status": "draft", "channel": channel}
+
+
 # ─── Initialization ─────────────────────────────────────────────────────────
 
 

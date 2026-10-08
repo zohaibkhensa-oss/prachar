@@ -28,13 +28,13 @@ interface Connection {
 }
 
 const REGIONS: { name: string; channels: string[] }[] = [
-  { name: "Americas", channels: ["google", "youtube", "instagram", "facebook", "x", "linkedin", "pinterest", "snap", "reddit", "amazon"] },
+  { name: "Americas", channels: ["google", "youtube", "instagram", "facebook", "x", "linkedin", "pinterest", "reddit"] },
   { name: "Europe", channels: ["google", "youtube", "instagram", "facebook", "x", "linkedin", "pinterest", "tiktok"] },
-  { name: "India", channels: ["google", "youtube", "instagram", "facebook", "whatsapp", "telegram", "amazon"] },
+  { name: "India", channels: ["google", "youtube", "instagram", "facebook", "whatsapp", "telegram"] },
   { name: "SEA", channels: ["google", "youtube", "instagram", "tiktok", "facebook", "whatsapp", "telegram", "line"] },
-  { name: "MENA", channels: ["google", "youtube", "instagram", "tiktok", "snap", "whatsapp", "telegram"] },
-  { name: "East Asia", channels: ["google", "youtube", "instagram", "tiktok", "line", "kakao", "naver"] },
-  { name: "CIS", channels: ["vk", "telegram", "yandex", "youtube"] },
+  { name: "MENA", channels: ["google", "youtube", "instagram", "tiktok", "whatsapp", "telegram"] },
+  { name: "East Asia", channels: ["google", "youtube", "instagram", "tiktok", "line", "naver"] },
+  { name: "CIS", channels: ["vk", "telegram", "youtube"] },
 ];
 
 const CHANNEL_LABELS: Record<string, string> = {
