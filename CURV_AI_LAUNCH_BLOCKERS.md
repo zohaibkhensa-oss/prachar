@@ -34,3 +34,19 @@
 - Meta token refresh on expiry (long-lived exchange exists; renewal job absent)
 - Silent-MOCK fallbacks in frontend error paths
 - `apps/web` + `apps/ai-gen` retirement (dependency-proven)
+
+
+## QA Regression Fixes (manual E2E test report — resolved 2026-10-08)
+
+| QA Finding | Root Cause | Fix |
+|---|---|---|
+| Campaign create "Something went wrong" (Critical) | 9 sequential ~40s LLM calls exceeded the proxy window → 504; Groq 8K TPM 413s killed engines permanently | `/full-campaign` is now async: 202 + plan id, brain runs in background task (RLS-scoped), frontend polls `/campaign-brain/plans/{id}`. Groq: retry-after backoff on 429, transient JSON/schema retries, `reasoning_effort=low` default, max_tokens TPM headroom clamp |
+| "No draft-saving feature" | `ContentItem` table existed but no create endpoint/tool | `POST /brands/{id}/content` + `content.save_draft` runtime tool (76 tools) |
+| snap/kakao/yandex/amazon Connect guaranteed-fail | tiles existed with no adapter | removed from REGIONS |
+| gsc/gmb "unsupported channel" | adapters had auth_url but start endpoint didn't try them | OAuth start falls back to `adapter.auth_url` |
+| LinkedIn "Bummer" | OAuth requested `rw_ads`/`rw_organization` — app lacks Marketing Platform | scope now `w_member_social` only |
+| 14/14 Connect no-ops | tested pre-credential-sync / API crash loop | all endpoints verified returning real auth URLs |
+| Video gen "service isn't set up" | `FAL_KEY` missing + `fal_client` undeclared | synced + dependency added — live MP4 verified |
+| Migration `0015` CI failure | hardcoded `GRANT ... ON DATABASE prachar` | uses `current_database()` |
+
+**Remaining QA items (not code):** YouTube/Google OAuth "app not verified" → publish consent screen or add test users; Stripe keys; SMTP creds; Groq Dev tier (8K TPM saturates under load — campaign gen works but takes ~6 min); Gemini top-up.
