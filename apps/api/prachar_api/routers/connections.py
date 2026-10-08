@@ -154,7 +154,9 @@ def _build_linkedin_oauth(state: str) -> str:
         "client_id": client_id,
         "redirect_uri": _redirect_uri("linkedin"),
         "response_type": "code",
-        "scope": "w_member_social,rw_organization,rw_ads",
+        # Only w_member_social is granted by "Share on LinkedIn"; org/ads scopes
+        # need Marketing Developer Platform access — add back when approved.
+        "scope": "w_member_social",
         "state": state,
     }
     return f"https://www.linkedin.com/oauth/v2/authorization?{urlencode(params)}"
