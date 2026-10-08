@@ -84,9 +84,11 @@ def upgrade() -> None:
         $$;
     """)
 
-    # Grant limited privileges to app role
-    op.execute("""
-        GRANT CONNECT ON DATABASE prachar TO prachar_app;
+    # Grant limited privileges to app role — use the *current* database name
+    # so this works on staging/test DBs, not only a DB literally named "prachar"
+    db_name = conn.execute(sa.text("SELECT current_database()")).scalar()
+    op.execute(f"""
+        GRANT CONNECT ON DATABASE {db_name} TO prachar_app;
         GRANT USAGE ON SCHEMA public TO prachar_app;
         GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO prachar_app;
         GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO prachar_app;
