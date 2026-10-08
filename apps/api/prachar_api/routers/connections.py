@@ -303,8 +303,31 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "channel required")
 
     builder = OAUTH_BUILDERS.get(channel)
-    if not builder:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}")
+    if builder is None:
+        # Fall back to the channel adapter's own auth_url (gsc, gmb, etc.)
+        try:
+            import asyncio
+
+            from prachar_shared.adapters.registry import get_organic
+            adapter_channel = "facebook" if channel == "meta" else channel
+            adapter = get_organic(adapter_channel)
+
+            state_payload = {
+                "nonce": secrets.token_urlsafe(16),
+                "brand_id": str(brand_id),
+                "tenant_id": str(user.tenant_id),
+                "user_id": str(user.id),
+                "exp": int(time.time()) + _STATE_TTL_SECONDS,
+            }
+            state = _sign_state(state_payload)
+            url = adapter.auth_url(state)
+            if asyncio.iscoroutine(url):
+                url = await url
+            return {"auth_url": url, "channel": channel}
+        except KeyError:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}"
+            ) from None
 
     # Generate PKCE verifier for X/Twitter (embedded in state for callback retrieval)
     pkce_verifier = secrets.token_urlsafe(64) if channel in ("x", "twitter") else None
