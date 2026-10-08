@@ -500,13 +500,17 @@ class AIGateway:
         )
         full_prompt = prompt if not feedback else f"{prompt}\n\n[feedback] {feedback}"
         # gpt-oss models on Groq are reasoning models — hidden reasoning tokens
-        # count toward usage. Default "low" effort keeps chat-tier costs sane;
-        # callers can request "medium"/"high" for complex reasoning tasks.
-        extra_body = (
-            {"reasoning_effort": reasoning_effort}
-            if reasoning_effort and "gpt-oss" in model
-            else None
-        )
+        # count toward usage. Default "low" keeps the on-demand TPM budget from
+        # saturating; callers can request "medium"/"high" for complex reasoning.
+        effort = reasoning_effort or "low"
+        extra_body = {"reasoning_effort": effort} if "gpt-oss" in model else None
+
+        # Groq on-demand caps at ~8K TPM — clamp max_tokens so a request that
+        # would exceed the window shrinks instead of permanently 413ing.
+        est_prompt_tokens = len(full_prompt) // 4 + len(json.dumps(schema or {})) // 4
+        headroom = 7400 - est_prompt_tokens
+        if max_tokens > headroom:
+            max_tokens = max(768, headroom)
         if schema is not None:
             resp = client.chat.completions.create(
                 model=model,
