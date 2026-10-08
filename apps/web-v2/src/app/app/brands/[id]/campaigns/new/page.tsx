@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { apiPost, ApiError } from "@/lib/api";
+import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { useActiveBrand } from "@/lib/hooks";
 import { INDUSTRY_BY_ID, CHANNEL_LABELS } from "@/lib/industries";
 import {
@@ -96,7 +96,28 @@ function NewCampaignPageInner({
           ? { additional_context: `Creative directions from CURV AI: ${creativeDirections.join(", ")}` }
           : {}),
       });
-      setResult(res);
+      // The pipeline runs server-side; poll the plan until it finishes.
+      let finalRes = res;
+      if (res.status === "generating" && res.id) {
+        const deadline = Date.now() + 8 * 60 * 1000;
+        while (Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 3000));
+          const polled = await apiGet<FullCampaignResponse>(
+            `/campaign-brain/plans/${res.id}`,
+          );
+          if (polled.status !== "generating") {
+            finalRes = polled;
+            break;
+          }
+        }
+        if (finalRes.status === "generating") {
+          throw new Error("Campaign generation is taking longer than expected. Check back in a minute — it will appear in your campaigns list.");
+        }
+      }
+      if (finalRes.status === "failed") {
+        throw new Error("Campaign generation failed. Please try again.");
+      }
+      setResult(finalRes);
       setPhase("result");
     } catch (e) {
       if (e instanceof ApiError && e.status === 402) {

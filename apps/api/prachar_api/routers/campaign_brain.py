@@ -13,6 +13,8 @@ Endpoints:
 """
 from __future__ import annotations
 
+import asyncio
+import logging
 import uuid
 from typing import Any
 
@@ -32,6 +34,7 @@ from ..models import (
 )
 
 router = APIRouter(prefix="/campaign-brain", tags=["campaign-brain"])
+log = logging.getLogger(__name__)
 
 
 # ─── Request schemas ────────────────────────────────────────────────────────
@@ -540,89 +543,111 @@ async def execution_plan(
     return EngineOutputOut(**_engine_output_to_dict(out))
 
 
-@router.post("/full-campaign", response_model=FullCampaignOut, status_code=status.HTTP_201_CREATED)
+async def _run_full_campaign(
+    plan_id: uuid.UUID, tenant_id: uuid.UUID, body: FullCampaignRequest
+) -> None:
+    """Background task: run all 9 engines, update the plan record when done."""
+    from ..db import session_scope
+    from ..models import Brand as BrandModel
+
+    async with session_scope(tenant_id=str(tenant_id)) as session:
+        try:
+            res = await session.execute(
+                select(BrandModel).where(
+                    BrandModel.id == body.brand_id, BrandModel.tenant_id == tenant_id
+                )
+            )
+            brand = res.scalar_one()
+            brain = CampaignBrain()
+            campaign = await brain.generate_campaign(
+                tenant_id=tenant_id,
+                plan="agency",
+                business_name=brand.name,
+                website=brand.website or "",
+                category=brand.category or "",
+                description="",
+                goal=body.goal,
+                budget=body.budget,
+                locale=body.locale,
+                brand_id=brand.id,
+                brand_graph=brand.brand_graph or {},
+                additional_context=body.additional_context,
+            )
+            res = await session.execute(
+                select(CampaignPlanRecord).where(CampaignPlanRecord.id == plan_id)
+            )
+            record = res.scalar_one()
+            record.campaign = campaign.to_dict()
+            record.overall_confidence = campaign.overall_confidence
+            record.total_cost_usd = campaign.total_cost_usd
+            record.total_tokens = campaign.total_tokens
+            record.status = "draft"
+            await session.commit()
+        except Exception as exc:  # noqa: BLE001
+            log.exception("full-campaign background task failed for %s", plan_id)
+            try:
+                res = await session.execute(
+                    select(CampaignPlanRecord).where(CampaignPlanRecord.id == plan_id)
+                )
+                record = res.scalar_one_or_none()
+                if record is not None:
+                    record.status = "failed"
+                    record.campaign = {"error": str(exc)[:500]}
+                    await session.commit()
+            except Exception:
+                log.exception("could not mark plan %s failed", plan_id)
+
+
+@router.post("/full-campaign", status_code=status.HTTP_202_ACCEPTED)
 async def full_campaign(
     body: FullCampaignRequest,
     user: CurrentUser,
     session: SessionDep,
-) -> FullCampaignOut:
-    """Run the complete campaign analysis pipeline (all 9 engines).
+) -> dict[str, Any]:
+    """Kick off the complete campaign pipeline (all 9 engines) asynchronously.
 
-    This is the main entry point. It chains:
-    Business → Audience → Competitor → Objective → Strategy →
-    Creative Direction → Media Plan → Budget → Execution Plan.
-
-    Returns a FullCampaign with every analysis + executive summary.
-    Optionally persists the campaign plan to the database.
+    Creates a campaign plan with status='generating', runs the brain chain in
+    a background task, and returns immediately. The frontend polls
+    GET /campaign-brain/plans/{id} until status flips to 'draft' or 'failed'.
     """
     brand = await _get_brand(session, body.brand_id, user.tenant_id)
-    brain = CampaignBrain()
-
     name = body.name or f"{brand.name} — {body.goal[:50]}"
 
-    campaign = await brain.generate_campaign(
+    record = CampaignPlanRecord(
         tenant_id=user.tenant_id,
-        plan="agency",
-        business_name=brand.name,
-        website=brand.website or "",
-        category=brand.category or "",
-        description="",
+        brand_id=brand.id,
+        name=name,
         goal=body.goal,
         budget=body.budget,
         locale=body.locale,
-        brand_id=brand.id,
-        brand_graph=brand.brand_graph or {},
-        additional_context=body.additional_context,
+        campaign={},
+        status="generating",
     )
-
-    campaign_plan_id: uuid.UUID | None = None
-    if body.save:
-        record = CampaignPlanRecord(
-            tenant_id=user.tenant_id,
-            brand_id=brand.id,
-            name=name,
-            goal=body.goal,
-            budget=body.budget,
-            locale=body.locale,
-            campaign=campaign.to_dict(),
-            overall_confidence=campaign.overall_confidence,
-            total_cost_usd=campaign.total_cost_usd,
-            total_tokens=campaign.total_tokens,
-            status="draft",
-        )
-        session.add(record)
-        await session.flush()
-        campaign_plan_id = record.id
-        await log_audit(
-            session,
-            tenant_id=user.tenant_id,
-            actor=Actor.user,
-            action="campaign_brain.full_campaign",
-            entity_type="campaign_plan",
-            entity_id=record.id,
-            payload={"name": name, "goal": body.goal, "confidence": campaign.overall_confidence},
-        )
-        await session.commit()
-
-    return FullCampaignOut(
-        business_profile=campaign.business_profile.to_dict(),
-        audience_profile=campaign.audience_profile.to_dict(),
-        competitor_profile=campaign.competitor_profile.to_dict(),
-        marketing_objective=campaign.marketing_objective.to_dict(),
-        campaign_strategy=campaign.campaign_strategy.to_dict(),
-        creative_direction=campaign.creative_direction.to_dict(),
-        media_plan=campaign.media_plan.to_dict(),
-        budget_estimate=campaign.budget_estimate.to_dict(),
-        execution_plan=campaign.execution_plan.to_dict(),
-        engine_outputs={k: v.to_dict() for k, v in campaign.engine_outputs.items()},
-        overall_confidence=campaign.overall_confidence,
-        total_cost_usd=campaign.total_cost_usd,
-        total_latency_ms=campaign.total_latency_ms,
-        total_tokens=campaign.total_tokens,
-        executive_summary=campaign.executive_summary,
-        risk_assessment=campaign.risk_assessment,
-        campaign_plan_id=campaign_plan_id,
+    session.add(record)
+    await session.flush()
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="campaign_brain.full_campaign",
+        entity_type="campaign_plan",
+        entity_id=record.id,
+        payload={"name": name, "goal": body.goal},
     )
+    await session.commit()
+
+    asyncio.get_running_loop().create_task(
+        _run_full_campaign(record.id, user.tenant_id, body)
+    )
+    return {
+        "id": str(record.id),
+        "brand_id": str(brand.id),
+        "name": name,
+        "goal": body.goal,
+        "status": "generating",
+        "overall_confidence": 0.0,
+        "campaign": {},
+    }
 
 
 @router.get("/plans", response_model=list[CampaignPlanSummaryOut])

@@ -322,21 +322,32 @@ async def test_e2e_proactive_flow(client: AsyncClient):
             headers=headers,
         )
 
-    assert camp_res.status_code == 201, camp_res.text
-    camp_body = camp_res.json()
-    assert "campaign_plan_id" in camp_body
-    assert camp_body["campaign_plan_id"] is not None
-    plan_id = camp_body["campaign_plan_id"]
+        assert camp_res.status_code == 202, camp_res.text
+        camp_body = camp_res.json()
+        plan_id = camp_body["id"]
+        assert plan_id
+
+        # The brain runs in a background task — keep the patch alive while
+        # polling so the task resolves against the mocked engine, then wait
+        # for the record to settle.
+        import asyncio
+
+        created_plan = None
+        plans_res = None
+        for _ in range(100):
+            await asyncio.sleep(0.1)
+            plans_res = await client.get("/campaign-brain/plans", headers=headers)
+            plans = plans_res.json()
+            created_plan = next((p for p in plans if p["id"] == plan_id), None)
+            if created_plan and created_plan["status"] != "generating":
+                break
 
     # ─── Step 5: GET /campaign-brain/plans — verify in the list ───────
-    plans_res = await client.get("/campaign-brain/plans", headers=headers)
     assert plans_res.status_code == 200, plans_res.text
-    plans = plans_res.json()
     plan_ids = [p["id"] for p in plans]
     assert plan_id in plan_ids
 
     # The newly created plan should have status "draft" (review queue).
-    created_plan = next(p for p in plans if p["id"] == plan_id)
     assert created_plan["status"] == "draft"
 
 
