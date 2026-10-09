@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
@@ -48,6 +47,56 @@ def _settings():
 def _has_creds() -> bool:
     s = _settings()
     return bool(_client_id(s) and _client_secret(s))
+
+
+async def _upload_video(
+    access_token: str,
+    video_url: str,
+    snippet: dict[str, Any],
+    privacy: str = "private",
+) -> str:
+    """Resumable upload to YouTube Data API v3.
+
+    1. Download the file from ``video_url`` (e.g. an S3 presigned URL).
+    2. POST metadata to open a resumable session → Location header.
+    3. PUT the binary to that session URL → returns video id.
+    """
+    async with httpx.AsyncClient(timeout=httpx.Timeout(600.0, connect=30.0)) as client:
+        dl = await client.get(video_url)
+        dl.raise_for_status()
+        video_bytes = dl.content
+        if not video_bytes:
+            raise ValueError("downloaded video is empty")
+
+        init = await client.post(
+            "https://upload.googleapis.com/upload/youtube/v3/videos",
+            params={"part": "snippet,status", "uploadType": "resumable"},
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-Upload-Content-Type": "video/*",
+                "X-Upload-Content-Length": str(len(video_bytes)),
+            },
+            json={
+                "snippet": snippet,
+                "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False},
+            },
+        )
+        init.raise_for_status()
+        upload_url = init.headers.get("Location") or init.headers.get("location")
+        if not upload_url:
+            raise RuntimeError("youtube resumable upload: no Location header")
+
+        up = await client.put(
+            upload_url,
+            content=video_bytes,
+            headers={"Content-Type": "video/*"},
+        )
+        up.raise_for_status()
+        video_id = up.json().get("id")
+        if not video_id:
+            raise RuntimeError("youtube upload returned no video id")
+        return str(video_id)
 
 
 def _client_id(s) -> str:
@@ -264,27 +313,45 @@ class YouTubeAdapter(ChannelAdapter):
 
     # ---- publish ----
     def publish(self, tokens: TokenSet, payload: dict[str, Any]) -> PublishedRef:
-        video_id = str(payload.get("video_id") or payload.get("native_id") or "")
-        if not video_id:
-            raise ValueError("youtube publish payload requires video_id")
+        """Publish a video.
+
+        Two paths:
+        - ``video_url`` present → resumable upload (videos.insert). Downloads
+          the file bytes, opens a resumable session, PUTs the binary.
+        - ``video_id`` only → metadata update on an existing upload.
+        """
         snippet = {
-            "title": str(payload.get("title", "")),
+            "title": str(payload.get("title", "")) or "Untitled",
             "description": str(payload.get("description", "")),
             "tags": payload.get("tags", []) or [],
             "categoryId": str(payload.get("category_id", "22")),
         }
-        body = {"id": video_id, "snippet": snippet}
-        resp = asyncio.run(
-            _request(
-                "PUT",
-                f"{_YT_DATA_API}/videos",
-                params={"part": "snippet"},
-                json_body=body,
-                token=tokens.access_token,
+        video_url = str(payload.get("video_url") or "")
+        if video_url:
+            native_id = asyncio.run(
+                _upload_video(
+                    tokens.access_token,
+                    video_url,
+                    snippet,
+                    privacy=str(payload.get("privacy", "private")),
+                )
             )
-        )
-        resp.raise_for_status()
-        native_id = video_id or str(int(time.time()))
+        else:
+            video_id = str(payload.get("video_id") or payload.get("native_id") or "")
+            if not video_id:
+                raise ValueError("youtube publish payload requires video_url or video_id")
+            body = {"id": video_id, "snippet": snippet}
+            resp = asyncio.run(
+                _request(
+                    "PUT",
+                    f"{_YT_DATA_API}/videos",
+                    params={"part": "snippet"},
+                    json_body=body,
+                    token=tokens.access_token,
+                )
+            )
+            resp.raise_for_status()
+            native_id = video_id
         return PublishedRef(
             channel=self.channel,
             native_id=native_id,

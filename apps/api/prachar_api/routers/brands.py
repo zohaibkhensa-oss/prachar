@@ -336,7 +336,21 @@ async def publish_post(
     elif ch == "instagram":
         if not body.media_url:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "instagram requires an image or video")
-        payload = {"caption": body.text, "media_urls": [body.media_url], "post_type": "reels" if body.media_type == "video" else "feed"}
+        payload = {
+            "caption": body.text,
+            "media_urls": [body.media_url],
+            "post_type": "reels" if body.media_type == "video" else "feed",
+            "_profile_metadata": md,
+        }
+    elif ch == "youtube":
+        if not (body.media_url and body.media_type == "video"):
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "youtube requires a video file")
+        payload = {
+            "video_url": body.media_url,
+            "title": body.text[:100] or "Untitled",
+            "description": body.text,
+            "privacy": "public",
+        }
     elif ch == "telegram":
         if not body.chat_id:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "telegram requires a chat_id")

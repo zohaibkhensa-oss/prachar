@@ -31,8 +31,9 @@ interface PublishResult {
 }
 
 // Channels that support a quick caption+media post through their adapters
-const POSTABLE = new Set(["facebook", "instagram", "linkedin", "x", "telegram"]);
+const POSTABLE = new Set(["facebook", "instagram", "linkedin", "x", "telegram", "youtube"]);
 const MEDIA_REQUIRED = new Set(["instagram"]);
+const VIDEO_REQUIRED = new Set(["youtube"]);
 const CHAT_ID_CHANNELS = new Set(["telegram"]);
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -132,6 +133,7 @@ export default function PostPage() {
   const canPublish = selected.size > 0 && (text.trim() || mediaUrl)
     && !publishing && !uploading
     && [...selected].every((ch) => !MEDIA_REQUIRED.has(ch) || mediaUrl)
+    && [...selected].every((ch) => !VIDEO_REQUIRED.has(ch) || (mediaUrl && mediaType === "video"))
     && (!selected.has("telegram") || telegramChatId.trim());
 
   return (
@@ -245,6 +247,11 @@ export default function PostPage() {
         {[...selected].some((ch) => MEDIA_REQUIRED.has(ch)) && !mediaUrl && (
           <p className="mt-3 text-xs text-amber-400 flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5" /> Instagram requires a photo or video — attach one above.
+          </p>
+        )}
+        {[...selected].some((ch) => VIDEO_REQUIRED.has(ch)) && !(mediaUrl && mediaType === "video") && (
+          <p className="mt-3 text-xs text-amber-400 flex items-center gap-1.5">
+            <AlertCircle className="w-3.5 h-3.5" /> YouTube uploads a video — attach one above (it becomes your video title/description).
           </p>
         )}
       </div>
