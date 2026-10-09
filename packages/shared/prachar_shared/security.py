@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import os
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -26,7 +27,8 @@ def encrypt_token(plaintext: str) -> bytes:
     """Encrypt a token string with AES-GCM. Returns nonce(12) + ciphertext bytes."""
     key = _derive_key()
     aesgcm = AESGCM(key)
-    nonce = AESGCM.generate_nonce(bit_length=96)
+    # os.urandom: AESGCM.generate_nonce was removed in cryptography>=44
+    nonce = os.urandom(12)
     ct = aesgcm.encrypt(nonce, plaintext.encode("utf-8"), None)
     return nonce + ct
 
