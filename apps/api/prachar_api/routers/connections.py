@@ -311,8 +311,10 @@ _INTEGRATIONS: list[dict] = [
     {"channel": "naver", "label": "Naver", "category": "social", "oauth": "naver",
      "creds": ["naver_client_id", "naver_client_secret"], "description": "Naver search and content presence."},
     # Advertising
+    # Meta Ads uses the Meta OAuth token path — the callback also discovers
+    # ad accounts (act_*). Identity = meta_app_id/secret, no separate creds.
     {"channel": "meta_ads", "label": "Meta Ads", "category": "advertising", "oauth": "facebook",
-     "creds": ["meta_ads_app_id", "meta_ads_app_secret"], "description": "Facebook & Instagram ad campaigns."},
+     "creds": ["meta_app_id", "meta_app_secret"], "description": "Facebook & Instagram ad campaigns."},
     {"channel": "google_ads", "label": "Google Ads", "category": "advertising", "oauth": "google",
      "creds": ["google_ads_client_id", "google_ads_client_secret", "google_ads_developer_token"], "description": "Search, YouTube and Display campaigns."},
     {"channel": "linkedin_ads", "label": "LinkedIn Ads", "category": "advertising", "oauth": "linkedin",
