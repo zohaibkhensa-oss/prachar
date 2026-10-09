@@ -73,6 +73,21 @@ def _verify_state(state: str) -> dict:
 WEB_URL = get_settings().web_url or "http://localhost:3002"
 
 
+def _organic_adapter(channel: str):
+    """Resolve an organic adapter. Adapter modules self-register via
+    decorators at import time — ensure every module is imported first."""
+    import importlib
+    import pkgutil
+
+    import prachar_shared.adapters.organic as _pkg
+
+    for m in pkgutil.iter_modules(_pkg.__path__):
+        importlib.import_module(f"prachar_shared.adapters.organic.{m.name}")
+
+    from prachar_shared.adapters.registry import get_organic
+    return get_organic(channel)
+
+
 def _redirect_uri(channel: str) -> str:
     from prachar_shared.adapters.organic.base import redirect_uri_for
     return redirect_uri_for(channel)
@@ -453,9 +468,8 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
         try:
             import asyncio
 
-            from prachar_shared.adapters.registry import get_organic
             adapter_channel = "facebook" if channel == "meta" else channel
-            adapter = get_organic(adapter_channel)
+            adapter = _organic_adapter(adapter_channel)
 
             state_payload = {
                 "nonce": secrets.token_urlsafe(16),
@@ -531,8 +545,7 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
 
     # 3. Load adapter and exchange code for tokens
     try:
-        from prachar_shared.adapters.registry import get_organic
-        adapter = get_organic(adapter_channel)
+        adapter = _organic_adapter(adapter_channel)
     except KeyError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {channel}") from None
 

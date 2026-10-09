@@ -47,7 +47,17 @@ def _settings():
 
 def _has_creds() -> bool:
     s = _settings()
-    return bool(s.youtube_client_id.strip() and s.youtube_client_secret.strip())
+    return bool(_client_id(s) and _client_secret(s))
+
+
+def _client_id(s) -> str:
+    # YouTube shares the Google OAuth app when dedicated creds aren't set —
+    # the auth URL builder already uses google_client_id.
+    return (s.youtube_client_id or s.google_client_id or "").strip()
+
+
+def _client_secret(s) -> str:
+    return (s.youtube_client_secret or s.google_client_secret or "").strip()
 
 
 async def _request(
@@ -105,7 +115,7 @@ class YouTubeAdapter(ChannelAdapter):
     # ---- OAuth ----
     def auth_url(self, state: str) -> str:
         s = _settings()
-        client_id = s.youtube_client_id or "YOUTUBE_CLIENT_ID_PLACEHOLDER"
+        client_id = _client_id(s) or "YOUTUBE_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
             "redirect_uri": self.redirect_uri,
@@ -130,8 +140,8 @@ class YouTubeAdapter(ChannelAdapter):
                 _YT_TOKEN_URL,
                 data={
                     "code": code,
-                    "client_id": s.youtube_client_id,
-                    "client_secret": s.youtube_client_secret,
+                    "client_id": _client_id(s),
+                    "client_secret": _client_secret(s),
                     "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                 },
