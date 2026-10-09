@@ -557,11 +557,14 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
         # For X/Twitter, pass the PKCE verifier if available
         if pkce_verifier and hasattr(adapter, 'set_pkce_verifier'):
             adapter.set_pkce_verifier(pkce_verifier)
-        result = adapter.exchange_code(code)
-        if asyncio.iscoroutine(result):
-            tokens = await result
+        # Adapters' exchange_code may be sync (wrapping async calls with
+        # asyncio.run) or native-async. Run sync variants in a worker thread
+        # so an internal asyncio.run gets a fresh loop — calling it inside
+        # this running event loop raises RuntimeError.
+        if asyncio.iscoroutinefunction(adapter.exchange_code):
+            tokens = await adapter.exchange_code(code)
         else:
-            tokens = result
+            tokens = await asyncio.to_thread(adapter.exchange_code, code)
     except NotImplementedError:
         raise HTTPException(
             status.HTTP_501_NOT_IMPLEMENTED,
