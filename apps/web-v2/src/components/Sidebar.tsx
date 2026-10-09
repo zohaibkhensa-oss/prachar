@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Megaphone, Sparkles, CircleCheckBig, TrendingUp,
-  Video, Share2, Calendar, Settings, Menu,
+  LayoutDashboard, Share2, ImageIcon, Video, Calendar, Settings, Menu,
   LogOut, Plus, MessageSquare, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,12 +21,10 @@ interface NavItem {
 }
 
 const WORKSPACE_NAV: NavItem[] = [
-  { label: "Campaigns", href: "/app/campaigns", icon: Megaphone },
-  { label: "Creative Studio", href: "/app/creative-studio", icon: Sparkles },
-  { label: "AI Video", href: "/app/video", icon: Video },
-  { label: "Review", href: "/app/review", icon: CircleCheckBig },
-  { label: "Performance", href: "/app/performance", icon: TrendingUp },
-  { label: "Connections", href: "/app/connections", icon: Share2 },
+  { label: "Dashboard", href: "/app", icon: LayoutDashboard },
+  { label: "Channels", href: "/app/connections", icon: Share2 },
+  { label: "Images", href: "/app/images", icon: ImageIcon },
+  { label: "Video", href: "/app/video", icon: Video },
   { label: "Calendar", href: "/app/calendar", icon: Calendar },
 ];
 
@@ -122,10 +119,18 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
     router.push("/login");
   };
 
-  const grouped = groupByDate(sessions);
+  const [search, setSearch] = useState("");
+  const filtered = search.trim()
+    ? sessions.filter((s) =>
+        `${s.title} ${s.preview}`.toLowerCase().includes(search.toLowerCase()),
+      )
+    : sessions;
+  const grouped = groupByDate(filtered);
 
   const navLink = (item: NavItem) => {
-    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const active = item.href === "/app"
+      ? pathname === "/app"
+      : pathname === item.href || pathname.startsWith(item.href + "/");
     const Icon = item.icon;
     return (
       <Link
@@ -197,6 +202,22 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
         </button>
       </div>
 
+      {/* Search chats */}
+      {!collapsed && sessions.length > 2 && (
+        <div className="px-3 pb-2 shrink-0">
+          <div className="relative">
+            <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search chats"
+              className="w-full pl-9 pr-3 py-2 rounded-full bg-transparent border border-line/10 text-[13px] text-text placeholder:text-text-muted/60 focus:outline-none focus:border-accent/40 transition-colors"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Scrollable middle: recents + workspace nav */}
       <div className="flex-1 overflow-y-auto scrollbar-none px-3 pb-2">
         {/* Recent conversations (expanded only) */}
@@ -232,18 +253,16 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
 
         {/* Workspace nav */}
         <div className="pt-3">
-          {!collapsed && (
-            <div className="px-3.5 pb-1 text-[11px] font-medium text-text-muted">Workspace</div>
-          )}
           <div className="space-y-0.5">{WORKSPACE_NAV.map(navLink)}</div>
         </div>
 
-        <div className="pt-3">
-          <div className="space-y-0.5">{SYSTEM_NAV.map(navLink)}</div>
-        </div>
       </div>
 
-      {/* Bottom: account */}
+      {/* Bottom: settings + account */}
+      <div className={cn("px-3 pb-1 shrink-0 space-y-0.5", collapsed && "px-2")}>
+        {SYSTEM_NAV.map(navLink)}
+      </div>
+      {/* account */}
       <div className={cn("p-3 border-t border-line/5 flex items-center gap-1 shrink-0", collapsed && "flex-col")}>
         {!collapsed && <div className="flex-1 min-w-0 px-1 text-[11px] text-text-muted truncate">{email}</div>}
         <button
