@@ -240,26 +240,30 @@ async def upload_media(
 
     from prachar_shared.config import get_settings
     s = get_settings()
-    if not (s.s3_access_key and s.s3_secret_key):
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "media storage not configured")
 
     import boto3
-    client = boto3.client(
-        "s3",
-        endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
-        aws_access_key_id=s.s3_access_key,
-        aws_secret_access_key=s.s3_secret_key,
-        region_name=s.s3_region,
-    )
+    # Explicit static keys (local/MinIO) or default chain (ECS task role →
+    # prachar-staging-storage is already permitted via iam:prachar-ecs-s3-access)
+    kwargs: dict = {}
+    if s.s3_access_key and s.s3_secret_key:
+        kwargs.update(
+            endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
+            aws_access_key_id=s.s3_access_key,
+            aws_secret_access_key=s.s3_secret_key,
+        )
+    if s.s3_region:
+        kwargs["region_name"] = s.s3_region
+    client = boto3.client("s3", **kwargs)
+    bucket = s.s3_bucket
     safe_name = (file.filename or "media").replace("/", "_")
     s3_key = f"posts/{user.tenant_id}/{brand_id}/{uuid.uuid4()}-{safe_name}"
     client.put_object(
-        Bucket=s.s3_bucket, Key=s3_key, Body=file_bytes,
+        Bucket=bucket, Key=s3_key, Body=file_bytes,
         ContentType=file.content_type or "application/octet-stream",
     )
     media_url = client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": s.s3_bucket, "Key": s3_key},
+        Params={"Bucket": bucket, "Key": s3_key},
         ExpiresIn=6 * 3600,
     )
     return {"media_url": media_url, "s3_key": s3_key, "content_type": file.content_type}
