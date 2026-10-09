@@ -199,6 +199,17 @@ jobs:
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.STAGING_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.STAGING_SG }}]}"
 
+      - name: Invalidate CloudFront (SPA shell)
+        # index.html is cached up to 1h (default TTL 3600) — without this,
+        # users see a stale app after each deploy.
+        run: |
+          DIST_ID=$(aws cloudfront list-distributions \
+            --query "DistributionList.Items[?Aliases.Items[0]=='app.curvai.org'].Id" \
+            --output text)
+          aws cloudfront create-invalidation \
+            --distribution-id "$DIST_ID" \
+            --paths "/index.html" "/" "/app/*"
+
       - name: Wait for deployment to stabilize
         run: sleep 60
 
