@@ -512,6 +512,55 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
     return {"auth_url": auth_url, "channel": channel}
 
 
+@router.get("/{channel}/verify")
+async def verify_channel(channel: str, user: CurrentUser, session: SessionDep) -> dict:
+    """Liveness check on a stored connection — decrypts tokens and calls the
+    provider (e.g. YouTube channels.list) to prove the grant still works."""
+    import asyncio as _asyncio
+
+    res = await session.execute(
+        select(Connection).where(
+            Connection.tenant_id == user.tenant_id,
+            Connection.channel == channel,
+        ).order_by(Connection.created_at.desc())
+    )
+    conn = res.scalars().first()
+    if not conn or not conn.oauth_tokens_enc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no connection for {channel}")
+
+    from prachar_shared.contracts import TokenSet
+    from prachar_shared.security import decrypt_token
+
+    bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
+    adapter_channel = "facebook" if channel in ("meta", "meta_ads") else channel
+    try:
+        adapter = _organic_adapter(adapter_channel)
+    except KeyError:
+        return {"ok": conn.status == "active", "detail": "no verify method; connection record is active"}
+
+    if not hasattr(adapter, "verify"):
+        return {"ok": conn.status == "active", "detail": "verify not implemented for this channel"}
+
+    from datetime import UTC, datetime
+
+    tokens = TokenSet(
+        access_token=bundle["access_token"],
+        refresh_token=bundle.get("refresh_token"),
+        expires_at=(
+            datetime.fromisoformat(bundle["expires_at"])
+            if bundle.get("expires_at")
+            else datetime.now(UTC)
+        ),
+        scopes=bundle.get("scopes") or [],
+        metadata=bundle.get("metadata") or {},
+    )
+    try:
+        result = await _asyncio.to_thread(adapter.verify, tokens)
+        return dict(result, channel=channel)
+    except Exception as exc:
+        return {"ok": False, "channel": channel, "detail": str(exc)[:200]}
+
+
 @router.get("/{channel}/callback", response_model=ConnectionOut)
 async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser, session: SessionDep) -> ConnectionOut:
     """OAuth callback — exchanges code for tokens via the channel adapter.

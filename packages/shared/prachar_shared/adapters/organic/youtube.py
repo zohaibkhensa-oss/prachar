@@ -292,6 +292,31 @@ class YouTubeAdapter(ChannelAdapter):
             published_at=datetime.now(UTC),
         )
 
+    # ---- verification ----
+    def verify(self, tokens: TokenSet) -> dict[str, Any]:
+        """Lightweight liveness check: fetch the authenticated channel's
+        snippet. Returns {ok, channel_title, subscriber_count} or {ok: False}."""
+        resp = asyncio.run(
+            _request(
+                "GET",
+                f"{_YT_DATA_API}/channels",
+                params={"part": "snippet,statistics", "mine": "true"},
+                token=tokens.access_token,
+            )
+        )
+        if resp.status_code != 200:
+            return {"ok": False, "status": resp.status_code}
+        items = resp.json().get("items") or []
+        if not items:
+            return {"ok": True, "channel_title": None}
+        it = items[0]
+        return {
+            "ok": True,
+            "channel_title": it["snippet"].get("title"),
+            "subscriber_count": it.get("statistics", {}).get("subscriberCount"),
+            "video_count": it.get("statistics", {}).get("videoCount"),
+        }
+
     # ---- metrics ----
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
         end = datetime.now(UTC).date().isoformat()
