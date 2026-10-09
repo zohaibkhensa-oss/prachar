@@ -118,6 +118,11 @@ class ConnectionOut(BaseModel):
     channel: str
     status: str
     expires_at: datetime | None
+    created_at: datetime | None = None
+    scopes: list[str] | None = None
+    # Non-secret label derived from the token bundle metadata (e.g. Meta
+    # ad-account id / display name). Never contains tokens.
+    account_label: str | None = None
 
 
 # ─── campaign ────────────────────────────────────────────────────────────────

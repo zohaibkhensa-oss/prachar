@@ -281,12 +281,153 @@ OAUTH_BUILDERS = {
 }
 
 
+# ─── Integration registry ────────────────────────────────────────────────────
+# Canonical list of integrations the app supports. `configured` is computed
+# from settings — a channel whose OAuth credentials are absent shows as
+# "configuration required" rather than offering a dead Connect button.
+# `oauth` = the channel key used to start OAuth (ads integrations reuse the
+# organic provider's OAuth — e.g. Meta Ads connects through the Meta app,
+# which also triggers ad-account discovery in the callback).
+_INTEGRATIONS: list[dict] = [
+    # Social
+    {"channel": "instagram", "label": "Instagram", "category": "social", "oauth": "instagram",
+     "creds": ["meta_app_id", "meta_app_secret"], "description": "Publish photos, reels and stories; audience insights."},
+    {"channel": "facebook", "label": "Facebook", "category": "social", "oauth": "facebook",
+     "creds": ["meta_app_id", "meta_app_secret"], "description": "Page posts, scheduling and engagement."},
+    {"channel": "x", "label": "X (Twitter)", "category": "social", "oauth": "x",
+     "creds": ["x_client_id", "x_client_secret"], "description": "Publish tweets and monitor engagement."},
+    {"channel": "linkedin", "label": "LinkedIn", "category": "social", "oauth": "linkedin",
+     "creds": ["linkedin_client_id", "linkedin_client_secret"], "description": "Publish posts to your professional network."},
+    {"channel": "youtube", "label": "YouTube", "category": "social", "oauth": "youtube",
+     "creds": ["google_client_id", "google_client_secret"], "description": "Upload videos and manage your channel."},
+    {"channel": "tiktok", "label": "TikTok", "category": "social", "oauth": "tiktok",
+     "creds": ["tiktok_client_key", "tiktok_client_secret"], "description": "Publish short-form videos."},
+    {"channel": "pinterest", "label": "Pinterest", "category": "social", "oauth": "pinterest",
+     "creds": ["pinterest_client_id", "pinterest_client_secret"], "description": "Publish pins and grow brand presence."},
+    {"channel": "reddit", "label": "Reddit", "category": "social", "oauth": "reddit",
+     "creds": ["reddit_client_id", "reddit_client_secret"], "description": "Share content and engage communities."},
+    {"channel": "vk", "label": "VK", "category": "social", "oauth": "vk",
+     "creds": ["vk_client_id", "vk_client_secret"], "description": "Publish to VK communities."},
+    {"channel": "naver", "label": "Naver", "category": "social", "oauth": "naver",
+     "creds": ["naver_client_id", "naver_client_secret"], "description": "Naver search and content presence."},
+    # Advertising
+    {"channel": "meta_ads", "label": "Meta Ads", "category": "advertising", "oauth": "facebook",
+     "creds": ["meta_ads_app_id", "meta_ads_app_secret"], "description": "Facebook & Instagram ad campaigns."},
+    {"channel": "google_ads", "label": "Google Ads", "category": "advertising", "oauth": "google",
+     "creds": ["google_ads_client_id", "google_ads_client_secret", "google_ads_developer_token"], "description": "Search, YouTube and Display campaigns."},
+    {"channel": "linkedin_ads", "label": "LinkedIn Ads", "category": "advertising", "oauth": "linkedin",
+     "creds": ["linkedin_ads_client_id", "linkedin_ads_client_secret"], "description": "Sponsored content and lead-gen ads."},
+    {"channel": "tiktok_ads", "label": "TikTok Ads", "category": "advertising", "oauth": "tiktok",
+     "creds": ["tiktok_ads_app_id", "tiktok_ads_app_secret"], "description": "TikTok paid campaigns."},
+    {"channel": "x_ads", "label": "X Ads", "category": "advertising", "oauth": "x",
+     "creds": ["x_ads_client_id", "x_ads_client_secret"], "description": "Promoted posts on X."},
+    {"channel": "microsoft_ads", "label": "Microsoft Ads", "category": "advertising", "oauth": None,
+     "creds": ["microsoft_ads_client_id", "microsoft_ads_client_secret", "microsoft_ads_developer_token"], "description": "Bing search advertising."},
+    # Messaging & publishing
+    {"channel": "whatsapp", "label": "WhatsApp Business", "category": "messaging", "oauth": "whatsapp",
+     "creds": ["whatsapp_phone_number_id", "whatsapp_token"], "description": "Send updates and alerts to opted-in customers."},
+    {"channel": "telegram", "label": "Telegram", "category": "messaging", "oauth": "telegram",
+     "creds": ["telegram_bot_token"], "description": "Send updates and alerts to your audience."},
+    {"channel": "line", "label": "LINE", "category": "messaging", "oauth": "line",
+     "creds": ["line_channel_id", "line_channel_secret"], "description": "Messaging for Japan and SEA audiences."},
+    {"channel": "gmb", "label": "Google Business Profile", "category": "messaging", "oauth": "gmb",
+     "creds": ["google_client_id", "google_client_secret"], "description": "Business profile posts and local presence."},
+    {"channel": "gsc", "label": "Google Search Console", "category": "messaging", "oauth": "gsc",
+     "creds": ["google_client_id", "google_client_secret"], "description": "Search analytics and URL inspection."},
+]
+
+
+def _connection_label(conn: Connection) -> str | None:
+    """Derive a non-secret display label from the encrypted token bundle's
+    metadata (e.g. Meta ad account id). Never exposes tokens."""
+    if not conn.oauth_tokens_enc:
+        return None
+    try:
+        from prachar_shared.security import decrypt_token
+        bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
+        meta = bundle.get("metadata") or {}
+        if meta.get("ad_accounts"):
+            first = meta["ad_accounts"][0]
+            name = first.get("name") or ""
+            acct = first.get("account_id") or ""
+            if name and acct:
+                return f"{name} · act_{acct[-4:]}"
+            if acct:
+                return f"act_{acct[-4:]}"
+            return name or None
+        if meta.get("account_name"):
+            return str(meta["account_name"])
+        if meta.get("ad_account_id"):
+            return f"act_{str(meta['ad_account_id'])[-4:]}"
+        return None
+    except Exception:
+        return None
+
+
+@router.get("/registry")
+async def integration_registry(user: CurrentUser) -> list[dict]:
+    """Canonical integration catalog with truthful configuration state.
+
+    `configured` reflects whether the required OAuth credentials exist in
+    settings — it does not imply a live connection."""
+    s = get_settings()
+    return [
+        {
+            "channel": e["channel"],
+            "label": e["label"],
+            "category": e["category"],
+            "oauth_channel": e["oauth"],
+            "description": e["description"],
+            "configured": all(bool(getattr(s, k, "")) for k in e["creds"]),
+        }
+        for e in _INTEGRATIONS
+    ]
+
+
 @router.get("", response_model=list[ConnectionOut])
 async def list_connections(user: CurrentUser, session: SessionDep) -> list[ConnectionOut]:
     res = await session.execute(
         select(Connection).where(Connection.tenant_id == user.tenant_id)
     )
-    return [ConnectionOut.model_validate(c) for c in res.scalars().all()]
+    out = []
+    for c in res.scalars().all():
+        item = ConnectionOut.model_validate(c)
+        item.account_label = _connection_label(c)
+        out.append(item)
+    return out
+
+
+@router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def disconnect(connection_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> None:
+    """Disconnect a channel — removes the connection record and its stored
+    tokens. Local revoke only; the provider-side grant can be revoked in the
+    provider's security settings."""
+    res = await session.execute(
+        select(Connection).where(
+            Connection.id == connection_id,
+            Connection.tenant_id == user.tenant_id,
+        )
+    )
+    conn = res.scalar_one_or_none()
+    if not conn:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+
+    from ..audit import log_audit
+    from ..models import Actor
+
+    channel = conn.channel
+    await session.delete(conn)
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="connection.disconnected",
+        entity_type="connection",
+        entity_id=str(connection_id),
+        payload={"channel": channel, "brand_id": str(conn.brand_id)},
+    )
+    await session.commit()
+    log.info("Connection disconnected: channel=%s tenant=%s", channel, user.tenant_id)
 
 
 @router.post("/{channel}/oauth", status_code=status.HTTP_200_OK)
