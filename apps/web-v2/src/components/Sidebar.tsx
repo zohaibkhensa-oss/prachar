@@ -21,7 +21,7 @@ interface NavItem {
 }
 
 const WORKSPACE_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/app", icon: LayoutDashboard },
+  { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
   { label: "Channels", href: "/app/connections", icon: Share2 },
   { label: "Images", href: "/app/images", icon: ImageIcon },
   { label: "Video", href: "/app/video", icon: Video },

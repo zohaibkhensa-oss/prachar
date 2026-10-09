@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -72,8 +73,75 @@ async def list_brand_content(brand_id: uuid.UUID, user: CurrentUser, session: Se
             "policy_status": c.policy_status.value if hasattr(c.policy_status, "value") else str(c.policy_status),
             "copy": payload.get("copy") or payload.get("text") or "",
             "image_url": payload.get("image_url") or "",
+            "created_at": c.created_at.isoformat() if c.created_at else None,
         })
     return out
+
+
+# ─── Metrics summary (dashboard) ─────────────────────────────────────────────
+
+
+@router.get("/{brand_id}/metrics/summary")
+async def brand_metrics_summary(
+    brand_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    days: int = 30,
+) -> dict:
+    """Real aggregation over metric_events: current-period totals, previous-
+    period comparison, and a daily series per metric. Empty when no telemetry
+    has been collected yet — the UI must not invent figures."""
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func
+
+    from ..models import MetricEvent
+
+    now = datetime.now(UTC)
+    start = now - timedelta(days=max(1, min(days, 365)))
+    prev_start = start - (now - start)
+
+    rows = await session.execute(
+        select(
+            MetricEvent.metric,
+            func.date_trunc("day", MetricEvent.ts).label("d"),
+            func.sum(MetricEvent.value),
+        )
+        .where(
+            MetricEvent.brand_id == brand_id,
+            MetricEvent.tenant_id == user.tenant_id,
+            MetricEvent.ts >= prev_start,
+        )
+        .group_by(MetricEvent.metric, func.date_trunc("day", MetricEvent.ts))
+        .order_by(func.date_trunc("day", MetricEvent.ts))
+    )
+
+    totals: dict[str, dict[str, float]] = {}
+    series: dict[str, dict[str, float]] = {}
+    for metric, day, value in rows.all():
+        t = totals.setdefault(metric, {"current": 0.0, "previous": 0.0})
+        bucket = "current" if day >= start else "previous"
+        t[bucket] += float(value or 0)
+        if day >= start:
+            series.setdefault(metric, {})[day.date().isoformat()] = (
+                series.setdefault(metric, {}).get(day.date().isoformat(), 0.0) + float(value or 0)
+            )
+
+    return {
+        "days": days,
+        "period_start": start.isoformat(),
+        "totals": totals,
+        "series": {
+            m: [{"date": d, "value": v} for d, v in sorted(s.items())]
+            for m, s in series.items()
+        },
+    }
 
 
 class ContentCreateIn(BaseModel):
