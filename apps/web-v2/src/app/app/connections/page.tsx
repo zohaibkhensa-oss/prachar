@@ -7,6 +7,12 @@ import {
   AlertCircle, ChevronDown, ExternalLink, Link2,
   Loader2, MoreHorizontal, RefreshCw, Search, Unlink, X,
 } from "lucide-react";
+import {
+  SiInstagram, SiFacebook, SiX, SiYoutube, SiTiktok, SiPinterest,
+  SiReddit, SiWhatsapp, SiTelegram, SiLine, SiVk, SiNaver, SiGoogle,
+  SiMeta, SiGoogleads,
+} from "react-icons/si";
+import { FaLinkedinIn, FaMicrosoft } from "react-icons/fa";
 import { apiDelete, apiGet, apiPost, ApiError } from "@/lib/api";
 import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
@@ -48,29 +54,30 @@ const CATEGORY_LABELS: Record<string, string> = {
   messaging: "Messaging & Publishing",
 };
 
-// Platform letter-tile styling (recognizable brand colors)
-const TILE: Record<string, string> = {
-  instagram: "from-fuchsia-500 to-rose-500",
-  facebook: "from-blue-600 to-blue-700",
-  x: "from-zinc-700 to-zinc-900",
-  linkedin: "from-sky-600 to-blue-700",
-  youtube: "from-red-600 to-red-700",
-  tiktok: "from-zinc-800 to-zinc-950",
-  pinterest: "from-rose-600 to-red-600",
-  reddit: "from-orange-500 to-orange-600",
-  vk: "from-blue-500 to-sky-600",
-  naver: "from-green-500 to-green-600",
-  meta_ads: "from-blue-500 to-indigo-600",
-  google_ads: "from-blue-500 to-green-600",
-  linkedin_ads: "from-sky-600 to-blue-700",
-  tiktok_ads: "from-zinc-800 to-zinc-950",
-  x_ads: "from-zinc-700 to-zinc-900",
-  microsoft_ads: "from-cyan-600 to-blue-600",
-  whatsapp: "from-emerald-500 to-green-600",
-  telegram: "from-sky-500 to-blue-500",
-  line: "from-green-500 to-emerald-600",
-  gmb: "from-blue-500 to-emerald-500",
-  gsc: "from-blue-500 to-teal-500",
+// Platform brand icons (react-icons) with brand colors
+const LOGO: Record<string, { Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>; color: string }> = {
+  instagram: { Icon: SiInstagram, color: "#E4405F" },
+  facebook: { Icon: SiFacebook, color: "#1877F2" },
+  x: { Icon: SiX, color: "#E7E9EA" },
+  linkedin: { Icon: FaLinkedinIn, color: "#0A66C2" },
+  youtube: { Icon: SiYoutube, color: "#FF0000" },
+  tiktok: { Icon: SiTiktok, color: "#E7E9EA" },
+  pinterest: { Icon: SiPinterest, color: "#E60023" },
+  reddit: { Icon: SiReddit, color: "#FF4500" },
+  vk: { Icon: SiVk, color: "#0077FF" },
+  naver: { Icon: SiNaver, color: "#03C75A" },
+  meta_ads: { Icon: SiMeta, color: "#0081FB" },
+  google_ads: { Icon: SiGoogleads, color: "#4285F4" },
+  linkedin_ads: { Icon: FaLinkedinIn, color: "#0A66C2" },
+  tiktok_ads: { Icon: SiTiktok, color: "#E7E9EA" },
+  x_ads: { Icon: SiX, color: "#E7E9EA" },
+  microsoft_ads: { Icon: FaMicrosoft, color: "#737373" },
+  whatsapp: { Icon: SiWhatsapp, color: "#25D366" },
+  telegram: { Icon: SiTelegram, color: "#26A5E4" },
+  line: { Icon: SiLine, color: "#00C300" },
+  gmb: { Icon: SiGoogle, color: "#4285F4" },
+  gsc: { Icon: SiGoogle, color: "#4285F4" },
+  google: { Icon: SiGoogle, color: "#4285F4" },
 };
 
 // Ads integrations are "connected" via their organic provider's connection.
@@ -83,10 +90,19 @@ const ADS_LINKED: Record<string, string[]> = {
   microsoft_ads: [],
 };
 
-function tileFor(channel: string): { letter: string; gradient: string } {
-  const g = TILE[channel] ?? "from-accent to-accent-dark";
-  const key = channel.replace(/_ads$/, "").replace(/^gmb$/, "G").replace(/^gsc$/, "G");
-  return { letter: (key[0] ?? "?").toUpperCase(), gradient: g };
+function LogoTile({ channel }: { channel: string }) {
+  const entry = LOGO[channel];
+  return (
+    <div className="w-9 h-9 rounded-xl bg-white/[0.05] border border-line/10 flex items-center justify-center shrink-0">
+      {entry ? (
+        <entry.Icon className="w-5 h-5" style={{ color: entry.color }} />
+      ) : (
+        <span className="font-display font-bold text-sm text-text-secondary">
+          {(channel.replace(/_ads$/, "")[0] ?? "?").toUpperCase()}
+        </span>
+      )}
+    </div>
+  );
 }
 
 function connUiState(entry: RegistryEntry, conn: Connection | undefined, connectingKey: string | null): UiState {
@@ -240,7 +256,6 @@ export default function ConnectionsPage() {
     const conn = backingConn(entry);
     const st = connUiState(entry, conn, connecting);
     const badge = STATE_BADGE[st];
-    const tile = tileFor(entry.channel);
 
     const primary =
       st === "connected" ? { label: "Manage", fn: () => setManage({ entry, conn: conn! }) } :
@@ -259,9 +274,7 @@ export default function ConnectionsPage() {
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-3 min-w-0">
-            <div className={cn("w-9 h-9 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 text-white font-display font-bold text-sm", tile.gradient)}>
-              {tile.letter}
-            </div>
+            <LogoTile channel={entry.channel} />
             <div className="min-w-0">
               <div className="text-sm font-semibold text-text truncate">{entry.label}</div>
               <span className={cn("inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-medium", badge.cls)}>
@@ -487,9 +500,7 @@ export default function ConnectionsPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={cn("w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white font-display font-bold", tileFor(manage.entry.channel).gradient)}>
-                    {tileFor(manage.entry.channel).letter}
-                  </div>
+                  <LogoTile channel={manage.entry.channel} />
                   <div>
                     <h3 className="text-sm font-semibold text-text">{manage.entry.label}</h3>
                     {manage.conn ? (
