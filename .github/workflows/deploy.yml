@@ -199,16 +199,22 @@ jobs:
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.STAGING_PRIVATE_SUBNETS }}],securityGroups=[${{ secrets.STAGING_SG }}]}"
 
-      - name: Invalidate CloudFront (SPA shell)
-        # index.html is cached up to 1h (default TTL 3600) — without this,
-        # users see a stale app after each deploy.
+      - name: Deploy frontend to S3 + invalidate CloudFront
+        # CloudFront serves the SPA from the prachar-staging-frontend S3 bucket —
+        # the ECS web image is NOT what users hit. Sync the static export, then
+        # invalidate (index.html is cached up to 1h by default TTL).
         run: |
+          cd apps/web-v2
+          npm install -g pnpm
+          pnpm install --frozen-lockfile --filter web-v2...
+          STATIC_EXPORT=1 NEXT_PUBLIC_API_BASE=https://api.curvai.org pnpm build
+          aws s3 sync out/ s3://prachar-staging-frontend/ --delete
           DIST_ID=$(aws cloudfront list-distributions \
             --query "DistributionList.Items[?Aliases.Items[0]=='app.curvai.org'].Id" \
             --output text)
           aws cloudfront create-invalidation \
             --distribution-id "$DIST_ID" \
-            --paths "/index.html" "/" "/app/*"
+            --paths "/*"
 
       - name: Wait for deployment to stabilize
         run: sleep 60
