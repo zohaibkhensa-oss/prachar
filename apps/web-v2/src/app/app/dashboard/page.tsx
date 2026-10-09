@@ -198,7 +198,7 @@ export default function DashboardPage() {
   ];
 
   const QUICK = [
-    { label: "Create Post", icon: PenSquare, href: "/app/creative-studio" },
+    { label: "Create Post", icon: PenSquare, href: "/app/post" },
     { label: "Create Ad", icon: Megaphone, href: "/app/campaigns" },
     { label: "Create Video", icon: VideoIcon, href: "/app/video" },
     { label: "Create Image", icon: ImageIcon, href: "/app/images" },

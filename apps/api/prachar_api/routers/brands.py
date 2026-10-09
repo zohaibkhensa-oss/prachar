@@ -4,13 +4,13 @@ import uuid
 from datetime import UTC
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ..audit import log_audit
 from ..deps import CurrentUser, SessionDep
-from ..models import Actor, Brand, ContentItem, PolicyStatus
+from ..models import Actor, Brand, Connection, ContentItem, PolicyStatus
 from ..schemas import BrandIn, BrandOut, VisibilityScoreOut
 
 router = APIRouter(prefix="/brands", tags=["brands"])
@@ -214,3 +214,161 @@ async def get_score(brand_id: uuid.UUID, user: CurrentUser, session: SessionDep)
             "momentum": overall * 0.10 / 0.85 if overall else 0.0,
         },
     )
+
+
+# ─── Quick post: media upload + publish ──────────────────────────────────────
+
+
+@router.post("/{brand_id}/media/upload")
+async def upload_media(
+    brand_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    file: UploadFile = File(...),
+) -> dict:
+    """Upload an image/video for publishing. Stored in S3, returned as a
+    presigned URL (platforms fetch it at publish time — 6h expiry is fine)."""
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 200 * 1024 * 1024:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "file too large (200MB max)")
+
+    from prachar_shared.config import get_settings
+    s = get_settings()
+    if not (s.s3_access_key and s.s3_secret_key):
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "media storage not configured")
+
+    import boto3
+    client = boto3.client(
+        "s3",
+        endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
+        aws_access_key_id=s.s3_access_key,
+        aws_secret_access_key=s.s3_secret_key,
+        region_name=s.s3_region,
+    )
+    safe_name = (file.filename or "media").replace("/", "_")
+    s3_key = f"posts/{user.tenant_id}/{brand_id}/{uuid.uuid4()}-{safe_name}"
+    client.put_object(
+        Bucket=s.s3_bucket, Key=s3_key, Body=file_bytes,
+        ContentType=file.content_type or "application/octet-stream",
+    )
+    media_url = client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": s.s3_bucket, "Key": s3_key},
+        ExpiresIn=6 * 3600,
+    )
+    return {"media_url": media_url, "s3_key": s3_key, "content_type": file.content_type}
+
+
+class PublishIn(BaseModel):
+    channel: str = Field(min_length=1, max_length=40)
+    text: str = Field(default="", max_length=3000)
+    media_url: str | None = None
+    media_type: str = Field(default="image")  # image | video
+    chat_id: str | None = None  # telegram
+
+
+@router.post("/{brand_id}/publish")
+async def publish_post(
+    brand_id: uuid.UUID,
+    body: PublishIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Synchronous publish to a connected channel via its adapter."""
+    import asyncio
+    import json
+    from datetime import UTC, datetime
+
+    from prachar_shared.contracts import TokenSet
+    from prachar_shared.security import decrypt_token
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    res = await session.execute(
+        select(Connection).where(
+            Connection.tenant_id == user.tenant_id,
+            Connection.brand_id == brand_id,
+            Connection.channel == body.channel,
+            Connection.status == "active",
+        )
+    )
+    conn = res.scalar_one_or_none()
+    if conn is None or not conn.oauth_tokens_enc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{body.channel} is not connected")
+
+    from .connections import _organic_adapter
+    try:
+        adapter = _organic_adapter("facebook" if body.channel == "instagram" else body.channel)
+    except KeyError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {body.channel}") from None
+
+    bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
+    md = bundle.get("metadata") or {}
+    tokens = TokenSet(
+        access_token=bundle["access_token"],
+        refresh_token=bundle.get("refresh_token"),
+        expires_at=datetime.fromisoformat(bundle["expires_at"]) if bundle.get("expires_at") else datetime.now(UTC),
+        scopes=bundle.get("scopes") or [],
+        metadata=md,
+    )
+
+    ch = body.channel
+    if ch == "facebook":
+        payload = {"message": body.text, "_page_access_token": md.get("page_access_token"), "_page_id": md.get("page_id")}
+        if body.media_url:
+            payload["picture"] = body.media_url
+    elif ch == "x":
+        payload = {"text": body.text}
+    elif ch == "linkedin":
+        payload = {"text": body.text, "_author_urn": f"urn:li:person:{md.get('member_id', '')}"}
+        if body.media_url:
+            payload["media_url"] = body.media_url
+    elif ch == "instagram":
+        if not body.media_url:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "instagram requires an image or video")
+        payload = {"caption": body.text, "media_urls": [body.media_url], "post_type": "reels" if body.media_type == "video" else "feed"}
+    elif ch == "telegram":
+        if not body.chat_id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "telegram requires a chat_id")
+        payload = {"text": body.text, "chat_id": body.chat_id, "media_type": "photo" if body.media_url else "none", "media_url": body.media_url or ""}
+    else:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"publishing to {ch} is not supported yet")
+
+    try:
+        if asyncio.iscoroutinefunction(adapter.publish):
+            published = await adapter.publish(tokens, payload)
+        else:
+            published = await asyncio.to_thread(adapter.publish, tokens, payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)[:300]) from exc
+
+    item = ContentItem(
+        tenant_id=user.tenant_id, brand_id=brand_id, channel=ch,
+        payload={"copy": body.text, "image_url": body.media_url, "published_ref": published.native_id},
+        policy_status=PolicyStatus.passed,
+    )
+    session.add(item)
+    await log_audit(
+        session, tenant_id=user.tenant_id, actor=Actor.user, action="content.publish",
+        entity_type="channel", entity_id=None,
+        payload={"channel": ch, "native_id": published.native_id, "brand_id": str(brand_id)},
+    )
+    return {
+        "ok": True,
+        "channel": published.channel,
+        "native_id": published.native_id,
+        "url": published.url,
+        "published_at": published.published_at.isoformat(),
+    }
