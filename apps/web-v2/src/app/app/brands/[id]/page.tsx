@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams } from "next/navigation";
+
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -19,8 +19,9 @@ import { INDUSTRY_BY_ID, CHANNEL_LABELS } from "@/lib/industries";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function BrandWorkspacePage() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+  // Static export: useParams bakes the build-time placeholder —
+  // read the real id from the URL path instead.
+  const id = typeof window !== "undefined" ? (window.location.pathname.split("/")[3] ?? "") : "";
   const { data: brands, isLoading } = useBrands();
   const brand = brands?.find((b) => b.id === id) ?? null;
   const { data: plans } = useCampaignPlans(brand?.id ?? null);

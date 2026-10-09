@@ -1,17 +1,21 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { apiGet } from "@/lib/api";
 
 function CallbackInner() {
-  const params = useParams<{ channel: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
-  const channel = params.channel;
+  // Static export: useParams returns the build-time placeholder — read the
+  // real channel from the URL path (/app/connections/{channel}/callback).
+  const channel =
+    typeof window !== "undefined"
+      ? window.location.pathname.split("/")[3] ?? ""
+      : "";
 
   useEffect(() => {
     if (started.current) return;

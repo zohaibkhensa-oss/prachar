@@ -8,7 +8,7 @@
  * Request Changes / Approve / Publish.
  */
 import { useState, useTransition, useRef, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -41,8 +41,9 @@ import { VersionHistory } from "@/components/review/VersionHistory";
 import { cn } from "@/lib/utils";
 
 export default function ReviewDetailPage() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+  // Static export: useParams bakes the build-time placeholder —
+  // read the real id from the URL path instead.
+  const id = typeof window !== "undefined" ? (window.location.pathname.split("/")[3] ?? "") : "";
   const router = useRouter();
   const qc = useQueryClient();
 

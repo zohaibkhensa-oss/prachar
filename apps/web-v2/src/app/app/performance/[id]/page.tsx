@@ -19,7 +19,7 @@
  *   CTR → "Click rate", Conversions → "New customers / enquiries".
  */
 import { useState } from "react";
-import { useParams } from "next/navigation";
+
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -55,8 +55,9 @@ import { MetricsChart } from "@/components/performance/MetricsChart";
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 export default function PerformancePage() {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+  // Static export: useParams bakes the build-time placeholder —
+  // read the real id from the URL path instead.
+  const id = typeof window !== "undefined" ? (window.location.pathname.split("/")[3] ?? "") : "";
 
   // ─── Data ──────────────────────────────────────────────────────────────
   const {
