@@ -80,7 +80,9 @@ interface CreativeDirectionOption {
  * campaign plan id (pragmatic proxy until a list endpoint exists).
  */
 function deriveDirectionOptions(plan: CampaignPlan): CreativeDirectionOption[] {
-  const campaign = plan.campaign as Record<string, unknown>;
+  // Plans created by the async brain flow can have campaign=null while
+  // status is "generating" — guard before reading into it.
+  const campaign = (plan.campaign ?? {}) as Record<string, unknown>;
   const cd = (campaign.creative_direction ?? {}) as Record<string, unknown>;
   const mood = String(cd.mood || "").trim();
   const visualStyle = String(cd.visual_style || "").trim();
@@ -306,8 +308,8 @@ export default function CreativeStudioPage() {
               placeholder="Select a campaign…"
               options={plans.map((p) => ({
                 value: p.id,
-                label: p.name,
-                sub: p.goal,
+                label: p.name || (p.status === "generating" ? "Generating campaign…" : "Campaign"),
+                sub: p.goal || (p.status === "generating" ? "Still generating" : ""),
               }))}
             />
           ) : (
