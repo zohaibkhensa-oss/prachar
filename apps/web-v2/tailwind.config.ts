@@ -15,19 +15,20 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // ─── Neon-Black palette ───
+        // ─── Theme-driven palette (CSS vars — dark default, light via html.light) ───
         bg: {
-          DEFAULT: "#08090D",
-          surface: "#0F1117",
-          card: "#131620",
-          elevated: "#1A1E2A",
-          hover: "#1F2433",
+          DEFAULT: "rgb(var(--bg) / <alpha-value>)",
+          surface: "rgb(var(--bg-surface) / <alpha-value>)",
+          card: "rgb(var(--bg-card) / <alpha-value>)",
+          elevated: "rgb(var(--bg-elevated) / <alpha-value>)",
+          hover: "rgb(var(--bg-hover) / <alpha-value>)",
         },
+        line: "rgb(var(--line) / <alpha-value>)",
         text: {
-          DEFAULT: "#F9FAFB",
-          secondary: "#94A3B8",
-          tertiary: "#64748B",
-          muted: "#475569",
+          DEFAULT: "rgb(var(--text) / <alpha-value>)",
+          secondary: "rgb(var(--text-secondary) / <alpha-value>)",
+          tertiary: "rgb(var(--text-tertiary) / <alpha-value>)",
+          muted: "rgb(var(--text-muted) / <alpha-value>)",
         },
         accent: {
           DEFAULT: "#8B5CF6",       // CURV violet

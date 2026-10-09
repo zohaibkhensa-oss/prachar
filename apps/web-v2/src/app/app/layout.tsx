@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { getToken } from "@/lib/auth";
+import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
 import { AIDock } from "@/components/AIDock";
@@ -164,7 +165,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           email={email}
         />
 
-        <main className="flex-1 p-4 lg:p-6">
+        <main className={cn("flex-1", pathname === "/app" ? "" : "p-4 lg:p-6")}>
           <motion.div
             key={pathname}
             initial={{ opacity: 0, y: 8 }}

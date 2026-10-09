@@ -2,17 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Home, Megaphone, Sparkles, CircleCheckBig, TrendingUp,
-  Video, Image, Palette, Building2, Share2, Calendar, Star,
-  Settings, ChevronLeft, ChevronRight, LogOut, Zap, Clock, MessageSquare,
+  Megaphone, Sparkles, CircleCheckBig, TrendingUp,
+  Video, Share2, Calendar, Settings, Menu,
+  LogOut, Plus, MessageSquare, PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getToken, clearToken } from "@/lib/auth";
+import { apiGet } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { CurvMark } from "./CurvMark";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface NavItem {
   label: string;
@@ -20,214 +22,238 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-interface NavSection {
-  section: string;
-  items: NavItem[];
-}
-
-const BUSINESS_NAV: NavSection[] = [
-  {
-    section: "Main",
-    items: [
-      { label: "Home", href: "/app", icon: Home },
-      { label: "Chat History", href: "/app/chat-history", icon: MessageSquare },
-      { label: "Campaigns", href: "/app/campaigns", icon: Megaphone },
-      { label: "Creative Studio", href: "/app/creative-studio", icon: Sparkles },
-      { label: "Review", href: "/app/review", icon: CircleCheckBig },
-      { label: "Performance", href: "/app/performance", icon: TrendingUp },
-      { label: "Timeline", href: "/app/timeline", icon: Clock },
-    ],
-  },
-  {
-    section: "Creative AI",
-    items: [
-      { label: "AI Video", href: "/app/video", icon: Video },
-      { label: "AI Image Studio", href: "/app/images", icon: Image },
-      { label: "Design AI", href: "/app/design", icon: Palette },
-    ],
-  },
-  {
-    section: "Brand",
-    items: [
-      { label: "My Brand", href: "/app/brands", icon: Building2 },
-      { label: "Channels", href: "/app/channels", icon: Share2 },
-      { label: "Content Calendar", href: "/app/calendar", icon: Calendar },
-      { label: "Customer Reviews", href: "/app/reviews", icon: Star },
-    ],
-  },
-  {
-    section: "Settings",
-    items: [
-      { label: "Settings", href: "/app/settings", icon: Settings },
-    ],
-  },
+const WORKSPACE_NAV: NavItem[] = [
+  { label: "Campaigns", href: "/app/campaigns", icon: Megaphone },
+  { label: "Creative Studio", href: "/app/creative-studio", icon: Sparkles },
+  { label: "AI Video", href: "/app/video", icon: Video },
+  { label: "Review", href: "/app/review", icon: CircleCheckBig },
+  { label: "Performance", href: "/app/performance", icon: TrendingUp },
+  { label: "Connections", href: "/app/connections", icon: Share2 },
+  { label: "Calendar", href: "/app/calendar", icon: Calendar },
 ];
 
+const SYSTEM_NAV: NavItem[] = [
+  { label: "Settings", href: "/app/settings", icon: Settings },
+];
+
+interface ChatSession {
+  session_id: string;
+  title: string;
+  preview: string;
+  timestamp: string;
+  created_at: string;
+}
+
+function groupByDate(sessions: ChatSession[]): { label: string; items: ChatSession[] }[] {
+  const groups: Record<string, ChatSession[]> = {};
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+
+  for (const s of sessions) {
+    const date = new Date(s.timestamp || s.created_at);
+    const label =
+      date >= today ? "Today"
+      : date >= yesterday ? "Yesterday"
+      : date >= weekAgo ? "Previous 7 days"
+      : "Older";
+    (groups[label] ??= []).push(s);
+  }
+  return ["Today", "Yesterday", "Previous 7 days", "Older"]
+    .filter((l) => groups[l])
+    .map((l) => ({ label: l, items: groups[l]! }));
+}
+
 /**
- * Sidebar — collapsible, collapsed by default (60px).
- * Expandable to 240px. On mobile, slides in as a drawer.
+ * Gemini-style sidebar — expanded by default (264px), collapsible to a
+ * 72px rail. Owns: New chat, recent conversations, workspace nav, theme
+ * toggle, account.
  */
 export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(true);
+  const [collapsed, setCollapsed] = useState(false);
   const [email, setEmail] = useState("");
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("prachar_email");
     if (stored) setEmail(stored);
+    const savedCollapsed = localStorage.getItem("curv_sidebar_collapsed");
+    if (savedCollapsed === "1") setCollapsed(true);
   }, []);
+
+  const fetchSessions = useCallback(async () => {
+    try {
+      const data = await apiGet<{ sessions: ChatSession[] }>("/runtime/sessions?limit=25");
+      setSessions(data.sessions || []);
+    } catch {
+      /* supplementary nav — silent */
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSessions();
+    const refresh = () => fetchSessions();
+    window.addEventListener("curv:sessions-changed", refresh);
+    return () => window.removeEventListener("curv:sessions-changed", refresh);
+  }, [fetchSessions]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((c) => {
+      localStorage.setItem("curv_sidebar_collapsed", c ? "0" : "1");
+      return !c;
+    });
+  };
 
   // Close mobile drawer on route change
   useEffect(() => {
     if (onMobileClose) onMobileClose();
   }, [pathname, onMobileClose]);
 
+  const handleNewChat = () => {
+    window.dispatchEvent(new CustomEvent("curv:new-chat"));
+    if (pathname !== "/app") router.push("/app");
+    if (onMobileClose) onMobileClose();
+  };
+
   const handleLogout = () => {
     clearToken();
     router.push("/login");
   };
 
+  const grouped = groupByDate(sessions);
+
+  const navLink = (item: NavItem) => {
+    const active = pathname === item.href || pathname.startsWith(item.href + "/");
+    const Icon = item.icon;
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        title={collapsed ? item.label : undefined}
+        className={cn(
+          "flex items-center gap-3 rounded-full px-3.5 py-2 text-sm transition-colors",
+          active
+            ? "bg-bg-hover text-text font-medium"
+            : "text-text-secondary hover:bg-bg-hover hover:text-text",
+          collapsed && "justify-center px-0",
+        )}
+      >
+        <Icon className="w-[18px] h-[18px] shrink-0" />
+        {!collapsed && <span className="truncate">{item.label}</span>}
+      </Link>
+    );
+  };
+
   const sidebarContent = (
     <>
-      {/* Logo + collapse toggle */}
-      <div className="flex items-center justify-between p-3 border-b border-white/[0.04] h-14">
-        {collapsed ? (
-          <Link href="/app" className="mx-auto lg:mx-0">
-            <CurvMark size={28} variant="mark" />
-          </Link>
-        ) : (
-          <Link href="/app" className="flex items-center gap-2 overflow-hidden">
-            <CurvMark size={28} variant="mark" />
-            <span className="font-display text-sm font-bold" style={{ background: "linear-gradient(135deg, #8B5CF6, #EC4899, #F97316)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>CURV AI</span>
-          </Link>
-        )}
+      {/* Header: menu + wordmark */}
+      <div className="flex items-center gap-1 px-3 h-14 shrink-0">
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="hidden lg:flex text-text-muted hover:text-text transition-colors p-1"
+          onClick={toggleCollapsed}
+          className="hidden lg:flex p-2 rounded-full text-text-secondary hover:text-text hover:bg-bg-hover transition-colors"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          {collapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
         </button>
-        {/* Mobile close button */}
         <button
           onClick={onMobileClose}
-          className="lg:hidden text-text-muted hover:text-text transition-colors p-1"
+          className="lg:hidden p-2 rounded-full text-text-secondary hover:text-text hover:bg-bg-hover transition-colors"
+          aria-label="Close menu"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <Menu className="w-5 h-5" />
+        </button>
+        {!collapsed && (
+          <Link href="/app" className="flex items-center gap-2 overflow-hidden">
+            <CurvMark size={26} variant="mark" />
+            <span
+              className="font-display text-sm font-bold"
+              style={{
+                background: "linear-gradient(135deg, #8B5CF6, #EC4899, #F97316)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              CURV AI
+            </span>
+          </Link>
+        )}
+      </div>
+
+      {/* New chat */}
+      <div className={cn("px-3 pt-1 pb-2 shrink-0", collapsed && "px-2")}>
+        <button
+          onClick={handleNewChat}
+          title={collapsed ? "New chat" : undefined}
+          className={cn(
+            "flex items-center gap-3 rounded-full bg-bg-card hover:bg-bg-hover text-text text-sm font-medium transition-colors",
+            collapsed ? "justify-center w-12 h-12 mx-auto" : "px-4 py-3 w-full",
+          )}
+        >
+          <Plus className="w-5 h-5 shrink-0" />
+          {!collapsed && "New chat"}
         </button>
       </div>
 
-      {/* Workspace selector (only when expanded) */}
-      <AnimatePresence>
-        {!collapsed && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="px-3 py-2.5 border-b border-white/[0.04] overflow-hidden"
-          >
-            <div className="flex items-center gap-2 p-2 rounded-lg hover:bg-white/[0.03] transition-colors">
-              <div className="w-7 h-7 rounded-md bg-gradient-to-br from-info/20 to-accent/20 flex items-center justify-center shrink-0">
-                <span className="font-display text-xs font-bold text-text">
-                  {email[0]?.toUpperCase() || "P"}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0 text-left">
-                <div className="text-xs font-medium text-text truncate">My Workspace</div>
-                <div className="text-[10px] text-text-muted truncate">{email || "demo@curvai.org"}</div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto scrollbar-none px-2 py-3 space-y-4">
-        {BUSINESS_NAV.map((section) => (
-          <div key={section.section}>
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="px-3 mb-1.5 label-field text-[9px]"
-                >
-                  {section.section}
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <div className="space-y-0.5">
-              {section.items.map((item) => {
-                const active = pathname === item.href || pathname.startsWith(item.href + "/");
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-200 group relative",
-                      active
-                        ? "bg-accent/15 text-accent font-medium"
-                        : "text-text-secondary hover:text-text hover:bg-white/[0.03]",
-                      collapsed && "justify-center px-0",
-                    )}
-                    title={collapsed ? item.label : undefined}
+      {/* Scrollable middle: recents + workspace nav */}
+      <div className="flex-1 overflow-y-auto scrollbar-none px-3 pb-2">
+        {/* Recent conversations (expanded only) */}
+        {!collapsed && grouped.length > 0 && (
+          <div className="pt-2">
+            <div className="px-3.5 pb-1 text-[11px] font-medium text-text-muted">Recent</div>
+            {grouped.slice(0, 2).map((group) => (
+              <div key={group.label} className="mb-1">
+                {group.items.slice(0, 5).map((s) => (
+                  <button
+                    key={s.session_id}
+                    onClick={() => {
+                      router.push(`/app?session=${s.session_id}` as never);
+                      if (onMobileClose) onMobileClose();
+                    }}
+                    title={s.title || "Conversation"}
+                    className="w-full flex items-center gap-3 text-left px-3.5 py-2 rounded-full text-[13px] text-text-secondary hover:bg-bg-hover hover:text-text transition-colors truncate"
                   >
-                    {active && (
-                      <motion.div
-                        layoutId="sidebar-active"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-accent rounded-r-full"
-                      />
-                    )}
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      {/* Status indicator */}
-      <AnimatePresence>
-        {!collapsed && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="px-3 py-2.5 border-t border-white/[0.04] overflow-hidden"
-          >
-            <div className="glass rounded-lg p-2.5">
-              <div className="flex items-center gap-2 mb-1.5">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  className="w-3 h-3 rounded-full bg-success"
-                />
-                <span className="font-mono text-[10px] uppercase tracking-wider text-success">
-                  Your marketing is live
-                </span>
+                    <MessageSquare className="w-4 h-4 shrink-0 opacity-50" />
+                    <span className="truncate">{s.title || "New conversation"}</span>
+                  </button>
+                ))}
               </div>
-              <div className="text-[10px] text-text-muted">Working in the background</div>
-            </div>
-          </motion.div>
+            ))}
+            <Link
+              href="/app/chat-history"
+              className="block px-3.5 py-1.5 text-[11px] text-text-muted hover:text-text transition-colors"
+            >
+              All conversations →
+            </Link>
+          </div>
         )}
-      </AnimatePresence>
 
-      {/* Logout */}
-      <div className="p-3 border-t border-white/[0.04]">
+        {/* Workspace nav */}
+        <div className="pt-3">
+          {!collapsed && (
+            <div className="px-3.5 pb-1 text-[11px] font-medium text-text-muted">Workspace</div>
+          )}
+          <div className="space-y-0.5">{WORKSPACE_NAV.map(navLink)}</div>
+        </div>
+
+        <div className="pt-3">
+          <div className="space-y-0.5">{SYSTEM_NAV.map(navLink)}</div>
+        </div>
+      </div>
+
+      {/* Bottom: theme + account */}
+      <div className={cn("p-3 border-t border-line/5 flex items-center gap-1 shrink-0", collapsed && "flex-col")}>
+        <ThemeToggle />
+        {!collapsed && <div className="flex-1 min-w-0 px-1 text-[11px] text-text-muted truncate">{email}</div>}
         <button
           onClick={handleLogout}
-          className={cn(
-            "flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-text-secondary hover:text-danger hover:bg-danger/5 transition-all w-full",
-            collapsed && "justify-center px-0",
-          )}
-          title={collapsed ? "Logout" : undefined}
+          title="Log out"
+          className="p-2 rounded-lg text-text-secondary hover:text-danger hover:bg-bg-hover transition-colors"
         >
-          <LogOut className="w-4 h-4 shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          <LogOut className="w-4 h-4" />
         </button>
       </div>
     </>
@@ -235,21 +261,20 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
 
   return (
     <>
-      {/* Desktop sidebar — sticky in flow, only at lg+ */}
+      {/* Desktop sidebar */}
       <aside
         className={cn(
-          "hidden lg:flex sticky top-0 z-30 h-screen bg-bg-surface border-r border-white/[0.04] flex-col transition-all duration-300 ease-out-quart shrink-0",
-          collapsed ? "w-[60px]" : "w-[240px]",
+          "hidden lg:flex sticky top-0 z-30 h-screen bg-bg-surface flex-col transition-all duration-300 ease-out-quart shrink-0",
+          collapsed ? "w-[72px]" : "w-[264px]",
         )}
       >
         {sidebarContent}
       </aside>
 
-      {/* Mobile drawer — overlay above everything */}
+      {/* Mobile drawer */}
       <AnimatePresence>
         {mobileOpen && (
           <>
-            {/* Backdrop — below drawer, above all app content + bottom nav */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -257,13 +282,12 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
               onClick={onMobileClose}
               className="lg:hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
             />
-            {/* Drawer — above backdrop */}
             <motion.aside
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="lg:hidden fixed top-0 left-0 z-[70] h-screen w-[280px] max-w-[85vw] bg-bg-surface border-r border-white/[0.06] flex flex-col overflow-y-auto"
+              className="lg:hidden fixed top-0 left-0 z-[70] h-screen w-[280px] max-w-[85vw] bg-bg-surface flex flex-col overflow-y-auto"
             >
               {sidebarContent}
             </motion.aside>

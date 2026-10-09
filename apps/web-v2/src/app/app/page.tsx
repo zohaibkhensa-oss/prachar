@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { CurvOrb } from "@/components/CurvOrb";
-import { ChatHistoryRail } from "@/components/ChatHistoryRail";
 import { ArtefactRenderer, type Artefact } from "@/components/ArtefactRenderer";
 import { TypewriterText } from "@/components/TypewriterText";
 import { ThinkingBubble } from "@/components/ThinkingBubble";
@@ -534,6 +533,18 @@ export default function DashboardPage() {
     if (searchParams.get("session")) router.replace("/app");
   }, [session, searchParams, router]);
 
+  // ─── Sidebar-driven new chat ─────────────────────────────────────────────
+  useEffect(() => {
+    const h = () => handleNewChat();
+    window.addEventListener("curv:new-chat", h);
+    return () => window.removeEventListener("curv:new-chat", h);
+  }, [handleNewChat]);
+
+  // ─── Notify sidebar when the session list changes ────────────────────────
+  useEffect(() => {
+    if (currentSessionId) window.dispatchEvent(new CustomEvent("curv:sessions-changed"));
+  }, [currentSessionId]);
+
   // ─── Load a past session from URL query param ─────────────────────────────
   const loadSession = useCallback(async (sessionId: string) => {
     try {
@@ -601,12 +612,6 @@ export default function DashboardPage() {
   if (!inConversation) {
     return (
       <div className="min-h-[calc(100vh-64px)] flex">
-        {/* Conversation rail — ChatGPT/Gemini-style persistent history */}
-        <ChatHistoryRail
-          activeSessionId={currentSessionId}
-          onNewChat={handleNewChat}
-          refreshKey={messages.length}
-        />
         <div className="flex-1 min-w-0 flex flex-col items-center justify-start px-4 py-8 lg:py-12">
         {/* ═══ Greeting ═══ */}
         <motion.div
@@ -722,12 +727,6 @@ export default function DashboardPage() {
   // ═══════════════════════════════════════════════════════════════════════════
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {/* Conversation rail — ChatGPT/Gemini-style persistent history */}
-      <ChatHistoryRail
-        activeSessionId={currentSessionId}
-        onNewChat={handleNewChat}
-        refreshKey={messages.length}
-      />
       <div className="flex-1 min-w-0 flex flex-col">
       {/* ─── Conversation header ─── */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.04] flex-shrink-0">
@@ -1020,8 +1019,7 @@ function PromptInput({
   return (
     <div>
       <div
-        className="group relative rounded-3xl border border-white/[0.08] bg-bg-card/80 backdrop-blur-xl transition-all duration-300 focus-within:border-accent/30 focus-within:shadow-glow"
-        style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+        className="group relative rounded-3xl border border-line/10 bg-bg-card/80 backdrop-blur-xl transition-all duration-300 focus-within:border-accent/30 focus-within:shadow-glow shadow-lg"
       >
         {/* Attachment previews */}
         {attachments.length > 0 && (
