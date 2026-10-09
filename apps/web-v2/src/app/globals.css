@@ -12,7 +12,7 @@
   }
 
   /* ─── Theme variables (RGB triplets for Tailwind alpha support) ─── */
-  html.dark, :root {
+  :root {
     --bg: 8 9 13;
     --bg-surface: 15 17 23;
     --bg-card: 19 22 32;
@@ -23,30 +23,6 @@
     --text-secondary: 148 163 184;
     --text-tertiary: 100 116 139;
     --text-muted: 71 85 105;
-  }
-
-  /* Gemini-style light theme */
-  html.light {
-    --bg: 255 255 255;
-    --bg-surface: 255 255 255;
-    --bg-card: 240 244 249;
-    --bg-elevated: 255 255 255;
-    --bg-hover: 233 238 246;
-    --line: 0 0 0;
-    --text: 31 35 40;
-    --text-secondary: 68 71 76;
-    --text-tertiary: 117 120 127;
-    --text-muted: 158 163 171;
-  }
-
-  /* Neutralize white-alpha surfaces in light mode */
-  html.light .bg-white\/\[0\.03\], html.light .bg-white\/\[0\.04\],
-  html.light .bg-white\/\[0\.06\], html.light .bg-white\/10 {
-    background-color: rgb(0 0 0 / 0.05);
-  }
-  html.light .border-white\/\[0\.04\], html.light .border-white\/\[0\.06\],
-  html.light .border-white\/\[0\.08\] {
-    border-color: rgb(0 0 0 / 0.08);
   }
 
   * {
@@ -61,14 +37,12 @@
 
   body {
     @apply bg-bg text-text font-body antialiased;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-  html.dark body {
     background-image: radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.04) 0%, transparent 50%),
       radial-gradient(at 100% 0%, rgba(236, 72, 153, 0.04) 0%, transparent 50%),
       radial-gradient(at 50% 100%, rgba(249, 115, 22, 0.03) 0%, transparent 50%);
     background-attachment: fixed;
+    min-height: 100vh;
+    overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {

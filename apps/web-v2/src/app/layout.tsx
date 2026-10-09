@@ -44,13 +44,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${plexMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`dark ${inter.variable} ${spaceGrotesk.variable} ${plexMono.variable}`}>
       <body className="font-body bg-bg text-text antialiased min-h-screen">
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('curv_theme');if(t==='light'){document.documentElement.classList.remove('dark');document.documentElement.classList.add('light');}}catch(e){}})();`,
-          }}
-        />
         {/* Google Identity Services */}
         <script src="https://accounts.google.com/gsi/client" async defer />
         {/* Apple Sign-In JS */}

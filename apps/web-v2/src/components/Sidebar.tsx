@@ -14,7 +14,6 @@ import { getToken, clearToken } from "@/lib/auth";
 import { apiGet } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { CurvMark } from "./CurvMark";
-import { ThemeToggle } from "./ThemeToggle";
 
 interface NavItem {
   label: string;
@@ -244,9 +243,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: { mobileOpen?: boolean; o
         </div>
       </div>
 
-      {/* Bottom: theme + account */}
+      {/* Bottom: account */}
       <div className={cn("p-3 border-t border-line/5 flex items-center gap-1 shrink-0", collapsed && "flex-col")}>
-        <ThemeToggle />
         {!collapsed && <div className="flex-1 min-w-0 px-1 text-[11px] text-text-muted truncate">{email}</div>}
         <button
           onClick={handleLogout}
