@@ -1,17 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Card3D, Card } from "@/components/ui/card-3d";
-import { AIThinkingOverlay } from "@/components/ui/ai-blocks";
-import { SectionHeader, EmptyState } from "@/components/ui/empty-state";
-import { LabsBanner } from "@/components/LabsBanner";
 import { apiPost, ApiError } from "@/lib/api";
 import {
-  Image as ImageIcon, Wand2, Download, Edit3, Crop, RotateCw,
-  Sparkles, Filter, Eraser, Expand, Type, Palette, Layers,
-  Square, RectangleVertical, RectangleHorizontal, AlertTriangle,
+  Image as ImageIcon, Download, Sparkles, AlertTriangle, ArrowUp,
+  Square, RectangleVertical, RectangleHorizontal, ChevronDown, X,
 } from "lucide-react";
 
 type GeneratedImage = {
@@ -19,11 +14,9 @@ type GeneratedImage = {
   prompt: string;
   style: string;
   ratio: string;
-  quality: string;
   imageUrl: string;
 };
 
-const STYLES = ["Photorealistic", "Illustration", "3D Render", "Minimalist", "Vintage", "Cyberpunk", "Watercolor", "Cartoon", "Abstract"];
 const RATIOS = [
   { id: "1:1", label: "1:1", icon: Square },
   { id: "16:9", label: "16:9", icon: RectangleHorizontal },
@@ -31,337 +24,335 @@ const RATIOS = [
   { id: "4:5", label: "4:5", icon: RectangleVertical },
   { id: "3:2", label: "3:2", icon: RectangleHorizontal },
 ];
-const QUALITIES = ["Standard", "HD", "Ultra HD"];
-const FILTERS = ["None", "Vintage", "B&W", "Vivid", "Soft", "Dramatic", "Warm", "Cool"];
 
-const TABS = ["Generated", "Editor", "Brand Assets", "Templates"];
+const STYLES = ["Photorealistic", "Illustration", "3D Render", "Minimalist", "Cinematic"];
+
+/** Template suggestions — Gemini-style starter cards. Emoji-free thumbnails
+ *  use gradient tiles; label fills the prompt on click. */
+const TEMPLATES = [
+  { label: "Product hero shot", prompt: "Premium product photo of a coffee product on a marble counter, soft morning light, minimal background", gradient: "from-amber-500/60 to-orange-600/60" },
+  { label: "Festive promo", prompt: "Vibrant festive sale banner background, warm tones, celebratory lights, space for text overlay", gradient: "from-fuchsia-500/60 to-purple-600/60" },
+  { label: "Lifestyle ad", prompt: "Lifestyle photo, young professional using a phone in a bright modern cafe, shallow depth of field", gradient: "from-sky-500/60 to-blue-600/60" },
+  { label: "HD portrait", prompt: "Professional HD portrait with studio lighting, neutral backdrop, sharp focus", gradient: "from-emerald-500/60 to-teal-600/60" },
+  { label: "Food flat-lay", prompt: "Overhead flat-lay of gourmet food on dark slate, editorial style, rich colors", gradient: "from-rose-500/60 to-red-600/60" },
+];
 
 export default function ImageStudioPage() {
-  const [tab, setTab] = useState("Generated");
-  const [generating, setGenerating] = useState(false);
   const [prompt, setPrompt] = useState("");
-  const [negativePrompt, setNegativePrompt] = useState("");
   const [style, setStyle] = useState("Photorealistic");
   const [ratio, setRatio] = useState("1:1");
-  const [quality, setQuality] = useState("HD");
-  const [variations, setVariations] = useState(4);
+  const [generating, setGenerating] = useState(false);
   const [images, setImages] = useState<GeneratedImage[]>([]);
-  const [aiPrompt, setAiPrompt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ratioOpen, setRatioOpen] = useState(false);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [lightbox, setLightbox] = useState<GeneratedImage | null>(null);
+
+  const [w, h] = ratio === "9:16" ? [720, 1280]
+    : ratio === "16:9" ? [1280, 720]
+    : ratio === "4:5" ? [896, 1120]
+    : ratio === "3:2" ? [1152, 768]
+    : [1024, 1024];
 
   async function generate() {
     if (!prompt.trim() || generating) return;
     setGenerating(true);
     setError(null);
-    setAiPrompt(null);
 
-    const fullPrompt = `${prompt}, ${style} style, high quality, detailed, professional photography${negativePrompt ? `. Exclude: ${negativePrompt}` : ""}`;
+    const fullPrompt = `${prompt}, ${style} style, high quality, detailed, professional`;
 
-    // Fire LLM prompt enhancement in parallel (best-effort, non-blocking)
-    const promptPromise = apiPost<{ reply: string }>("/chat", {
-      messages: [{
-        role: "user",
-        content: `You are an AI image prompt engineer for CURV AI. The user wants a ${style} image in ${ratio} format. Their prompt: "${prompt}". ${negativePrompt ? `Exclude: ${negativePrompt}.` : ""} Generate ${variations} enhanced, detailed image generation prompts (each on a new line, numbered 1-${variations}). Include lighting, composition, mood, and style details.`,
-      }],
-    }).then(data => setAiPrompt(data.reply)).catch(() => {});
-
-    // Generate real AI images via the backend image generation API
-    const count = Math.min(variations, 4);
-    const imagePromises = Array.from({ length: count }, (_, i) =>
-      apiPost<{ image_url?: string; url?: string }>("/video/generate-image", {
-        prompt: fullPrompt,
-        width: ratio === "9:16" ? 720 : 1024,
-        height: ratio === "9:16" ? 1280 : 1024,
-      }).then(data => ({
-        id: `${Date.now()}-${i}`,
-        prompt: `${prompt} — variation ${i + 1}`,
-        style,
-        ratio,
-        quality,
-        imageUrl: data.image_url ?? data.url ?? "",
-      }))
+    const results = await Promise.allSettled(
+      Array.from({ length: 4 }, (_, i) =>
+        apiPost<{ image_url?: string; url?: string }>("/video/generate-image", {
+          prompt: fullPrompt,
+          width: w,
+          height: h,
+        }).then((data) => ({
+          id: `${Date.now()}-${i}`,
+          prompt,
+          style,
+          ratio,
+          imageUrl: data.image_url ?? data.url ?? "",
+        })),
+      ),
     );
-
-    const results = await Promise.allSettled(imagePromises);
-    await promptPromise;
 
     const validImages = results
       .filter((r): r is PromiseFulfilledResult<GeneratedImage> => r.status === "fulfilled" && r.value.imageUrl !== "")
-      .map(r => r.value);
+      .map((r) => r.value);
 
     if (validImages.length === 0) {
-      const firstError = results.find(r => r.status === "rejected");
-      if (firstError && firstError.status === "rejected") {
-        const reason = firstError.reason;
-        setError(reason instanceof ApiError
-          ? `Generation failed (HTTP ${reason.status}). Please try again.`
-          : reason instanceof Error
-            ? reason.message
-            : "Image generation failed. Please try again.");
-      } else {
-        setError("Image generation returned no images. Please try again.");
-      }
+      const firstError = results.find((r) => r.status === "rejected");
+      setError(
+        firstError && firstError.status === "rejected" && firstError.reason instanceof ApiError
+          ? `Generation failed (HTTP ${firstError.reason.status}). Please try again.`
+          : firstError && firstError.status === "rejected" && firstError.reason instanceof Error
+            ? firstError.reason.message
+            : "Image generation failed. Please try again.",
+      );
     } else {
-      setImages(prev => [...validImages, ...prev]);
+      setImages((prev) => [...validImages, ...prev]);
     }
-
     setGenerating(false);
   }
 
+  const ActiveRatioIcon = RATIOS.find((r) => r.id === ratio)?.icon ?? Square;
+
   return (
-    <div className="space-y-6 relative">
-      <LabsBanner title="AI Image Studio" description="Generate marketing creatives from text prompts. Powered by AI image generation." features={["Text-to-image", "Multiple styles", "Variations"]} />
-      {generating && <AIThinkingOverlay message="AI is generating your images..." />}
+    <div className="min-h-[calc(100vh-64px)] flex flex-col items-center px-4">
+      {/* ─── Hero ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-3xl pt-14 lg:pt-20 text-center"
+      >
+        <motion.div
+          animate={{ y: [0, -6, 0] }}
+          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+          className="mx-auto mb-6 w-14 h-14 rounded-2xl bg-gradient-to-br from-accent to-accent-magenta flex items-center justify-center shadow-glow"
+        >
+          <ImageIcon className="w-7 h-7 text-white" />
+        </motion.div>
+        <h1 className="font-display text-3xl sm:text-4xl font-semibold tracking-tight text-text">
+          Create images
+        </h1>
+        <p className="mt-3 text-sm sm:text-base text-text-secondary max-w-md mx-auto">
+          Try a template or describe an idea — CURV AI creates it.
+        </p>
+      </motion.div>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-text">AI Image Studio</h1>
-          <p className="text-sm text-text-secondary mt-1">Generate, edit, and manage ad creatives — better than Canva</p>
-        </div>
-        <span className="badge badge-accent"><Sparkles className="w-3 h-3" /> AI Powered</span>
-      </div>
+      {/* ─── Composer ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.08 }}
+        className="w-full max-w-2xl mt-8"
+      >
+        <div className="group relative rounded-3xl border border-line/10 bg-bg-card/80 backdrop-blur-xl transition-all duration-300 focus-within:border-accent/30 focus-within:shadow-glow shadow-lg">
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                generate();
+              }
+            }}
+            placeholder="Describe your image"
+            rows={2}
+            className="w-full bg-transparent text-text placeholder:text-text-muted text-sm sm:text-base px-5 pt-4 pb-2 resize-none outline-none"
+          />
+          <div className="flex items-center justify-between px-3 pb-3 pt-1">
+            <div className="flex items-center gap-1.5">
+              {/* Mode chip */}
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-bg-hover text-xs font-medium text-text-secondary">
+                <ImageIcon className="w-3.5 h-3.5" /> Images
+              </span>
 
-      <div className="flex gap-1 p-1 rounded-lg bg-bg-surface w-fit">
-        {TABS.map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={cn("px-4 py-2 rounded-md text-sm font-medium transition-all", tab === t ? "bg-accent/10 text-accent" : "text-text-secondary hover:text-text")}>{t}</button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Generation Panel */}
-        <div className="lg:col-span-3 space-y-4">
-          <Card3D glow>
-            <SectionHeader title="Generate Images" subtitle="Text to image in seconds" />
-            <div className="space-y-4">
-              <div>
-                <label className="label-field block mb-2">Prompt</label>
-                <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Describe your image... e.g., 'A premium coffee cup on a marble counter with morning sunlight'" className="input-field h-20 resize-none" maxLength={500} />
-              </div>
-              <div>
-                <label className="label-field block mb-2">Negative Prompt</label>
-                <input value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} placeholder="What to exclude... e.g., 'text, watermark, blurry'" className="input-field" />
-              </div>
-              <div>
-                <label className="label-field block mb-2">Style</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {STYLES.map((s) => (
-                    <button key={s} onClick={() => setStyle(s)} className={cn("px-2.5 py-1 rounded-full text-xs border transition-all", style === s ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary hover:text-text")}>{s}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label-field block mb-2">Aspect Ratio</label>
-                <div className="grid grid-cols-5 gap-1.5">
-                  {RATIOS.map((r) => (
-                    <button key={r.id} onClick={() => setRatio(r.id)} className={cn("flex flex-col items-center gap-1 px-1 py-2 rounded-md border transition-all", ratio === r.id ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary")}>
-                      <r.icon className="w-3 h-3" /><span className="text-[9px]">{r.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label-field block mb-2">Quality</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {QUALITIES.map((q) => (
-                    <button key={q} onClick={() => setQuality(q)} className={cn("px-2 py-1.5 rounded-md text-xs border transition-all", quality === q ? "bg-accent/10 border-accent/30 text-accent" : "bg-white/[0.02] border-white/[0.06] text-text-secondary")}>{q}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label-field block mb-2">Variations: {variations}</label>
-                <input type="range" min={1} max={8} value={variations} onChange={(e) => setVariations(Number(e.target.value))} className="w-full accent-accent" />
-              </div>
-              <button onClick={generate} disabled={!prompt.trim() || generating} className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"><Wand2 className="w-4 h-4" /> {generating ? "Generating..." : "Generate Images"}</button>
-            </div>
-          </Card3D>
-        </div>
-
-        {/* Center: Results / Editor / Assets */}
-        <div className="lg:col-span-6 space-y-6">
-          {tab === "Generated" && (
-            <div className="space-y-4">
-              {aiPrompt && (
-                <Card className="border-l-2 border-l-accent/40">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-4 h-4 text-accent" />
-                    <span className="text-sm font-medium text-text">AI-Enhanced Prompts</span>
-                  </div>
-                  <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-wrap">{aiPrompt}</p>
-                </Card>
-              )}
-              {error && !generating && (
-                <Card className="border-l-2 border-l-danger/40">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className="w-4 h-4 text-danger" />
-                    <span className="text-sm font-medium text-text">Generation Error</span>
-                  </div>
-                  <p className="text-xs text-text-secondary">{error}</p>
-                </Card>
-              )}
-              {images.length === 0 && !generating ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex flex-col items-center justify-center h-64 text-center"
+              {/* Aspect ratio dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => { setRatioOpen(!ratioOpen); setStyleOpen(false); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-text-secondary hover:bg-bg-hover transition-colors"
                 >
-                  <motion.div
-                    animate={{ y: [0, -6, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4 glow-ring"
-                  >
-                    <Wand2 className="w-8 h-8 text-accent" />
-                  </motion.div>
-                  <p className="text-sm text-text-secondary">Enter a prompt and click Generate to create images</p>
-                  <p className="text-xs text-text-muted mt-1">AI will generate {variations} variation{variations > 1 ? "s" : ""} in {style} style</p>
-                </motion.div>
-              ) : (
-                <div className="columns-2 md:columns-3 gap-4 space-y-4">
-                  {images.map((img, i) => (
-                <motion.div key={img.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }} className="break-inside-avoid">
-                  <Card3D className="overflow-hidden p-0">
-                    <div className="relative aspect-square rounded-t-xl flex items-center justify-center group cursor-pointer overflow-hidden">
-                      <img src={img.imageUrl} alt={img.prompt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      <span className="absolute bottom-2 left-2 badge badge-neutral text-[9px]">{img.ratio}</span>
-                    </div>
-                    <div className="p-3">
-                      <p className="text-xs text-text-secondary truncate mb-2">{img.prompt}</p>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] text-text-muted">{img.style} · {img.quality}</span>
-                      </div>
-                      <div className="flex gap-1">
+                  <ActiveRatioIcon className="w-3.5 h-3.5" />
+                  Aspect ratio
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                <AnimatePresence>
+                  {ratioOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      className="absolute left-0 bottom-full mb-2 z-20 min-w-[140px] rounded-2xl border border-line/10 bg-bg-elevated p-1.5 shadow-xl"
+                    >
+                      {RATIOS.map((r) => (
                         <button
-                          onClick={() => {
-                            if (!img.imageUrl) return;
-                            const a = document.createElement("a");
-                            a.href = img.imageUrl;
-                            a.download = `curv-image-${img.id}.png`;
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                          }}
-                          disabled={!img.imageUrl}
-                          className="btn-secondary text-xs px-2 py-1 flex-1 disabled:opacity-30"
+                          key={r.id}
+                          onClick={() => { setRatio(r.id); setRatioOpen(false); }}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs transition-colors",
+                            ratio === r.id ? "bg-accent/15 text-accent" : "text-text-secondary hover:bg-bg-hover hover:text-text",
+                          )}
                         >
-                          <Download className="w-3 h-3" />
+                          <r.icon className="w-3.5 h-3.5" />
+                          {r.label}
                         </button>
-                        <button className="btn-secondary text-xs px-2 py-1 flex-1">Use in Ad</button>
-                        <button className="btn-secondary text-xs px-2 py-1"><Edit3 className="w-3 h-3" /></button>
-                      </div>
-                    </div>
-                  </Card3D>
-                </motion.div>
-                  ))}
-                </div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Style dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => { setStyleOpen(!styleOpen); setRatioOpen(false); }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium text-text-secondary hover:bg-bg-hover transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {style}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                <AnimatePresence>
+                  {styleOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                      className="absolute left-0 bottom-full mb-2 z-20 min-w-[160px] rounded-2xl border border-line/10 bg-bg-elevated p-1.5 shadow-xl"
+                    >
+                      {STYLES.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => { setStyle(s); setStyleOpen(false); }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded-xl text-xs transition-colors",
+                            style === s ? "bg-accent/15 text-accent" : "text-text-secondary hover:bg-bg-hover hover:text-text",
+                          )}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* Send */}
+            <button
+              onClick={generate}
+              disabled={!prompt.trim() || generating}
+              className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center transition-all",
+                prompt.trim() && !generating
+                  ? "bg-gradient-to-br from-accent to-accent-dark text-white hover:scale-105 shadow-glow"
+                  : "bg-white/[0.04] text-text-muted cursor-not-allowed",
               )}
-            </div>
-          )}
+              aria-label="Generate images"
+            >
+              {generating ? (
+                <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+              ) : (
+                <ArrowUp className="w-[18px] h-[18px]" strokeWidth={2.5} />
+              )}
+            </button>
+          </div>
+        </div>
 
-          {tab === "Editor" && (
-            <Card>
-              <SectionHeader title="Image Editor" subtitle="AI-powered editing tools" icon={<Edit3 className="w-4 h-4" />} />
-              {/* Canvas */}
-              <div className="aspect-video rounded-xl bg-gradient-to-br from-bg-surface to-bg-card border border-white/[0.06] flex items-center justify-center mb-4 relative">
-                <ImageIcon className="w-16 h-16 text-white/10" />
-                <span className="absolute bottom-3 right-3 font-mono text-[10px] text-text-muted">1080 × 1080</span>
-              </div>
-              {/* Toolbar */}
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-4">
-                {[
-                  { icon: Type, label: "Text" },
-                  { icon: Crop, label: "Crop" },
-                  { icon: RotateCw, label: "Rotate" },
-                  { icon: Filter, label: "Filter" },
-                  { icon: Eraser, label: "Eraser" },
-                  { icon: Expand, label: "Expand" },
-                  { icon: Palette, label: "Color" },
-                  { icon: Layers, label: "Layers" },
-                ].map((tool) => (
-                  <button key={tool.label} className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.04] transition-all">
-                    <tool.icon className="w-4 h-4 text-text-secondary" />
-                    <span className="text-[9px] text-text-muted">{tool.label}</span>
+        {error && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-danger px-2">
+            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+            {error}
+          </div>
+        )}
+      </motion.div>
+
+      {/* ─── Templates / results ─── */}
+      {images.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.15 }}
+          className="w-full max-w-3xl mt-10 pb-16"
+        >
+          <div className="flex gap-3 overflow-x-auto scrollbar-none pb-2 -mx-4 px-4">
+            {TEMPLATES.map((t, i) => (
+              <motion.button
+                key={t.label}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 + i * 0.05 }}
+                onClick={() => setPrompt(t.prompt)}
+                className="group shrink-0 w-40 text-left"
+              >
+                <div className={cn("aspect-[3/4] rounded-2xl bg-gradient-to-br overflow-hidden relative", t.gradient)}>
+                  <Sparkles className="w-5 h-5 text-white/60 absolute bottom-3 left-3" />
+                </div>
+                <p className="mt-2 text-xs font-medium text-text-secondary group-hover:text-text transition-colors">
+                  {t.label}
+                </p>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      ) : (
+        <div className="w-full max-w-4xl mt-10 pb-16">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-medium text-text-secondary">Your images</h2>
+            {generating && (
+              <span className="text-xs text-text-muted animate-pulse">Generating 4 more…</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {images.map((img, i) => (
+              <motion.div
+                key={img.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+                className="group relative rounded-2xl overflow-hidden bg-bg-card border border-line/10 cursor-pointer"
+                onClick={() => setLightbox(img)}
+              >
+                <div
+                  className={cn(
+                    "w-full",
+                    ratio === "9:16" ? "aspect-[9/16]"
+                    : ratio === "16:9" ? "aspect-video"
+                    : ratio === "4:5" ? "aspect-[4/5]"
+                    : ratio === "3:2" ? "aspect-[3/2]"
+                    : "aspect-square",
+                  )}
+                >
+                  <img src={img.imageUrl} alt={img.prompt} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between p-3">
+                  <span className="text-[10px] text-white/80 truncate flex-1 mr-2">{img.prompt}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const a = document.createElement("a");
+                      a.href = img.imageUrl;
+                      a.download = `curv-image-${img.id}.png`;
+                      a.click();
+                    }}
+                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors shrink-0"
+                    aria-label="Download"
+                  >
+                    <Download className="w-3.5 h-3.5" />
                   </button>
-                ))}
-              </div>
-              {/* Filters */}
-              <div>
-                <label className="label-field block mb-2">Filter Presets</label>
-                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                  {FILTERS.map((f) => (
-                    <button key={f} className="aspect-square rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-accent/30 text-[10px] text-text-secondary hover:text-accent transition-all flex items-center justify-center">{f}</button>
-                  ))}
                 </div>
-              </div>
-            </Card>
-          )}
-
-          {tab === "Brand Assets" && (
-            <EmptyState
-              icon={<ImageIcon className="w-6 h-6 text-accent" />}
-              title="No brand assets yet"
-              description="Images you generate will be saved here. Start by creating an image from the Generate panel."
-            />
-          )}
-
-          {tab === "Templates" && (
-            <EmptyState
-              icon={<Layers className="w-6 h-6 text-accent" />}
-              title="Templates coming soon"
-              description="Pre-built templates for Instagram, Facebook, YouTube, and more will be available here."
-            />
-          )}
+              </motion.div>
+            ))}
+          </div>
         </div>
+      )}
 
-        {/* Right: AI Magic Tools */}
-        <div className="lg:col-span-3 space-y-4">
-          <Card>
-            <SectionHeader title="AI Magic Tools" subtitle="One-click AI editing" icon={<Sparkles className="w-4 h-4" />} />
-            <div className="space-y-2">
-              {[
-                { icon: Expand, name: "Magic Expand", desc: "Extend beyond borders" },
-                { icon: Eraser, name: "Magic Eraser", desc: "Remove any object" },
-                { icon: Type, name: "Magic Write", desc: "AI text generation" },
-                { icon: Crop, name: "Magic Switch", desc: "Auto-resize for all platforms" },
-                { icon: Palette, name: "Brand Auto-Apply", desc: "Apply brand kit instantly" },
-                { icon: Filter, name: "Background Remover", desc: "One-click transparent BG" },
-              ].map((tool) => (
-                <div key={tool.name} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.04] transition-all cursor-pointer group">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center group-hover:glow-ring transition-all">
-                      <tool.icon className="w-4 h-4 text-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-text">{tool.name}</div>
-                      <div className="text-[10px] text-text-muted">{tool.desc}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <SectionHeader title="Brand Kit" />
-            <div className="space-y-3">
-              <div>
-                <label className="label-field block mb-1.5">Colors</label>
-                <div className="flex gap-1.5">
-                  {["#FFD400", "#0B0F14", "#22C55E", "#3B82F6", "#EF4444"].map((c) => (
-                    <div key={c} className="w-7 h-7 rounded-md border border-white/[0.1]" style={{ background: c }} />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="label-field block mb-1.5">Fonts</label>
-                <div className="text-xs text-text-secondary">Space Grotesk · Inter · IBM Plex Mono</div>
-              </div>
-              <div>
-                <label className="label-field block mb-1.5">Logo</label>
-                <div className="w-full h-12 rounded-lg bg-white/[0.02] border border-dashed border-white/[0.08] flex items-center justify-center text-xs text-text-muted">Upload logo</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
+      {/* ─── Lightbox ─── */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setLightbox(null)}
+            className="fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center p-6"
+          >
+            <button onClick={() => setLightbox(null)} className="absolute top-5 right-5 p-2 rounded-full bg-white/10 text-white hover:bg-white/20" aria-label="Close">
+              <X className="w-5 h-5" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.92 }}
+              animate={{ scale: 1 }}
+              src={lightbox.imageUrl}
+              alt={lightbox.prompt}
+              className="max-w-full max-h-[85vh] rounded-2xl object-contain shadow-2xl"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
