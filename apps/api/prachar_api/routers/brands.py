@@ -251,8 +251,12 @@ async def upload_media(
             aws_access_key_id=s.s3_access_key,
             aws_secret_access_key=s.s3_secret_key,
         )
-    if s.s3_region:
-        kwargs["region_name"] = s.s3_region
+    # Region: explicit env, else derive from an AWS-style endpoint URL
+    region = s.s3_region
+    if (not region or region == "us-east-1") and "s3." in s.s3_endpoint:
+        region = s.s3_endpoint.split("s3.")[1].split(".")[0] or region
+    if region:
+        kwargs["region_name"] = region
     client = boto3.client("s3", **kwargs)
     bucket = s.s3_bucket
     safe_name = (file.filename or "media").replace("/", "_")
