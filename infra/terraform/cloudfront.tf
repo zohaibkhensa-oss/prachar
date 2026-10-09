@@ -118,6 +118,8 @@ resource "aws_cloudfront_function" "spa_rewrite" {
     function handler(event) {
       var uri = event.request.uri;
       uri = uri.replace(/^(\/app\/(brands|review|performance)\/)[^/]+(\/.*)?$/, "$1placeholder$3");
+      // OAuth callbacks: /app/connections/{channel}/callback -> placeholder stub
+      uri = uri.replace(/^\/app\/connections\/[^/]+\/callback$/, "/app/connections/placeholder/callback");
       if (uri === "/") {
         uri = "/index.html";
       } else if (uri.endsWith("/")) {
