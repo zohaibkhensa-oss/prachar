@@ -31,7 +31,7 @@ interface PublishResult {
 }
 
 // Channels that support a quick caption+media post through their adapters
-const POSTABLE = new Set(["facebook", "instagram", "linkedin", "x", "telegram", "youtube"]);
+const POSTABLE = ["facebook", "instagram", "youtube", "linkedin", "x", "telegram"];
 const MEDIA_REQUIRED = new Set(["instagram"]);
 const VIDEO_REQUIRED = new Set(["youtube"]);
 const CHAT_ID_CHANNELS = new Set(["telegram"]);
@@ -66,13 +66,12 @@ export default function PostPage() {
     retry: 1,
   });
 
-  const postableChannels = [...new Set(
-    (connections ?? [])
-      .filter((c) => c.status === "active" && POSTABLE.has(c.channel))
-      .map((c) => c.channel),
-  )];
-
-  const connectedChannels = [...new Set((connections ?? []).filter((c) => c.status === "active").map((c) => c.channel))];
+  const activeChannels = new Set(
+    (connections ?? []).filter((c) => c.status === "active").map((c) => c.channel),
+  );
+  // All supported channels render; unconnected ones are disabled with a
+  // connect hint — you can't publish where nothing is connected.
+  const postableChannels = POSTABLE;
 
   const toggle = (ch: string) => {
     const next = new Set(selected);
@@ -204,37 +203,37 @@ export default function PostPage() {
         <div className="text-xs text-text-secondary mb-3">Post to:</div>
         {postableChannels.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {postableChannels.map((ch) => (
-              <button
-                key={ch}
-                onClick={() => toggle(ch)}
-                className={cn(
-                  "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all",
-                  selected.has(ch)
-                    ? "border-accent/50 bg-accent/10 text-accent"
-                    : "border-line/10 bg-bg-hover text-text-secondary hover:text-text",
-                )}
-              >
-                {selected.has(ch) && <CheckCircle2 className="w-3.5 h-3.5" />}
-                {CHANNEL_LABEL[ch] ?? ch}
-              </button>
-            ))}
+            {postableChannels.map((ch) => {
+              const connected = activeChannels.has(ch);
+              return connected ? (
+                <button
+                  key={ch}
+                  onClick={() => toggle(ch)}
+                  className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all",
+                    selected.has(ch)
+                      ? "border-accent/50 bg-accent/10 text-accent"
+                      : "border-line/10 bg-bg-hover text-text-secondary hover:text-text",
+                  )}
+                >
+                  {selected.has(ch) && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  {CHANNEL_LABEL[ch] ?? ch}
+                </button>
+              ) : (
+                <Link
+                  key={ch}
+                  href="/app/connections"
+                  title={`${CHANNEL_LABEL[ch] ?? ch} — connect first`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-line/10 text-sm text-text-muted opacity-60 hover:opacity-100 transition-opacity"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                  {CHANNEL_LABEL[ch] ?? ch}
+                  <span className="text-[10px] text-accent">connect</span>
+                </Link>
+              );
+            })}
           </div>
-        ) : (
-          <div className="text-center py-4">
-            <Link2 className="w-6 h-6 text-text-muted mx-auto mb-2" />
-            <p className="text-sm text-text-secondary">
-              {connectedChannels.length === 0
-                ? "No channels connected yet."
-                : "Connected channels found, but none support quick posting yet (YouTube/WhatsApp need different flows)."}
-            </p>
-            {connectedChannels.length === 0 && (
-              <Link href="/app/connections" className="text-xs text-accent hover:underline mt-1 inline-block">
-                Connect a channel →
-              </Link>
-            )}
-          </div>
-        )}
+        ) : null}
 
         {selected.has("telegram") && (
           <input
