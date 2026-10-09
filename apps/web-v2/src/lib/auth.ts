@@ -99,7 +99,8 @@ export async function refreshToken(): Promise<string | null> {
 export async function authedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getToken();
   const headers = {
-    "Content-Type": "application/json",
+    // FormData needs fetch to set its own multipart Content-Type (with boundary)
+    ...(!(options.body instanceof FormData) && { "Content-Type": "application/json" }),
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...options.headers,
   };
