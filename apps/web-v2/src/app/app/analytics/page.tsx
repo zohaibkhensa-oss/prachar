@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -11,18 +12,52 @@ import {
   Megaphone,
   BarChart3,
   Clock,
+  RefreshCw,
+  IndianRupee,
 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useActiveBrand, useCampaignPlans } from "@/lib/hooks";
+import { apiGet, apiPost } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+
+interface MetricsSummary {
+  totals: Record<string, { current: number; previous: number }>;
+  series: Record<string, { date: string; value: number }[]>;
+  last_synced: string | null;
+}
+
+const fmtNum = (n: number) =>
+  n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M`
+  : n >= 1_000 ? `${(n / 1_000).toFixed(1)}K`
+  : String(Math.round(n));
 
 export default function ResultsPage() {
   const { brand, isLoading: brandLoading } = useActiveBrand();
   const { data: plans, isLoading: plansLoading } = useCampaignPlans(brand?.id ?? null);
+  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: metrics } = useQuery<MetricsSummary>({
+    queryKey: ["metrics-summary", brand?.id, 30],
+    queryFn: () => apiGet(`/brands/${brand!.id}/metrics/summary?days=30`),
+    enabled: !!brand?.id,
+    retry: 1,
+  });
 
   const isLoading = brandLoading || plansLoading;
   const activeCount = plans?.filter((p) => p.status === "active" || p.status === "approved").length ?? 0;
   const totalCampaigns = plans?.length ?? 0;
   const hasData = totalCampaigns > 0;
+
+  // Real metrics — undefined means the sync hasn't produced data
+  const reached = metrics?.totals?.impressions?.current;
+  const actions = metrics?.totals
+    ? (metrics.totals.engagements?.current ?? 0) + (metrics.totals.clicks?.current ?? 0)
+    : undefined;
+  const spend = metrics?.totals?.spend?.current;
+  const chartData = metrics?.series?.impressions ?? [];
 
   if (isLoading) {
     return (
@@ -59,38 +94,59 @@ export default function ResultsPage() {
             How {brand.name} is performing across all channels.
           </p>
         </div>
-        {hasData && (
-          <span className="badge badge-accent shrink-0">
-            <TrendingUp className="w-3 h-3" />
-            {totalCampaigns} campaign{totalCampaigns > 1 ? "s" : ""}
-          </span>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={async () => {
+              if (!brand?.id || syncing) return;
+              setSyncing(true);
+              try {
+                await apiPost(`/brands/${brand.id}/metrics/sync`);
+                queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
+              } finally {
+                setSyncing(false);
+              }
+            }}
+            disabled={syncing}
+            title={metrics?.last_synced ? `Last synced ${metrics.last_synced}` : "Pull latest channel metrics"}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-line/10 bg-bg-card text-xs text-text-secondary hover:text-text disabled:opacity-50"
+          >
+            <RefreshCw className={cn("w-3 h-3", syncing && "animate-spin")} />
+            {syncing ? "Syncing" : "Sync"}
+          </button>
+          {hasData && (
+            <span className="badge badge-accent">
+              <TrendingUp className="w-3 h-3" />
+              {totalCampaigns} campaign{totalCampaigns > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Top metrics — honest empty states when no data */}
+      {/* Top metrics — real synced values or honest empty states */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <ResultCard
           icon={<Eye className="w-4 h-4" />}
           label="People reached"
-          value={hasData ? "—" : "—"}
-          sub={hasData ? "Data coming soon" : "No campaigns yet"}
+          value={reached !== undefined ? fmtNum(reached) : "—"}
+          sub={reached !== undefined ? "Last 30 days — impressions + views" : "Sync channel data"}
           accent="text-info"
-          dimmed={!hasData}
+          dimmed={reached === undefined}
         />
         <ResultCard
           icon={<Target className="w-4 h-4" />}
           label="Customer actions"
-          value={hasData ? "—" : "—"}
-          sub={hasData ? "Clicks, calls, visits" : "No campaigns yet"}
+          value={actions !== undefined ? fmtNum(actions) : "—"}
+          sub={actions !== undefined ? "Last 30 days — likes, clicks, shares" : "Sync channel data"}
           accent="text-success"
-          dimmed={!hasData}
+          dimmed={actions === undefined}
         />
         <ResultCard
-          icon={<Megaphone className="w-4 h-4" />}
-          label="Active campaigns"
-          value={String(activeCount)}
-          sub={`Out of ${totalCampaigns} total`}
+          icon={<IndianRupee className="w-4 h-4" />}
+          label="Ad spend"
+          value={spend !== undefined ? fmtNum(spend) : "—"}
+          sub={spend !== undefined ? "Last 30 days" : "No ads account connected"}
           accent="text-accent"
+          dimmed={spend === undefined}
         />
         <ResultCard
           icon={<TrendingUp className="w-4 h-4" />}
@@ -101,6 +157,33 @@ export default function ResultsPage() {
           dimmed={brand.visibility_score == null}
         />
       </div>
+
+      {/* Real performance chart when metrics exist */}
+      {chartData.length > 0 && (
+        <div className="glass-strong rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="w-4 h-4 text-accent" />
+            <h2 className="font-display text-base font-semibold text-text">Performance over time</h2>
+          </div>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} margin={{ top: 4, right: 4, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="reachFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="transparent" tickLine={false}
+                  tickFormatter={(d: string) => d.slice(5)} />
+                <YAxis tick={{ fontSize: 10 }} stroke="transparent" tickLine={false} axisLine={false} />
+                <Tooltip contentStyle={{ background: "#13131f", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 12 }} />
+                <Area type="monotone" dataKey="value" stroke="#8b5cf6" strokeWidth={2} fill="url(#reachFill)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* No data yet state */}
       {totalCampaigns === 0 && (
