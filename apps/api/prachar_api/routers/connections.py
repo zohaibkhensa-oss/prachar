@@ -332,8 +332,10 @@ _INTEGRATIONS: list[dict] = [
      "creds": ["meta_app_id", "meta_app_secret"], "description": "Facebook & Instagram ad campaigns."},
     {"channel": "google_ads", "label": "Google Ads", "category": "advertising", "oauth": "google",
      "creds": ["google_ads_client_id", "google_ads_client_secret", "google_ads_developer_token"], "description": "Search, YouTube and Display campaigns."},
+    # LinkedIn Ads reuses the same OAuth client as LinkedIn organic —
+    # Marketing API just needs the rw_ads scope on the same app
     {"channel": "linkedin_ads", "label": "LinkedIn Ads", "category": "advertising", "oauth": "linkedin",
-     "creds": ["linkedin_ads_client_id", "linkedin_ads_client_secret"], "description": "Sponsored content and lead-gen ads."},
+     "creds": ["linkedin_client_id", "linkedin_client_secret"], "description": "Sponsored content and lead-gen ads."},
     {"channel": "tiktok_ads", "label": "TikTok Ads", "category": "advertising", "oauth": "tiktok",
      "creds": ["tiktok_ads_app_id", "tiktok_ads_app_secret"], "description": "TikTok paid campaigns."},
     {"channel": "x_ads", "label": "X Ads", "category": "advertising", "oauth": "x",
