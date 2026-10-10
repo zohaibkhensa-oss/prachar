@@ -2,19 +2,19 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { useActiveBrand, useBrands } from "@/lib/hooks";
 import {
   Users, Heart, MousePointerClick, IndianRupee, AlertTriangle,
   ArrowUpRight, ArrowDownRight, ChevronDown, PenSquare, Megaphone,
   ImageIcon, VideoIcon, Link2, Sparkles, FileText, CheckCircle2,
-  Clock, XCircle,
+  Clock, XCircle, RefreshCw,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -24,6 +24,7 @@ interface MetricsSummary {
   period_start: string;
   totals: Record<string, { current: number; previous: number }>;
   series: Record<string, { date: string; value: number }[]>;
+  last_synced: string | null;
 }
 
 interface ContentItem {
@@ -90,6 +91,8 @@ export default function DashboardPage() {
   const [daysOpen, setDaysOpen] = useState(false);
   const [chartMetric, setChartMetric] = useState("impressions");
   const [chartOpen, setChartOpen] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: metrics } = useQuery<MetricsSummary>({
     queryKey: ["metrics-summary", brand?.id, days],
@@ -231,6 +234,24 @@ export default function DashboardPage() {
               ))}
             </select>
           )}
+          <button
+            onClick={async () => {
+              if (!brand?.id || syncing) return;
+              setSyncing(true);
+              try {
+                await apiPost(`/brands/${brand.id}/metrics/sync`);
+                queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
+              } finally {
+                setSyncing(false);
+              }
+            }}
+            title={metrics?.last_synced ? `Last synced ${timeAgo(metrics.last_synced)}` : "Sync channel metrics"}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-bg-card border border-line/10 text-xs text-text-secondary hover:text-text disabled:opacity-50"
+            disabled={syncing}
+          >
+            <RefreshCw className={cn("w-3 h-3", syncing && "animate-spin")} />
+            {syncing ? "Syncing" : "Sync"}
+          </button>
           <div className="relative">
             <button
               onClick={() => setDaysOpen(!daysOpen)}

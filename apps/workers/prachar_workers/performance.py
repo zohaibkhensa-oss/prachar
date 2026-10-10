@@ -799,10 +799,10 @@ def ingest_youtube_metrics(
     if tokens is None:
         from prachar_workers.tokens import load_connection_tokens
 
-        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), GBP_CHANNEL)
+        tokens = load_connection_tokens(str(getattr(campaign, "brand_id", "")), YOUTUBE_CHANNEL)
         if tokens is None:
             return {
-                "channel": GBP_CHANNEL,
+                "channel": YOUTUBE_CHANNEL,
                 "status": "skipped",
                 "reason": "tokens_unavailable",
             }

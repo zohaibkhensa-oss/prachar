@@ -427,6 +427,7 @@ class YouTubeAdapter(ChannelAdapter):
         # the columns and we gracefully skip them.
         metrics_str = (
             "views,impressions,impressionsCtr,estimatedWatchTimeMinutes,"
+            "likes,comments,shares,"
             "estimatedRevenue,grossRevenue,subscribersGained,subscribersLost"
         )
         params = {
@@ -456,6 +457,9 @@ class YouTubeAdapter(ChannelAdapter):
                 "impressions": "impressions",
                 "impressionsCtr": "ctr",
                 "estimatedWatchTimeMinutes": "watch_time_minutes",
+                "likes": "likes",
+                "comments": "comments",
+                "shares": "shares",
                 "estimatedRevenue": "estimated_revenue",
                 "grossRevenue": "gross_revenue",
                 "subscribersGained": "subscribers_gained",

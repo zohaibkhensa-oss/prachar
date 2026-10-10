@@ -7,7 +7,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiGet, apiPost, apiUpload, ApiError } from "@/lib/api";
 import { useActiveBrand } from "@/lib/hooks";
@@ -60,6 +60,7 @@ export default function PostPage() {
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const queryClient = useQueryClient();
   const { data: connections } = useQuery<Connection[]>({
     queryKey: ["connections"],
     queryFn: () => apiGet("/connections"),
@@ -127,6 +128,11 @@ export default function PostPage() {
         }
       }
       setResults(out);
+      // Refresh the data surfaces and kick a provider-metrics pull so the
+      // dashboard reflects the new post + any analytics already available.
+      queryClient.invalidateQueries({ queryKey: ["brand-content"] });
+      queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
+      apiPost(`/brands/${brand.id}/metrics/sync`).catch(() => {});
       // Reset the composer when everything succeeded
       if (out.every((r) => r.ok)) {
         setText("");

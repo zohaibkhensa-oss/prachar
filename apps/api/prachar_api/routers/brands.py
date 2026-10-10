@@ -122,16 +122,48 @@ async def brand_metrics_summary(
         .order_by("d")
     )
 
+    # Canonicalise provider metric names into the dashboard's four buckets.
+    # (reach = impressions+views documented as "times content was seen";
+    # engagements = likes/comments/shares; visits = clicks; spend = spend/cost)
+    _BUCKETS = {
+        "impressions": "impressions",
+        "views": "impressions",
+        "likes": "engagements",
+        "comments": "engagements",
+        "shares": "engagements",
+        "saves": "engagements",
+        "engagements": "engagements",
+        "clicks": "clicks",
+        "website_visits": "clicks",
+        "spend": "spend",
+        "cost": "spend",
+    }
+
     totals: dict[str, dict[str, float]] = {}
     series: dict[str, dict[str, float]] = {}
+    raw_metrics: set[str] = set()
     for metric, day, value in rows.all():
-        t = totals.setdefault(metric, {"current": 0.0, "previous": 0.0})
+        canonical = _BUCKETS.get(metric)
+        raw_metrics.add(metric)
+        if canonical is None:
+            continue
+        t = totals.setdefault(canonical, {"current": 0.0, "previous": 0.0})
         bucket = "current" if day >= start else "previous"
         t[bucket] += float(value or 0)
         if day >= start:
-            series.setdefault(metric, {})[day.date().isoformat()] = (
-                series.setdefault(metric, {}).get(day.date().isoformat(), 0.0) + float(value or 0)
+            series.setdefault(canonical, {})[day.date().isoformat()] = (
+                series.setdefault(canonical, {}).get(day.date().isoformat(), 0.0) + float(value or 0)
             )
+
+    # When the last metrics.sync ran (empty if never)
+    from ..models import AuditEvent
+    sync_res = await session.execute(
+        select(func.max(AuditEvent.created_at)).where(
+            AuditEvent.tenant_id == user.tenant_id,
+            AuditEvent.action == "metrics.sync",
+        )
+    )
+    last_synced = sync_res.scalar()
 
     return {
         "days": days,
@@ -141,7 +173,135 @@ async def brand_metrics_summary(
             m: [{"date": d, "value": v} for d, v in sorted(s.items())]
             for m, s in series.items()
         },
+        "last_synced": last_synced.isoformat() if last_synced else None,
+        "raw_metrics": sorted(raw_metrics),
     }
+
+
+# ─── Metrics sync (pull provider analytics → metric_events) ──────────────────
+
+
+@router.post("/{brand_id}/metrics/sync")
+async def brand_metrics_sync(
+    brand_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict:
+    """Pull the latest provider metrics for every active connection on this
+    brand and persist them as MetricEvent rows.
+
+    Idempotent per (channel, day): rows written by an earlier same-day sync
+    are replaced, so repeated syncs never double-count. Provider calls run
+    through the organic adapters — all platform logic stays in the adapter
+    layer per architecture rules.
+    """
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import delete, func
+
+    from ..models import Connection, MetricEvent
+
+    conns = (await session.execute(
+        select(Connection).where(
+            Connection.brand_id == brand_id,
+            Connection.tenant_id == user.tenant_id,
+            Connection.status == "active",
+        )
+    )).scalars().all()
+    if not conns:
+        return {"ok": False, "reason": "no_connected_channels", "synced": []}
+
+    import asyncio
+    import json
+
+    from prachar_shared.contracts import TokenSet
+    from prachar_shared.security import decrypt_token
+
+    from .connections import _organic_adapter
+
+    since = datetime.now(UTC) - timedelta(days=30)
+    today = datetime.now(UTC).date()
+    results: list[dict] = []
+
+    for conn in conns:
+        ch = conn.channel
+        try:
+            adapter = _organic_adapter(ch)
+        except HTTPException:
+            results.append({"channel": ch, "status": "unsupported"})
+            continue
+        if not hasattr(adapter, "metrics") and not hasattr(adapter, "fetch_metrics"):
+            results.append({"channel": ch, "status": "no_metrics_api"})
+            continue
+
+        try:
+            bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
+            tokens = TokenSet(
+                access_token=bundle["access_token"],
+                refresh_token=bundle.get("refresh_token"),
+                expires_at=datetime.fromisoformat(bundle["expires_at"])
+                    if bundle.get("expires_at") else datetime.now(UTC),
+                scopes=bundle.get("scopes") or [],
+                metadata=bundle.get("metadata") or {},
+            )
+            # refresh if expiring (same rule as publish)
+            if tokens.expires_at <= datetime.now(UTC) + timedelta(seconds=30):
+                rt = bundle.get("refresh_token")
+                if rt and hasattr(adapter, "refresh_access_token"):
+                    new_tokens = await asyncio.to_thread(adapter.refresh_access_token, rt)
+                    bundle.update({
+                        "access_token": new_tokens.access_token,
+                        "refresh_token": new_tokens.refresh_token or rt,
+                        "expires_at": new_tokens.expires_at.isoformat(),
+                        "scopes": new_tokens.scopes,
+                    })
+                    from prachar_shared.security import encrypt_token
+                    conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
+                    conn.expires_at = new_tokens.expires_at
+                    await session.flush()
+                    tokens = new_tokens
+
+            fn = getattr(adapter, "metrics", None) or getattr(adapter, "fetch_metrics", None)
+            if asyncio.iscoroutinefunction(fn):
+                events = await fn(tokens, since)
+            else:
+                events = await asyncio.to_thread(fn, tokens, since)
+
+            # Idempotent: replace today's rows for this channel before insert
+            await session.execute(
+                delete(MetricEvent).where(
+                    MetricEvent.brand_id == brand_id,
+                    MetricEvent.channel == ch,
+                    func.date(MetricEvent.ts) == today,
+                )
+            )
+            written = 0
+            for ev in events or []:
+                session.add(MetricEvent(
+                    tenant_id=user.tenant_id,
+                    brand_id=brand_id,
+                    channel=ev.channel or ch,
+                    entity_type=ev.entity_type,
+                    entity_id=ev.entity_id,
+                    metric=ev.metric,
+                    value=ev.value,
+                ))
+                written += 1
+            results.append({"channel": ch, "status": "ok", "events": written})
+        except Exception as exc:  # noqa: BLE001 — isolate per channel
+            results.append({"channel": ch, "status": "error", "error": str(exc)[:200]})
+
+    await log_audit(
+        session, tenant_id=user.tenant_id, actor=Actor.user,
+        action="metrics.sync", entity_type="brand", entity_id=str(brand_id),
+        payload={"results": results},
+    )
+    await session.commit()
+    return {"ok": True, "synced": results}
 
 
 class ContentCreateIn(BaseModel):
@@ -346,7 +506,7 @@ async def publish_post(
                 from prachar_shared.security import encrypt_token
                 conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
                 conn.expires_at = new_tokens.expires_at
-                await session.flush()
+                await session.commit()
             except Exception as exc:
                 raise HTTPException(
                     status.HTTP_401_UNAUTHORIZED,
@@ -424,6 +584,7 @@ async def publish_post(
         entity_type="channel", entity_id=None,
         payload={"channel": ch, "native_id": published.native_id, "brand_id": str(brand_id)},
     )
+    await session.commit()
     return {
         "ok": True,
         "channel": published.channel,
