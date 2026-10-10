@@ -425,10 +425,11 @@ class YouTubeAdapter(ChannelAdapter):
         # the yt-analytics-monetary.readonly scope. If the channel isn't
         # monetised or the scope wasn't granted, the API returns 0 / omits
         # the columns and we gracefully skip them.
+        # Revenue metrics need yt-analytics-monetary.readonly (never granted)
+        # — requesting them 400s the whole report for most channels.
         metrics_str = (
             "views,impressions,impressionsCtr,estimatedWatchTimeMinutes,"
-            "likes,comments,shares,"
-            "estimatedRevenue,grossRevenue,subscribersGained,subscribersLost"
+            "likes,comments,shares,subscribersGained,subscribersLost"
         )
         params = {
             "ids": "channel==MINE",

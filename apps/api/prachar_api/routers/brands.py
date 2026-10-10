@@ -119,7 +119,9 @@ async def brand_metrics_summary(
             MetricEvent.ts >= prev_start,
         )
         .group_by(MetricEvent.metric, func.date_trunc("day", MetricEvent.ts))
-        .order_by("d")
+        # ORDER BY an aggregate — date_trunc($N) in ORDER BY doesn't match the
+        # grouped expression (different param node) so Postgres 500s
+        .order_by(func.min(MetricEvent.ts))
     )
 
     # Canonicalise provider metric names into the dashboard's four buckets.
