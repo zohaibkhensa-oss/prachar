@@ -18,8 +18,8 @@ os.environ.setdefault("TOKEN_ENC_KEY", "a" * 64)
 os.environ.setdefault("GOOGLE_CLIENT_ID", "g-client-123")
 os.environ.setdefault("GOOGLE_CLIENT_SECRET", "g-secret-456")
 
-from prachar_shared.contracts import TokenSet  # noqa: E402
 from prachar_shared.adapters.organic import youtube as yt  # noqa: E402
+from prachar_shared.contracts import TokenSet  # noqa: E402
 
 
 def _tokens() -> TokenSet:
@@ -40,7 +40,6 @@ class TestCredentialFallback:
             yt, "_settings",
             lambda: MagicMock(youtube_client_id="", youtube_client_secret="", google_client_id="G1", google_client_secret="GS"),
         )
-        from prachar_shared.config import get_settings
         s = MagicMock(youtube_client_id="", youtube_client_secret="", google_client_id="G1", google_client_secret="GS")
         assert yt._client_id(s) == "G1"
         assert yt._client_secret(s) == "GS"
@@ -67,12 +66,26 @@ class TestResumableUpload:
         calls = []
 
         class _Client:
-            def __init__(self, *a, **k): pass
-            async def __aenter__(self): return self
-            async def __aexit__(self, *a): return False
-            async def get(self, url, **k): calls.append(("get", url)); return dl_resp
-            async def post(self, url, **k): calls.append(("post", url, k)); return init_resp
-            async def put(self, url, **k): calls.append(("put", url)); return put_resp
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def get(self, url, **k):
+                calls.append(("get", url))
+                return dl_resp
+
+            async def post(self, url, **k):
+                calls.append(("post", url, k))
+                return init_resp
+
+            async def put(self, url, **k):
+                calls.append(("put", url))
+                return put_resp
 
         monkeypatch.setattr(yt.httpx, "AsyncClient", _Client)
         vid = await yt._upload_video("tok", "https://s3.example/file.mp4", {"title": "t"})
@@ -88,12 +101,23 @@ class TestResumableUpload:
         dl_resp.raise_for_status = lambda: None
 
         class _Client:
-            def __init__(self, *a, **k): pass
-            async def __aenter__(self): return self
-            async def __aexit__(self, *a): return False
-            async def get(self, url, **k): return dl_resp
-            async def post(self, url, **k): return init_resp
-            async def put(self, url, **k): raise AssertionError("no put after init failure")
+            def __init__(self, *a, **k):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def get(self, url, **k):
+                return dl_resp
+
+            async def post(self, url, **k):
+                return init_resp
+
+            async def put(self, url, **k):
+                raise AssertionError("no put after init failure")
 
         monkeypatch.setattr(yt.httpx, "AsyncClient", _Client)
         with pytest.raises(RuntimeError, match="upload init failed 403"):
