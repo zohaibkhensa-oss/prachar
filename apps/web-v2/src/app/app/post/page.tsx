@@ -110,23 +110,33 @@ export default function PostPage() {
     if (!brand?.id || selected.size === 0 || publishing) return;
     setPublishing(true);
     setError(null);
-    const out: PublishResult[] = [];
-    for (const ch of selected) {
-      try {
-        const res = await apiPost<{ url: string | null }>(`/brands/${brand.id}/publish`, {
-          channel: ch,
-          text,
-          media_url: mediaUrl,
-          media_type: mediaType,
-          chat_id: ch === "telegram" ? telegramChatId : null,
-        });
-        out.push({ channel: ch, ok: true, url: res.url ?? undefined });
-      } catch (e) {
-        out.push({ channel: ch, ok: false, error: e instanceof ApiError ? e.message : "Publish failed" });
+    try {
+      const out: PublishResult[] = [];
+      for (const ch of selected) {
+        try {
+          const res = await apiPost<{ url: string | null }>(`/brands/${brand.id}/publish`, {
+            channel: ch,
+            text,
+            media_url: mediaUrl,
+            media_type: mediaType,
+            chat_id: ch === "telegram" ? telegramChatId : null,
+          });
+          out.push({ channel: ch, ok: true, url: res.url ?? undefined });
+        } catch (e) {
+          out.push({ channel: ch, ok: false, error: e instanceof ApiError ? e.message : "Publish failed" });
+        }
       }
+      setResults(out);
+      // Reset the composer when everything succeeded
+      if (out.every((r) => r.ok)) {
+        setText("");
+        setMediaUrl(null);
+        setMediaPreview(null);
+        setSelected(new Set());
+      }
+    } finally {
+      setPublishing(false);
     }
-    setResults(out);
-    setPublishing(false);
   };
 
   const canPublish = selected.size > 0 && (text.trim() || mediaUrl)
