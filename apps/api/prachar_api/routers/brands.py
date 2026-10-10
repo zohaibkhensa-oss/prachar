@@ -107,10 +107,14 @@ async def brand_metrics_summary(
     start = now - timedelta(days=max(1, min(days, 365)))
     prev_start = start - (now - start)
 
+    # Single expression object — separate date_trunc() calls compile to
+    # different param nodes ($1 vs $5) which Postgres treats as different
+    # expressions: the SELECT'd one is then "ungrouped" → GroupingError.
+    day_expr = func.date_trunc("day", MetricEvent.ts).label("d")
     rows = await session.execute(
         select(
             MetricEvent.metric,
-            func.date_trunc("day", MetricEvent.ts).label("d"),
+            day_expr,
             func.sum(MetricEvent.value),
         )
         .where(
@@ -118,10 +122,8 @@ async def brand_metrics_summary(
             MetricEvent.tenant_id == user.tenant_id,
             MetricEvent.ts >= prev_start,
         )
-        .group_by(MetricEvent.metric, func.date_trunc("day", MetricEvent.ts))
-        # ORDER BY an aggregate — date_trunc($N) in ORDER BY doesn't match the
-        # grouped expression (different param node) so Postgres 500s
-        .order_by(func.min(MetricEvent.ts))
+        .group_by(MetricEvent.metric, day_expr)
+        .order_by(day_expr)
     )
 
     # Canonicalise provider metric names into the dashboard's four buckets.
