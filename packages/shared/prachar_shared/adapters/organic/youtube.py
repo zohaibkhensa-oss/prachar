@@ -69,7 +69,8 @@ async def _upload_video(
             raise ValueError("downloaded video is empty")
 
         init = await client.post(
-            "https://upload.googleapis.com/upload/youtube/v3/videos",
+            # uploads route through www.googleapis.com, not upload.googleapis.com
+            "https://www.googleapis.com/upload/youtube/v3/videos",
             params={"part": "snippet,status", "uploadType": "resumable"},
             headers={
                 "Authorization": f"Bearer {access_token}",
