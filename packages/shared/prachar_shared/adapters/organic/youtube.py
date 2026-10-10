@@ -82,7 +82,11 @@ async def _upload_video(
                 "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False},
             },
         )
-        init.raise_for_status()
+        if init.status_code != 200:
+            raise RuntimeError(
+                f"youtube resumable upload init failed {init.status_code}: "
+                f"{init.text[:500]}"
+            )
         upload_url = init.headers.get("Location") or init.headers.get("location")
         if not upload_url:
             raise RuntimeError("youtube resumable upload: no Location header")
@@ -92,7 +96,10 @@ async def _upload_video(
             content=video_bytes,
             headers={"Content-Type": "video/*"},
         )
-        up.raise_for_status()
+        if up.status_code != 200:
+            raise RuntimeError(
+                f"youtube binary upload failed {up.status_code}: {up.text[:500]}"
+            )
         video_id = up.json().get("id")
         if not video_id:
             raise RuntimeError("youtube upload returned no video id")
