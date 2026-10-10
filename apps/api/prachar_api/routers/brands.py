@@ -242,9 +242,12 @@ async def upload_media(
     s = get_settings()
 
     import boto3
+    from botocore.config import Config as BotoConfig
+
     # Explicit static keys (local/MinIO) or default chain (ECS task role →
     # prachar-staging-storage is already permitted via iam:prachar-ecs-s3-access)
-    kwargs: dict = {}
+    # SigV4 required — presigned V2 URLs are rejected by newer regions (400).
+    kwargs: dict = {"config": BotoConfig(signature_version="s3v4")}
     if s.s3_access_key and s.s3_secret_key:
         kwargs.update(
             endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
