@@ -119,7 +119,7 @@ async def brand_metrics_summary(
             MetricEvent.ts >= prev_start,
         )
         .group_by(MetricEvent.metric, func.date_trunc("day", MetricEvent.ts))
-        .order_by(func.date_trunc("day", MetricEvent.ts))
+        .order_by("d")
     )
 
     totals: dict[str, dict[str, float]] = {}
