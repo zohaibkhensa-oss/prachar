@@ -125,6 +125,14 @@ resource "aws_iam_role_policy" "ecs_task_s3" {
         aws_s3_bucket.storage.arn,
         "${aws_s3_bucket.storage.arn}/*"
       ]
+      }, {
+      # Storage bucket is SSE-KMS — Put/Get need data-key ops on its key
+      Effect = "Allow"
+      Action = [
+        "kms:GenerateDataKey",
+        "kms:Decrypt"
+      ]
+      Resource = aws_kms_key.s3.arn
     }]
   })
 }
