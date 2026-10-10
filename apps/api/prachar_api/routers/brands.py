@@ -162,7 +162,7 @@ async def brand_metrics_summary(
     # When the last metrics.sync ran (empty if never)
     from ..models import AuditEvent
     sync_res = await session.execute(
-        select(func.max(AuditEvent.created_at)).where(
+        select(func.max(AuditEvent.ts)).where(
             AuditEvent.tenant_id == user.tenant_id,
             AuditEvent.action == "metrics.sync",
         )

@@ -445,7 +445,10 @@ class YouTubeAdapter(ChannelAdapter):
                 token=tokens.access_token,
             )
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"youtube analytics {resp.status_code}: {resp.text[:400]}"
+            )
         data = resp.json()
         rows = data.get("rows", [])
         column_headers = [h.get("name", "") for h in data.get("columnHeaders", [])]
