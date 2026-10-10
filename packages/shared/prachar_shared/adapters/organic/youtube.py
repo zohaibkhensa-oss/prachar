@@ -214,6 +214,31 @@ class YouTubeAdapter(ChannelAdapter):
             scopes=body.get("scope", " ".join(_YT_SCOPES)).split(" "),
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange a refresh token for a new access token."""
+        s = _settings()
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _YT_TOKEN_URL,
+                data={
+                    "refresh_token": refresh_token,
+                    "client_id": _client_id(s),
+                    "client_secret": _client_secret(s),
+                    "grant_type": "refresh_token",
+                },
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 3600))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or " ".join(_YT_SCOPES)).split(" "),
+        )
+
     # ---- profile ----
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         resp = asyncio.run(

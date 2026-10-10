@@ -294,7 +294,7 @@ async def publish_post(
     """Synchronous publish to a connected channel via its adapter."""
     import asyncio
     import json
-    from datetime import UTC, datetime
+    from datetime import UTC, datetime, timedelta
 
     from prachar_shared.contracts import TokenSet
     from prachar_shared.security import decrypt_token
@@ -325,10 +325,44 @@ async def publish_post(
 
     bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
     md = bundle.get("metadata") or {}
+    expires_at = (
+        datetime.fromisoformat(bundle["expires_at"])
+        if bundle.get("expires_at") else datetime.now(UTC)
+    )
+
+    # Refresh an expired/expiring access token before publish — Google tokens
+    # live ~1h; without this every post fails 401 once the hour lapses.
+    if expires_at <= datetime.now(UTC) + timedelta(seconds=30):
+        refresh_token = bundle.get("refresh_token")
+        if refresh_token and hasattr(adapter, "refresh_access_token"):
+            try:
+                new_tokens = await asyncio.to_thread(adapter.refresh_access_token, refresh_token)
+                bundle.update({
+                    "access_token": new_tokens.access_token,
+                    "refresh_token": new_tokens.refresh_token or refresh_token,
+                    "expires_at": new_tokens.expires_at.isoformat(),
+                    "scopes": new_tokens.scopes,
+                })
+                from prachar_shared.security import encrypt_token
+                conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
+                conn.expires_at = new_tokens.expires_at
+                await session.flush()
+            except Exception as exc:
+                raise HTTPException(
+                    status.HTTP_401_UNAUTHORIZED,
+                    "YOUTUBE_REAUTH_REQUIRED: token refresh failed — reconnect the channel",
+                ) from exc
+            expires_at = new_tokens.expires_at
+        elif expires_at <= datetime.now(UTC):
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED,
+                "YOUTUBE_REAUTH_REQUIRED: connection expired — reconnect the channel",
+            )
+
     tokens = TokenSet(
         access_token=bundle["access_token"],
         refresh_token=bundle.get("refresh_token"),
-        expires_at=datetime.fromisoformat(bundle["expires_at"]) if bundle.get("expires_at") else datetime.now(UTC),
+        expires_at=expires_at,
         scopes=bundle.get("scopes") or [],
         metadata=md,
     )
