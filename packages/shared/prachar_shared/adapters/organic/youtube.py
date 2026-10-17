@@ -29,7 +29,8 @@ _YT_ANALYTICS_API = "https://youtubeanalytics.googleapis.com/v2/reports"
 _YT_SCOPES = [
     "https://www.googleapis.com/auth/youtube",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
-    "https://www.googleapis.com/auth/yt-analytics-monetary.readonly",
+    # yt-analytics-monetary.readonly removed: restricted-scope class, unused —
+    # revenue metrics are not requested (metrics_str excludes them).
 ]
 _MAX_RETRIES = 3
 _RETRY_STATUS = {401, 403, 429}
@@ -421,12 +422,9 @@ class YouTubeAdapter(ChannelAdapter):
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
         end = datetime.now(UTC).date().isoformat()
         start = since.astimezone(UTC).date().isoformat()
-        # Include revenue metrics (estimatedRevenue, grossRevenue) — requires
-        # the yt-analytics-monetary.readonly scope. If the channel isn't
-        # monetised or the scope wasn't granted, the API returns 0 / omits
-        # the columns and we gracefully skip them.
         # Valid metrics for channel==MINE reports (impressions/impressionsCtr
-        # are video-level only; revenue needs an ungranted monetary scope).
+        # are video-level only; revenue metrics would need the restricted
+        # yt-analytics-monetary.readonly scope — intentionally not requested).
         metrics_str = (
             "views,estimatedMinutesWatched,likes,comments,shares,"
             "subscribersGained,subscribersLost"

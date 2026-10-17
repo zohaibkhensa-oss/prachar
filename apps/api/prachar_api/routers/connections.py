@@ -100,7 +100,8 @@ def _build_google_oauth(state: str) -> str:
         "client_id": client_id,
         "redirect_uri": _redirect_uri("google"),
         "response_type": "code",
-        "scope": "https://www.googleapis.com/auth/business.manage https://www.googleapis.com/auth/webmasters https://www.googleapis.com/auth/yt-analytics.readonly",
+        # business.manage removed — GMB posting is a stub; re-add when S8 ships it
+        "scope": "https://www.googleapis.com/auth/webmasters https://www.googleapis.com/auth/yt-analytics.readonly",
         "state": state,
         "access_type": "offline",
         "prompt": "consent",

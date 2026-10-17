@@ -31,6 +31,32 @@ def _tokens() -> TokenSet:
     )
 
 
+# ─── scope hygiene (verification audit: restricted/unused scopes removed) ───
+
+
+class TestScopes:
+    def test_yt_scopes_exclude_restricted_monetary(self):
+        assert "https://www.googleapis.com/auth/yt-analytics-monetary.readonly" not in yt._YT_SCOPES
+
+    def test_yt_scopes_retain_upload_and_analytics(self):
+        assert "https://www.googleapis.com/auth/youtube" in yt._YT_SCOPES
+        assert "https://www.googleapis.com/auth/yt-analytics.readonly" in yt._YT_SCOPES
+
+    def test_google_consent_url_drops_business_manage(self):
+        from prachar_api.routers import connections as conn_mod
+        url = conn_mod._build_google_oauth("st")
+        assert "business.manage" not in url
+        assert "webmasters" in url
+        assert "yt-analytics.readonly" in url
+
+    def test_youtube_consent_url_scopes(self):
+        from prachar_api.routers import connections as conn_mod
+        url = conn_mod._build_youtube_oauth("st")
+        assert "monetary" not in url
+        assert "auth%2Fyoutube" in url
+        assert "yt-analytics.readonly" in url
+
+
 # ─── credential fallback (set=google creds, empty youtube creds) ────────────
 
 

@@ -40,7 +40,7 @@ Each section lists: developer console products, env vars, OAuth scopes, redirect
 
 ### OAuth Scopes
 - **GSC**: `https://www.googleapis.com/auth/webmasters`
-- **GMB**: `https://www.googleapis.com/auth/business.manage`
+- **GMB**: `https://www.googleapis.com/auth/business.manage` *(deferred — feature is a stub; removed from the shared Google consent URL pending S8)*
 - **Google Search**: `https://www.googleapis.com/auth/webmasters.readonly`
 - **Google Ads**: `https://www.googleapis.com/auth/adwords`
 
@@ -79,7 +79,7 @@ Each section lists: developer console products, env vars, OAuth scopes, redirect
 ### OAuth Scopes
 - `https://www.googleapis.com/auth/youtube`
 - `https://www.googleapis.com/auth/yt-analytics.readonly`
-- `https://www.googleapis.com/auth/yt-analytics-monetary.readonly`
+- ~~`https://www.googleapis.com/auth/yt-analytics-monetary.readonly`~~ *(removed — restricted scope, unused)*
 
 ### Redirect URI
 - `http://localhost:3002/app/connections/youtube/callback`
