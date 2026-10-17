@@ -357,6 +357,12 @@ _INTEGRATIONS: list[dict] = [
 ]
 
 
+# Channels whose adapters exist but whose feature is still a stub — blocked
+# from initiating OAuth so consent screens never request their scopes (e.g.
+# GMB's business.manage). Stored connections remain listed/readable.
+_DISABLED_CHANNELS = frozenset({"gmb"})
+
+
 def _connection_label(conn: Connection) -> str | None:
     """Derive a non-secret display label from the encrypted token bundle's
     metadata (e.g. Meta ad account id). Never exposes tokens."""
@@ -399,6 +405,7 @@ async def integration_registry(user: CurrentUser) -> list[dict]:
             "oauth_channel": e["oauth"],
             "description": e["description"],
             "configured": all(bool(getattr(s, k, "")) for k in e["creds"]),
+            "coming_soon": e["channel"] in _DISABLED_CHANNELS,
         }
         for e in _INTEGRATIONS
     ]
@@ -464,6 +471,10 @@ async def start_oauth(channel: str, brand_id: uuid.UUID, user: CurrentUser) -> d
     """
     if not channel:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "channel required")
+    if channel in _DISABLED_CHANNELS:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"{channel.upper()}_NOT_AVAILABLE"
+        )
 
     builder = OAUTH_BUILDERS.get(channel)
     if builder is None:
@@ -576,6 +587,11 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
     5. Creates/updates Connection record with encrypted tokens
     """
     import asyncio
+
+    if channel in _DISABLED_CHANNELS:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, f"{channel.upper()}_NOT_AVAILABLE"
+        )
 
     # 1. Verify and decode signed state
     state_payload = _verify_state(state)

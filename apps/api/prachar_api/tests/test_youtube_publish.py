@@ -57,6 +57,49 @@ class TestScopes:
         assert "yt-analytics.readonly" in url
 
 
+# ─── stubbed-channel gate (GMB posting is a stub — OAuth must not start) ────
+
+
+class TestDisabledChannels:
+    @pytest.mark.asyncio
+    async def test_gmb_oauth_start_blocked(self):
+        from fastapi import HTTPException
+
+        from prachar_api.routers import connections as conn_mod
+
+        user = MagicMock(tenant_id=MagicMock(), id=MagicMock())
+        with pytest.raises(HTTPException) as exc:
+            await conn_mod.start_oauth("gmb", MagicMock(), user)
+        assert exc.value.status_code == 409
+        assert "GMB_NOT_AVAILABLE" in str(exc.value.detail)
+
+    @pytest.mark.asyncio
+    async def test_gmb_callback_blocked(self):
+        from fastapi import HTTPException
+
+        from prachar_api.routers import connections as conn_mod
+
+        user = MagicMock(tenant_id=MagicMock(), id=MagicMock())
+        with pytest.raises(HTTPException) as exc:
+            await conn_mod.oauth_callback(
+                "gmb", code="c", state="s", user=user, session=MagicMock()
+            )
+        assert exc.value.status_code == 409
+
+    def test_registry_marks_gmb_coming_soon(self):
+        from prachar_api.routers import connections as conn_mod
+        assert "gmb" in conn_mod._DISABLED_CHANNELS
+
+    @pytest.mark.asyncio
+    async def test_retained_channels_still_build_oauth(self):
+        from prachar_api.routers import connections as conn_mod
+
+        for ch, host in (("youtube", "accounts.google.com"), ("google", "accounts.google.com")):
+            user = MagicMock(tenant_id=MagicMock(), id=MagicMock())
+            res = await conn_mod.start_oauth(ch, MagicMock(), user)
+            assert res["auth_url"].startswith(f"https://{host}/")
+
+
 # ─── credential fallback (set=google creds, empty youtube creds) ────────────
 
 

@@ -37,6 +37,7 @@ interface RegistryEntry {
   oauth_channel: string | null;
   description: string;
   configured: boolean;
+  coming_soon?: boolean;
 }
 
 type UiState =
@@ -45,6 +46,7 @@ type UiState =
   | "connecting"
   | "reconnect_required"
   | "config_required"
+  | "coming_soon"
   | "error";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -113,6 +115,7 @@ function connUiState(entry: RegistryEntry, conn: Connection | undefined, connect
     if (conn.status === "expired" || conn.status === "revoked" || expired) return "reconnect_required";
     if (conn.status === "pending") return "reconnect_required";
   }
+  if (entry.coming_soon) return "coming_soon";
   return entry.configured ? "not_connected" : "config_required";
 }
 
@@ -122,6 +125,7 @@ const STATE_BADGE: Record<UiState, { label: string; cls: string }> = {
   connecting: { label: "Connecting…", cls: "bg-accent/15 text-accent" },
   reconnect_required: { label: "Reconnect required", cls: "bg-amber-500/15 text-amber-400" },
   config_required: { label: "Configuration required", cls: "bg-amber-500/15 text-amber-300" },
+  coming_soon: { label: "Coming soon", cls: "bg-accent/10 text-accent" },
   error: { label: "Connection error", cls: "bg-danger/15 text-danger" },
 };
 
@@ -261,6 +265,7 @@ export default function ConnectionsPage() {
       st === "connected" ? { label: "Manage", fn: () => setManage({ entry, conn: conn! }) } :
       st === "reconnect_required" || st === "error" ? { label: "Reconnect", fn: () => handleConnect(entry) } :
       st === "connecting" ? { label: "Connecting…", fn: () => {} } :
+      st === "coming_soon" ? { label: "Coming soon", fn: () => setOauthError(`${entry.label} publishing is not available yet.` ) } :
       st === "config_required" ? { label: "Configure", fn: () => setOauthError(`${entry.label} needs OAuth credentials configured server-side. Contact your workspace admin.`) } :
       { label: "Connect", fn: () => handleConnect(entry) };
 
