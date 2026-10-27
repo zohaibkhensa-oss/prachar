@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
@@ -456,11 +456,9 @@ async def publish_post(
     session: SessionDep,
 ) -> dict:
     """Synchronous publish to a connected channel via its adapter."""
-    import asyncio
     import json
-    from datetime import UTC, datetime, timedelta
+    from datetime import datetime
 
-    from prachar_shared.contracts import TokenSet
     from prachar_shared.security import decrypt_token
 
     res = await session.execute(
@@ -489,89 +487,38 @@ async def publish_post(
 
     bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
     md = bundle.get("metadata") or {}
-    expires_at = (
-        datetime.fromisoformat(bundle["expires_at"])
-        if bundle.get("expires_at") else datetime.now(UTC)
-    )
 
     # Refresh an expired/expiring access token before publish — Google tokens
     # live ~1h; without this every post fails 401 once the hour lapses.
-    if expires_at <= datetime.now(UTC) + timedelta(seconds=30):
-        refresh_token = bundle.get("refresh_token")
-        if refresh_token and hasattr(adapter, "refresh_access_token"):
-            try:
-                new_tokens = await asyncio.to_thread(adapter.refresh_access_token, refresh_token)
-                bundle.update({
-                    "access_token": new_tokens.access_token,
-                    "refresh_token": new_tokens.refresh_token or refresh_token,
-                    "expires_at": new_tokens.expires_at.isoformat(),
-                    "scopes": new_tokens.scopes,
-                })
-                from prachar_shared.security import encrypt_token
-                conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
-                conn.expires_at = new_tokens.expires_at
-                await session.commit()
-            except Exception as exc:
-                raise HTTPException(
-                    status.HTTP_401_UNAUTHORIZED,
-                    "YOUTUBE_REAUTH_REQUIRED: token refresh failed — reconnect the channel",
-                ) from exc
-            expires_at = new_tokens.expires_at
-        elif expires_at <= datetime.now(UTC):
-            raise HTTPException(
-                status.HTTP_401_UNAUTHORIZED,
-                "YOUTUBE_REAUTH_REQUIRED: connection expired — reconnect the channel",
-            )
-
-    tokens = TokenSet(
-        access_token=bundle["access_token"],
-        refresh_token=bundle.get("refresh_token"),
-        expires_at=expires_at,
-        scopes=bundle.get("scopes") or [],
-        metadata=md,
+    from prachar_shared.publishing import (
+        build_channel_payload,
+        call_adapter_publish,
+        refresh_if_expiring,
+        tokens_from_bundle,
     )
 
+    try:
+        bundle, changed = refresh_if_expiring(adapter, bundle)
+    except PermissionError as exc:
+        raise HTTPException(
+            status.HTTP_401_UNAUTHORIZED,
+            "YOUTUBE_REAUTH_REQUIRED: token refresh failed — reconnect the channel",
+        ) from exc
+    if changed:
+        from prachar_shared.security import encrypt_token
+        conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
+        conn.expires_at = datetime.fromisoformat(bundle["expires_at"])
+        await session.commit()
+
+    tokens = tokens_from_bundle(bundle)
     ch = body.channel
-    if ch == "facebook":
-        payload = {"message": body.text, "_page_access_token": md.get("page_access_token"), "_page_id": md.get("page_id")}
-        if body.media_url:
-            payload["picture"] = body.media_url
-    elif ch == "x":
-        payload = {"text": body.text}
-    elif ch == "linkedin":
-        payload = {"text": body.text, "_author_urn": f"urn:li:person:{md.get('member_id', '')}"}
-        if body.media_url:
-            payload["media_url"] = body.media_url
-    elif ch == "instagram":
-        if not body.media_url:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "instagram requires an image or video")
-        payload = {
-            "caption": body.text,
-            "media_urls": [body.media_url],
-            "post_type": "reels" if body.media_type == "video" else "feed",
-            "_profile_metadata": md,
-        }
-    elif ch == "youtube":
-        if not (body.media_url and body.media_type == "video"):
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "youtube requires a video file")
-        payload = {
-            "video_url": body.media_url,
-            "title": body.text[:100] or "Untitled",
-            "description": body.text,
-            "privacy": "public",
-        }
-    elif ch == "telegram":
-        if not body.chat_id:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, "telegram requires a chat_id")
-        payload = {"text": body.text, "chat_id": body.chat_id, "media_type": "photo" if body.media_url else "none", "media_url": body.media_url or ""}
-    else:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"publishing to {ch} is not supported yet")
+    try:
+        payload = build_channel_payload(ch, body.text, body.media_url, body.media_type, body.chat_id, md)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 
     try:
-        if asyncio.iscoroutinefunction(adapter.publish):
-            published = await adapter.publish(tokens, payload)
-        else:
-            published = await asyncio.to_thread(adapter.publish, tokens, payload)
+        published = await call_adapter_publish(adapter, tokens, payload)
     except HTTPException:
         raise
     except Exception as exc:
@@ -596,3 +543,160 @@ async def publish_post(
         "url": published.url,
         "published_at": published.published_at.isoformat(),
     }
+
+
+# ─── Scheduled publishing ───────────────────────────────────────────────────
+
+class ScheduleIn(BaseModel):
+    channel: str = Field(min_length=1, max_length=40)
+    text: str = Field(default="", max_length=3000)
+    media_url: str | None = None
+    media_type: str = Field(default="image")  # image | video
+    chat_id: str | None = None  # telegram
+    scheduled_at: datetime
+
+
+class RescheduleIn(BaseModel):
+    scheduled_at: datetime
+
+
+def _scheduled_item_out(item: ContentItem) -> dict:
+    return {
+        "id": str(item.id),
+        "channel": item.channel,
+        "text": (item.payload or {}).get("copy", ""),
+        "media_url": (item.payload or {}).get("media_url"),
+        "media_type": (item.payload or {}).get("media_type", "image"),
+        "scheduled_at": item.scheduled_at.isoformat() if item.scheduled_at else None,
+        "published_at": item.published_at.isoformat() if item.published_at else None,
+        "published_ref": item.published_ref,
+        "state": "published" if item.published_at else (item.payload or {}).get("schedule_state", "scheduled"),
+        "error": (item.payload or {}).get("schedule_error"),
+    }
+
+
+@router.post("/{brand_id}/schedule")
+async def schedule_post(
+    brand_id: uuid.UUID,
+    body: ScheduleIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Create a scheduled post — published by the worker at `scheduled_at`."""
+    from datetime import UTC, datetime, timedelta
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    if body.scheduled_at <= datetime.now(UTC) + timedelta(seconds=60):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "scheduled_at must be in the future")
+
+    res = await session.execute(
+        select(Connection).where(
+            Connection.tenant_id == user.tenant_id,
+            Connection.brand_id == brand_id,
+            Connection.channel == body.channel,
+            Connection.status == "active",
+        )
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{body.channel} is not connected")
+
+    from prachar_shared.publishing import build_channel_payload
+    try:
+        build_channel_payload(body.channel, body.text, body.media_url, body.media_type, body.chat_id, {})
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
+    item = ContentItem(
+        tenant_id=user.tenant_id, brand_id=brand_id, channel=body.channel,
+        payload={
+            "copy": body.text,
+            "media_url": body.media_url,
+            "media_type": body.media_type,
+            "chat_id": body.chat_id,
+            "schedule_state": "scheduled",
+        },
+        policy_status=PolicyStatus.passed,
+        scheduled_at=body.scheduled_at,
+    )
+    session.add(item)
+    await session.flush()
+    await log_audit(
+        session, tenant_id=user.tenant_id, actor=Actor.user, action="content.schedule",
+        entity_type="content_item", entity_id=item.id,
+        payload={"channel": body.channel, "scheduled_at": body.scheduled_at.isoformat()},
+    )
+    await session.commit()
+    return _scheduled_item_out(item)
+
+
+@router.get("/{brand_id}/scheduled")
+async def list_scheduled(brand_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> list[dict]:
+    """All scheduled items for the calendar (scheduled, published, failed)."""
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+    res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.brand_id == brand_id,
+            ContentItem.scheduled_at.is_not(None),
+        ).order_by(ContentItem.scheduled_at.asc())
+    )
+    return [_scheduled_item_out(i) for i in res.scalars().all()]
+
+
+@router.patch("/{brand_id}/schedule/{item_id}")
+async def reschedule_post(
+    brand_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: RescheduleIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    from datetime import UTC, datetime, timedelta
+
+    res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.id == item_id,
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+        )
+    )
+    item = res.scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "scheduled post not found")
+    if item.published_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "post already published")
+    if body.scheduled_at <= datetime.now(UTC) + timedelta(seconds=60):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "scheduled_at must be in the future")
+
+    item.scheduled_at = body.scheduled_at
+    item.payload = {**(item.payload or {}), "schedule_state": "scheduled", "schedule_attempts": 0}
+    await session.commit()
+    return _scheduled_item_out(item)
+
+
+@router.delete("/{brand_id}/schedule/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def cancel_scheduled(
+    brand_id: uuid.UUID, item_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> None:
+    res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.id == item_id,
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+        )
+    )
+    item = res.scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "scheduled post not found")
+    if item.published_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "post already published")
+    await session.delete(item)
+    await session.commit()

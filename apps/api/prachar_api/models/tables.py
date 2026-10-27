@@ -146,6 +146,7 @@ class ContentItem(Base, UUIDPK, TenantScoped, Timestamped):
     )
     published_ref: Mapped[str | None] = mapped_column(String(1024))
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__ = (
         Index("ix_content_items_brand_channel_version", "brand_id", "channel", "version"),
     )

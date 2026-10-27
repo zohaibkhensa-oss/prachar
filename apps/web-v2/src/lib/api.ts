@@ -47,6 +47,15 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return handle<T>(res);
 }
 
+export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
+  const res = await authedFetch(`${BASE}${path}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  return handle<T>(res);
+}
+
 export async function apiUpload<T>(path: string, formData: FormData): Promise<T> {
   const res = await authedFetch(`${BASE}${path}`, {
     method: "POST",

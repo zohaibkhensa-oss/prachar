@@ -17,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPost, ApiError } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/api";
 import { useActiveBrand } from "@/lib/hooks";
 import { Card3D, Card } from "@/components/ui/card-3d";
 import { SectionHeader } from "@/components/ui/empty-state";
@@ -40,6 +40,22 @@ interface Connection {
   channel: string;
   status: string;
 }
+
+interface ScheduledItem {
+  id: string;
+  channel: string;
+  text: string;
+  media_url: string | null;
+  scheduled_at: string;
+  published_at: string | null;
+  published_ref: string | null;
+  state: string; // scheduled | publishing | published | failed
+  error: string | null;
+}
+
+type CalendarEntry =
+  | { kind: "campaign"; data: CampaignEvent }
+  | { kind: "scheduled"; data: ScheduledItem };
 
 type ViewMode = "month" | "week";
 
@@ -168,36 +184,41 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [campaigns, setCampaigns] = useState<CampaignEvent[]>([]);
+  const [scheduledItems, setScheduledItems] = useState<ScheduledItem[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CampaignEvent | null>(null);
-  const [draggedEvent, setDraggedEvent] = useState<CampaignEvent | null>(null);
+  const [draggedEvent, setDraggedEvent] = useState<CalendarEntry | null>(null);
   const [heatmapChannel, setHeatmapChannel] = useState<string>("meta");
   const [aiPlan, setAiPlan] = useState<{ day: string; tasks: string[] }[] | null>(null);
   const [generatingPlan, setGeneratingPlan] = useState(false);
 
-  // Fetch campaigns + connections
-  useEffect(() => {
-    let cancelled = false;
+  // Fetch campaigns + scheduled posts + connections
+  const loadData = useCallback(() => {
     setLoading(true);
     setError(null);
     Promise.all([
       apiGet<CampaignEvent[]>("/campaigns").catch(() => []),
       apiGet<Connection[]>("/connections").catch(() => []),
-    ]).then(([camp, conn]) => {
-      if (cancelled) return;
+      brand?.id
+        ? apiGet<ScheduledItem[]>(`/brands/${brand.id}/scheduled`).catch(() => [])
+        : Promise.resolve([]),
+    ]).then(([camp, conn, sched]) => {
       setCampaigns(camp);
       setConnections(conn);
+      setScheduledItems(sched);
       setLoading(false);
     }).catch(() => {
-      if (cancelled) return;
       setError("Failed to load calendar data");
       setLoading(false);
     });
-    return () => { cancelled = true; };
-  }, []);
+  }, [brand?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   // Group campaigns by date
   const eventsByDate = useMemo(() => {
@@ -220,17 +241,24 @@ export default function CalendarPage() {
   }, [campaigns, selectedChannel]);
 
   const filteredEventsByDate = useMemo(() => {
-    const map: Record<string, CampaignEvent[]> = {};
+    const map: Record<string, CalendarEntry[]> = {};
     for (const c of filteredCampaigns) {
       const ts = c.created_at;
       if (!ts) continue;
       const date = ts.split("T")[0] ?? "";
       if (!date) continue;
       if (!map[date]) map[date] = [];
-      map[date].push(c);
+      map[date].push({ kind: "campaign", data: c });
+    }
+    for (const s of scheduledItems) {
+      if (selectedChannel && s.channel !== selectedChannel) continue;
+      const date = (s.scheduled_at ?? "").split("T")[0] ?? "";
+      if (!date) continue;
+      if (!map[date]) map[date] = [];
+      map[date].push({ kind: "scheduled", data: s });
     }
     return map;
-  }, [filteredCampaigns]);
+  }, [filteredCampaigns, scheduledItems, selectedChannel]);
 
   // Calendar grid
   const monthDays = useMemo(() => {
@@ -255,9 +283,10 @@ export default function CalendarPage() {
   const nextWeek = () => { const d = new Date(currentDate); d.setDate(d.getDate() + 7); setCurrentDate(d); };
   const goToday = () => setCurrentDate(new Date());
 
-  // Drag & drop
-  const handleDragStart = (e: React.DragEvent, event: CampaignEvent) => {
-    setDraggedEvent(event);
+  // Drag & drop — only unpublished scheduled posts can be rescheduled
+  const handleDragStart = (e: React.DragEvent, entry: CalendarEntry) => {
+    if (entry.kind !== "scheduled" || entry.data.published_at) return;
+    setDraggedEvent(entry);
     e.dataTransfer.effectAllowed = "move";
   };
 
@@ -266,20 +295,29 @@ export default function CalendarPage() {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, targetDate: Date) => {
+  const handleDrop = async (e: React.DragEvent, targetDate: Date) => {
     e.preventDefault();
-    if (draggedEvent) {
-      // In a real app, this would call API to reschedule
-      // For now, update local state
-      const dateStr = formatDate(targetDate);
-      setCampaigns((prev) =>
-        prev.map((c) =>
-          c.id === draggedEvent.id
-            ? { ...c, created_at: `${dateStr}T10:00:00.000000Z` }
-            : c
-        )
-      );
+    if (!draggedEvent || draggedEvent.kind !== "scheduled" || !brand?.id) {
       setDraggedEvent(null);
+      return;
+    }
+    const item = draggedEvent.data;
+    setDraggedEvent(null);
+    // Keep the item's time-of-day; only the date changes.
+    const prev = item.scheduled_at ? new Date(item.scheduled_at) : null;
+    const when = new Date(targetDate);
+    if (prev) when.setHours(prev.getHours(), prev.getMinutes(), 0, 0);
+    // Optimistic update
+    setScheduledItems((prevItems) =>
+      prevItems.map((s) => (s.id === item.id ? { ...s, scheduled_at: when.toISOString() } : s))
+    );
+    try {
+      await apiPatch(`/brands/${brand.id}/schedule/${item.id}`, {
+        scheduled_at: when.toISOString(),
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Reschedule failed");
+      loadData(); // revert to server state
     }
   };
 
@@ -301,33 +339,12 @@ export default function CalendarPage() {
         modality: "text",
       }).catch(() => null);
 
-      if (res) {
-        // Parse the AI response into a weekly plan
-        const plan: { day: string; tasks: string[] }[] = [];
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        for (const day of days) {
-          plan.push({ day, tasks: [`AI-suggested content for ${day}`] });
-        }
-        setAiPlan(plan);
+      if (res?.reply) {
+        // Render the real AI reply — the runtime returns prose, so show it
+        // as the plan panel body rather than fabricating day rows.
+        setAiPlan([{ day: "Weekly plan", tasks: [res.reply] }]);
       } else {
-        // Fallback plan based on connected channels
-        const connectedChannels = connections.filter((c) => c.status === "active").map((c) => c.channel);
-        const channels = connectedChannels.length > 0 ? connectedChannels : ["google", "meta", "youtube"];
-        const plan: { day: string; tasks: string[] }[] = [];
-        const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-        days.forEach((day, i) => {
-          const ch = channels[i % channels.length] ?? "google";
-          const meta = CHANNEL_META[ch] || DEFAULT_CHANNEL;
-          plan.push({
-            day,
-            tasks: [
-              `${meta.emoji} Post on ${meta.name}`,
-              `📊 Check ${meta.name} performance`,
-              i % 2 === 0 ? `🎨 Generate new creative for ${meta.name}` : `📈 Optimize ${meta.name} budget`,
-            ],
-          });
-        });
-        setAiPlan(plan);
+        setError("The AI planner is unavailable right now — try again later.");
       }
     } catch {
       setError("Failed to generate AI plan");
@@ -522,16 +539,28 @@ export default function CalendarPage() {
                       {day.getDate()}
                     </div>
                     <div className="space-y-1">
-                      {dayEvents.slice(0, 3).map((event) => {
-                        const meta = CHANNEL_META[event.network] || DEFAULT_CHANNEL;
-                        const statusMeta = STATUS_META[event.status] || DEFAULT_STATUS;
+                      {dayEvents.slice(0, 3).map((entry) => {
+                        const ch = entry.kind === "campaign" ? entry.data.network : entry.data.channel;
+                        const meta = CHANNEL_META[ch] || DEFAULT_CHANNEL;
+                        const draggable = entry.kind === "scheduled" && !entry.data.published_at;
+                        const statusLabel = entry.kind === "campaign"
+                          ? (STATUS_META[entry.data.status] || DEFAULT_STATUS)
+                          : entry.data.state === "published"
+                            ? { label: "Published", icon: CheckCircle2, color: "#22C55E" }
+                            : entry.data.state === "failed"
+                              ? { label: "Failed", icon: XCircle, color: "#EF4444" }
+                              : { label: "Scheduled", icon: Clock, color: "#F59E0B" };
                         return (
                           <div
-                            key={event.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, event)}
-                            onClick={() => setSelectedEvent(event)}
-                            className="text-[10px] px-1.5 py-1 rounded-md cursor-pointer hover:scale-[1.02] transition"
+                            key={entry.data.id}
+                            draggable={draggable}
+                            onDragStart={(e) => handleDragStart(e, entry)}
+                            onClick={() => setSelectedEvent(entry.kind === "campaign" ? entry.data : null)}
+                            className={cn(
+                              "text-[10px] px-1.5 py-1 rounded-md cursor-pointer hover:scale-[1.02] transition",
+                              !draggable && "opacity-80",
+                            )}
+                            title={entry.kind === "scheduled" ? entry.data.error || entry.data.text : undefined}
                             style={{
                               backgroundColor: `${meta.color}15`,
                               borderLeft: `2px solid ${meta.color}`,
@@ -540,12 +569,14 @@ export default function CalendarPage() {
                             <div className="flex items-center gap-1">
                               <span>{meta.emoji}</span>
                               <span className="truncate font-medium text-text">
-                                {meta.name}
+                                {entry.kind === "scheduled" && entry.data.text
+                                  ? entry.data.text
+                                  : meta.name}
                               </span>
                             </div>
                             <div className="flex items-center gap-1 mt-0.5">
-                              <statusMeta.icon className="w-2.5 h-2.5" style={{ color: statusMeta.color }} />
-                              <span className="text-text-muted truncate">{statusMeta.label}</span>
+                              <statusLabel.icon className="w-2.5 h-2.5" style={{ color: statusLabel.color }} />
+                              <span className="text-text-muted truncate">{statusLabel.label}</span>
                             </div>
                           </div>
                         );
@@ -563,7 +594,7 @@ export default function CalendarPage() {
 
             {/* Drag hint */}
             <div className="mt-3 text-center text-xs text-text-muted">
-              💡 Drag any campaign to reschedule it
+              💡 Drag a scheduled post to reschedule it
             </div>
           </Card3D>
         </div>

@@ -52,6 +52,8 @@ def _build_app() -> Celery:
             "prachar_workers.performance.*": {"queue": "measure"},
             "prachar_workers.proactive.*": {"queue": "measure"},
             "prachar_workers.publish.*": {"queue": "organic"},
+            "prachar_workers.schedule.due": {"queue": "dispatch"},
+            "prachar_workers.schedule.publish": {"queue": "organic"},
         },
         task_queues=(
             Queue("prachar"),  # default / catch-all
@@ -68,6 +70,12 @@ def _build_app() -> Celery:
         beat_schedule={
             "loop-dispatch-due": {
                 "task": "prachar_workers.loop.dispatch_due",
+                "schedule": 60.0,
+                "options": {"queue": "dispatch"},
+            },
+            # Scheduled posts — scan every minute, publish via adapters.
+            "schedule-dispatch-due": {
+                "task": "prachar_workers.schedule.due",
                 "schedule": 60.0,
                 "options": {"queue": "dispatch"},
             },
@@ -95,6 +103,7 @@ def _build_app() -> Celery:
             "prachar_workers.performance",
             "prachar_workers.proactive",
             "prachar_workers.publish",
+            "prachar_workers.schedule",
             "prachar_workers.loop",
         ]
     )

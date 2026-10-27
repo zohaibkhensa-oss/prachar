@@ -14,7 +14,7 @@ import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon, VideoIcon, X, ArrowUp, Loader2, CheckCircle2,
-  AlertCircle, PenSquare, Link2, Users,
+  AlertCircle, PenSquare, Link2, Users, Clock,
 } from "lucide-react";
 
 interface Connection {
@@ -57,6 +57,7 @@ export default function PostPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [telegramChatId, setTelegramChatId] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState("");
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -107,7 +108,7 @@ export default function PostPage() {
     }
   };
 
-  const publish = async () => {
+  const submit = async (scheduledAt: string | null) => {
     if (!brand?.id || selected.size === 0 || publishing) return;
     setPublishing(true);
     setError(null);
@@ -115,24 +116,39 @@ export default function PostPage() {
       const out: PublishResult[] = [];
       for (const ch of selected) {
         try {
-          const res = await apiPost<{ url: string | null }>(`/brands/${brand.id}/publish`, {
-            channel: ch,
-            text,
-            media_url: mediaUrl,
-            media_type: mediaType,
-            chat_id: ch === "telegram" ? telegramChatId : null,
-          });
-          out.push({ channel: ch, ok: true, url: res.url ?? undefined });
+          if (scheduledAt) {
+            await apiPost<{ scheduled_at: string }>(`/brands/${brand.id}/schedule`, {
+              channel: ch,
+              text,
+              media_url: mediaUrl,
+              media_type: mediaType,
+              chat_id: ch === "telegram" ? telegramChatId : null,
+              scheduled_at: new Date(scheduledAt).toISOString(),
+            });
+            out.push({ channel: ch, ok: true, url: undefined });
+          } else {
+            const res = await apiPost<{ url: string | null }>(`/brands/${brand.id}/publish`, {
+              channel: ch,
+              text,
+              media_url: mediaUrl,
+              media_type: mediaType,
+              chat_id: ch === "telegram" ? telegramChatId : null,
+            });
+            out.push({ channel: ch, ok: true, url: res.url ?? undefined });
+          }
         } catch (e) {
           out.push({ channel: ch, ok: false, error: e instanceof ApiError ? e.message : "Publish failed" });
         }
       }
       setResults(out);
-      // Refresh the data surfaces and kick a provider-metrics pull so the
-      // dashboard reflects the new post + any analytics already available.
       queryClient.invalidateQueries({ queryKey: ["brand-content"] });
-      queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
-      apiPost(`/brands/${brand.id}/metrics/sync`).catch(() => {});
+      if (!scheduledAt) {
+        // Kick a provider-metrics pull so the dashboard reflects the new post.
+        queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
+        apiPost(`/brands/${brand.id}/metrics/sync`).catch(() => {});
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["scheduled-posts"] });
+      }
       // Reset the composer when everything succeeded
       if (out.every((r) => r.ok)) {
         setText("");
@@ -144,6 +160,8 @@ export default function PostPage() {
       setPublishing(false);
     }
   };
+
+  const publish = () => submit(scheduleAt || null);
 
   const canPublish = selected.size > 0 && (text.trim() || mediaUrl)
     && !publishing && !uploading
@@ -304,6 +322,27 @@ export default function PostPage() {
         </div>
       )}
 
+      {/* Schedule (optional) — leave empty to post now */}
+      <div className="flex items-center gap-3 rounded-xl border border-line/10 bg-bg-card px-4 py-2.5">
+        <Clock className="w-4 h-4 text-text-muted shrink-0" />
+        <label className="text-xs text-text-secondary shrink-0">Schedule for</label>
+        <input
+          type="datetime-local"
+          value={scheduleAt}
+          onChange={(e) => setScheduleAt(e.target.value)}
+          min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+          className="flex-1 bg-transparent text-sm text-text focus:outline-none [color-scheme:dark]"
+        />
+        {scheduleAt && (
+          <button
+            onClick={() => setScheduleAt("")}
+            className="text-xs text-text-muted hover:text-text transition"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
       {/* Publish */}
       <button
         onClick={publish}
@@ -316,7 +355,11 @@ export default function PostPage() {
         )}
       >
         {publishing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
-        {publishing ? "Posting…" : `Post${selected.size > 0 ? ` to ${selected.size} channel${selected.size > 1 ? "s" : ""}` : ""}`}
+        {publishing
+          ? (scheduleAt ? "Scheduling…" : "Posting…")
+          : scheduleAt
+            ? `Schedule${selected.size > 0 ? ` to ${selected.size} channel${selected.size > 1 ? "s" : ""}` : ""}`
+            : `Post${selected.size > 0 ? ` to ${selected.size} channel${selected.size > 1 ? "s" : ""}` : ""}`}
       </button>
     </div>
   );
