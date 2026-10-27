@@ -672,6 +672,22 @@ async def oauth_callback(channel: str, code: str, state: str, user: CurrentUser,
         except Exception:
             log.warning("ad-account discovery failed for %s", channel)
 
+    # Capture channel identity metadata (page_id/page_access_token for
+    # Facebook, ig_id for Instagram, channel_id for YouTube) — publish
+    # paths address posts through these. Never fatal: a profile miss only
+    # means the label/metadata is empty, tokens are still valid.
+    try:
+        if asyncio.iscoroutinefunction(adapter.fetch_profile):
+            profile = await adapter.fetch_profile(tokens)
+        else:
+            profile = await asyncio.to_thread(adapter.fetch_profile, tokens)
+        if profile and profile.metadata:
+            token_metadata.update(profile.metadata)
+        if profile and profile.display_name:
+            token_metadata.setdefault("account_name", profile.display_name)
+    except Exception:
+        log.warning("fetch_profile failed for %s", channel)
+
     token_bundle = {
         "access_token": tokens.access_token,
         "refresh_token": tokens.refresh_token,
