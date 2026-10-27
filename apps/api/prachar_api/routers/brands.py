@@ -481,7 +481,7 @@ async def publish_post(
 
     from .connections import _organic_adapter
     try:
-        adapter = _organic_adapter("facebook" if body.channel == "instagram" else body.channel)
+        adapter = _organic_adapter(body.channel)
     except KeyError:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"unsupported channel: {body.channel}") from None
 

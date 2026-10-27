@@ -138,16 +138,19 @@ def _build_meta_oauth(state: str) -> str:
 
 
 def _build_instagram_oauth(state: str) -> str:
+    # Instagram Business publishing uses the Facebook Graph API — the OAuth
+    # code must come from the Facebook dialog, not api.instagram.com (Basic
+    # Display codes cannot be exchanged on the Graph token endpoint).
     s = get_settings()
     app_id = s.meta_app_id or "placeholder"
     params = {
         "client_id": app_id,
         "redirect_uri": _redirect_uri("instagram"),
         "response_type": "code",
-        "scope": "instagram_basic,instagram_content_publish,pages_show_list",
+        "scope": "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement",
         "state": state,
     }
-    return f"https://api.instagram.com/oauth/authorize?{urlencode(params)}"
+    return f"https://www.facebook.com/v19.0/dialog/oauth?{urlencode(params)}"
 
 
 def _build_tiktok_oauth(state: str) -> str:

@@ -151,7 +151,7 @@ def _publish(item: Any, session: Any) -> Any:
         raise RuntimeError(f"{channel} is not connected")
 
     bundle = json.loads(decrypt_token(conn["oauth_tokens_enc"]))
-    adapter = get_organic_adapter("facebook" if channel == "instagram" else channel)
+    adapter = get_organic_adapter(channel)
 
     bundle, changed = refresh_if_expiring(adapter, bundle, datetime.now(UTC))
     if changed:
