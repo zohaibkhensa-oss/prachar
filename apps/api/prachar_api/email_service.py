@@ -51,6 +51,8 @@ async def send_email(msg: EmailMessage) -> bool:
                 "subject": msg.subject,
                 "html": msg.html,
             }
+            if s.email_reply_to:
+                params["reply_to"] = s.email_reply_to
             # resend.send is synchronous; run in thread
             import asyncio
             await asyncio.to_thread(resend.Emails.send, params)
@@ -71,6 +73,8 @@ async def send_email(msg: EmailMessage) -> bool:
             message["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
             message["To"] = msg.to
             message["Subject"] = msg.subject
+            if s.email_reply_to:
+                message["Reply-To"] = s.email_reply_to
             message.attach(MIMEText(msg.html, "html"))
 
             await aiosmtplib.send(
@@ -249,6 +253,8 @@ async def send_invoice_email(
                     "content": list(pdf_bytes),
                 }],
             }
+            if s.email_reply_to:
+                params["reply_to"] = s.email_reply_to
             await asyncio.to_thread(resend.Emails.send, params)
             log.info("Invoice email sent via Resend to %s: %s", to_email, invoice_number)
             return True
@@ -268,6 +274,8 @@ async def send_invoice_email(
             message["From"] = f"{from_name} <{from_addr}>" if from_name else from_addr
             message["To"] = to_email
             message["Subject"] = subject
+            if s.email_reply_to:
+                message["Reply-To"] = s.email_reply_to
 
             # HTML body
             message.attach(MIMEText(html, "html"))

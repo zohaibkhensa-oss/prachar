@@ -33,8 +33,9 @@ class Settings(BaseSettings):
 
     # Email service (Resend API or SMTP fallback)
     resend_api_key: str = ""  # Get from https://resend.com/apikeys
-    email_from: str = "noreply@curv.ai"
+    email_from: str = "noreply@curvai.org"
     email_from_name: str = "CURV AI"
+    email_reply_to: str = "hello@curvai.org"
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""
