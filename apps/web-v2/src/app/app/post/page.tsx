@@ -5,7 +5,7 @@
  * channel picker. Publishes synchronously via POST /brands/{id}/publish.
  */
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,7 +14,7 @@ import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon, VideoIcon, X, ArrowUp, Loader2, CheckCircle2,
-  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight,
+  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight, Wand2,
 } from "lucide-react";
 
 interface SlideItem {
@@ -60,7 +60,22 @@ export default function PostPage() {
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
   const [uploading, setUploading] = useState(false);
   const [generatingCarousel, setGeneratingCarousel] = useState(false);
+  const [finishingVideo, setFinishingVideo] = useState(false);
   const [carouselSlidesCount, setCarouselSlidesCount] = useState(5);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const vUrl = params.get("video_url");
+    const cap = params.get("caption");
+    if (vUrl) {
+      setMediaType("video");
+      setSlides([{ url: vUrl, preview: vUrl }]);
+    }
+    if (cap) {
+      setText(cap);
+    }
+  }, []);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [telegramChatId, setTelegramChatId] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -277,15 +292,62 @@ export default function PostPage() {
               )}
 
               {mediaType === "video" && slides[0] ? (
-                <div className="relative rounded-xl overflow-hidden bg-bg-hover">
-                  <video src={slides[0].preview} controls className="w-full max-h-72" />
-                  <button
-                    type="button"
-                    onClick={() => setSlides([])}
-                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
+                <div className="space-y-2">
+                  <div className="relative rounded-xl overflow-hidden bg-bg-hover">
+                    <video src={slides[0].preview} controls className="w-full max-h-72" />
+                    <button
+                      type="button"
+                      onClick={() => setSlides([])}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] text-text-secondary truncate">
+                      {slides[0].headline ? `✓ Hook: ${slides[0].headline}` : "Raw clip attached — burn hook, captions & watermark in 1 click"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={finishingVideo || !brand?.id}
+                      onClick={async () => {
+                        if (!brand?.id || !slides[0]) return;
+                        setFinishingVideo(true);
+                        setError(null);
+                        try {
+                          const res = await apiPost<{
+                            video_url: string;
+                            hook_title: string;
+                            caption_text: string;
+                          }>(`/brands/${brand.id}/video/finish`, {
+                            video_url: slides[0].url,
+                            prompt_context: text.trim(),
+                          });
+                          setSlides([
+                            {
+                              url: res.video_url,
+                              preview: res.video_url,
+                              headline: res.hook_title,
+                            },
+                          ]);
+                          if (!text.trim() && res.caption_text) {
+                            setText(res.caption_text);
+                          }
+                        } catch (e) {
+                          setError(e instanceof ApiError ? e.message : "Failed to finish video");
+                        } finally {
+                          setFinishingVideo(false);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/30 text-xs font-medium text-accent hover:bg-accent/25 transition disabled:opacity-50 shrink-0"
+                    >
+                      {finishingVideo ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Finishing…</>
+                      ) : (
+                        <><Wand2 className="w-3.5 h-3.5" /> Auto-Finish Video</>
+                      )}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">

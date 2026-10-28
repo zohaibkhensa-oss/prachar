@@ -3,7 +3,7 @@ FROM python:3.12-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+    libpq-dev gcc ffmpeg fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 
 COPY packages/shared /app/packages/shared
 COPY apps/api /app/apps/api

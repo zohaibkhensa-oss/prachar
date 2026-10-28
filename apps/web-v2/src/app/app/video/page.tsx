@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { apiPost, ApiError } from "@/lib/api";
+import { useActiveBrand } from "@/lib/hooks";
 import {
   Video as VideoIcon, Download, Sparkles, AlertTriangle, ArrowUp,
-  ChevronDown, Play, X, Clapperboard, Music2, FileText,
+  ChevronDown, Play, X, Clapperboard, Music2, FileText, Wand2, Loader2, Send,
 } from "lucide-react";
 
 const FORMATS = [
@@ -46,9 +48,14 @@ type VideoItem = {
   videoStatus: "generating" | "done" | "error";
   videoUrl: string;
   error?: string;
+  finishing?: boolean;
+  finished?: boolean;
+  hookTitle?: string;
+  captionText?: string;
 };
 
 export default function VideoPage() {
+  const { brand } = useActiveBrand();
   const [prompt, setPrompt] = useState("");
   const [format, setFormat] = useState("reel");
   const [duration, setDuration] = useState("15s");
@@ -124,6 +131,39 @@ export default function VideoPage() {
       setVideos((prev) => prev.map((v) => v.id === newId ? { ...v, videoStatus: "error", error: errMsg } : v));
     }
     setGenerating(false);
+  }
+
+  async function finishVideo(v: VideoItem) {
+    if (!brand?.id || !v.videoUrl || v.finishing) return;
+    setVideos((prev) => prev.map((it) => (it.id === v.id ? { ...it, finishing: true } : it)));
+    try {
+      const res = await apiPost<{
+        video_url: string;
+        hook_title: string;
+        caption_text: string;
+        watermark: string;
+        burned: boolean;
+      }>(`/brands/${brand.id}/video/finish`, {
+        video_url: v.videoUrl,
+        prompt_context: v.prompt,
+      });
+      setVideos((prev) =>
+        prev.map((it) =>
+          it.id === v.id
+            ? {
+                ...it,
+                videoUrl: res.video_url || it.videoUrl,
+                finishing: false,
+                finished: true,
+                hookTitle: res.hook_title,
+                captionText: res.caption_text,
+              }
+            : it
+        )
+      );
+    } catch {
+      setVideos((prev) => prev.map((it) => (it.id === v.id ? { ...it, finishing: false } : it)));
+    }
   }
 
   const dropdown = (
@@ -303,7 +343,12 @@ export default function VideoPage() {
                 </div>
                 <div className="p-3">
                   <p className="text-xs text-text-secondary truncate">{v.prompt}</p>
-                  <div className="flex items-center gap-2 mt-2">
+                  {v.hookTitle && (
+                    <p className="mt-1 text-[11px] text-accent font-medium truncate" title={v.captionText}>
+                      ✓ Hook: {v.hookTitle}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                     {v.scriptStatus === "done" && v.script && (
                       <button
                         onClick={() => setScriptOpen(scriptOpen === v.id ? null : v.id)}
@@ -314,6 +359,28 @@ export default function VideoPage() {
                     )}
                     {v.scriptStatus === "generating" && (
                       <span className="text-[10px] text-text-muted animate-pulse">Writing script…</span>
+                    )}
+                    {v.videoUrl && brand?.id && (
+                      <button
+                        onClick={() => finishVideo(v)}
+                        disabled={v.finishing}
+                        className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-50"
+                        title="Burn hook title, captions & brand watermark onto video"
+                      >
+                        {v.finishing ? (
+                          <><Loader2 className="w-3 h-3 animate-spin" /> Finishing…</>
+                        ) : (
+                          <><Wand2 className="w-3 h-3" /> {v.finished ? "Re-Finish" : "Auto-Finish"}</>
+                        )}
+                      </button>
+                    )}
+                    {v.videoUrl && (
+                      <Link
+                        href={`/app/post?video_url=${encodeURIComponent(v.videoUrl)}&caption=${encodeURIComponent(v.captionText || v.prompt)}`}
+                        className="inline-flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-full bg-bg-hover text-text-secondary hover:text-text transition-colors"
+                      >
+                        <Send className="w-3 h-3" /> Post
+                      </Link>
                     )}
                     {v.videoUrl && (
                       <button

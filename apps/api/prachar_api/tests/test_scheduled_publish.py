@@ -79,6 +79,17 @@ class TestChannelPayloadBuilder:
         assert png[:8] == b"\x89PNG\r\n\x1a\n"
         assert len(png) > 1000
 
+    def test_render_video_overlay_png_returns_transparent_rgba_png(self):
+        from prachar_api.routers.brands import _render_video_overlay_png
+
+        png = _render_video_overlay_png(
+            "Stop Guessing Your Ad Spend",
+            "Compound weekly creative winners automatically.",
+            "CURV AI",
+        )
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert len(png) > 1000
+
     def test_linkedin_uses_member_urn(self):
         p = build_channel_payload("linkedin", "t", None, "image", None, {"member_id": "abc"})
         assert p["_author_urn"] == "urn:li:person:abc"

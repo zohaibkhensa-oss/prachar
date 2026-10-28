@@ -1335,3 +1335,244 @@ Return ONLY valid JSON:
     }
 
 
+# ─── Video Finishing (Hook Title + Captions + Brand Watermark Burn-In) ──────
+
+class VideoFinishIn(BaseModel):
+    video_url: str = Field(min_length=1, max_length=4096)
+    hook_title: str = Field(default="", max_length=120)
+    caption_text: str = Field(default="", max_length=280)
+    watermark: str = Field(default="", max_length=60)
+    prompt_context: str = Field(default="", max_length=500)
+
+
+def _render_video_overlay_png(
+    hook_title: str,
+    caption_text: str,
+    watermark: str,
+    width: int = 1080,
+    height: int = 1920,
+) -> bytes:
+    """Render a transparent RGBA overlay with top hook banner, brand watermark
+    pill, and lower-third caption box ready for ffmpeg `scale2ref` + `overlay`."""
+    import io
+    import textwrap
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+
+    def _font(sz: int) -> Any:
+        for candidate in (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ):
+            try:
+                return ImageFont.truetype(candidate, sz)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+
+    font_wm = _font(28)
+    font_hook = _font(46)
+    font_cap = _font(38)
+
+    # 1. Top-right brand watermark badge
+    if watermark.strip():
+        wm = watermark.strip().upper()[:26]
+        draw.rounded_rectangle(
+            [(width - 380, 48), (width - 48, 112)],
+            radius=32,
+            fill=(12, 13, 20, 190),
+        )
+        draw.text((width - 352, 64), wm, fill=(192, 132, 252, 255), font=font_wm)
+
+    # 2. Top hook title banner
+    if hook_title.strip():
+        lines = textwrap.wrap(hook_title.strip(), width=26)[:2]
+        box_h = 56 + len(lines) * 62
+        draw.rounded_rectangle(
+            [(64, 140), (width - 64, 140 + box_h)],
+            radius=28,
+            fill=(15, 16, 26, 215),
+        )
+        draw.rounded_rectangle(
+            [(64, 140), (width - 64, 148)],
+            radius=4,
+            fill=(168, 85, 247, 255),
+        )
+        y = 168
+        for ln in lines:
+            draw.text((96, y), ln, fill=(255, 255, 255, 255), font=font_hook)
+            y += 60
+
+    # 3. Bottom lower-third styled captions
+    if caption_text.strip():
+        cap_lines = textwrap.wrap(caption_text.strip(), width=32)[:3]
+        cap_h = 52 + len(cap_lines) * 52
+        top_y = height - 260 - cap_h
+        draw.rounded_rectangle(
+            [(64, top_y), (width - 64, top_y + cap_h)],
+            radius=24,
+            fill=(10, 11, 18, 210),
+        )
+        y = top_y + 26
+        for ln in cap_lines:
+            draw.text((92, y), ln, fill=(250, 204, 21, 255), font=font_cap)
+            y += 50
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _burn_overlay_with_ffmpeg(video_bytes: bytes, overlay_png: bytes) -> bytes | None:
+    """Composite `overlay_png` onto `video_bytes` using ffmpeg scale2ref + overlay.
+    Returns finished MP4 bytes, or None if ffmpeg is unavailable or fails."""
+    import shutil
+    import subprocess
+    import tempfile
+    from pathlib import Path
+
+    if not shutil.which("ffmpeg"):
+        return None
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        in_video = Path(tmpdir) / "in.mp4"
+        in_ovr = Path(tmpdir) / "ovr.png"
+        out_video = Path(tmpdir) / "out.mp4"
+        in_video.write_bytes(video_bytes)
+        in_ovr.write_bytes(overlay_png)
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(in_video),
+            "-i",
+            str(in_ovr),
+            "-filter_complex",
+            "[1:v][0:v]scale2ref[ovr][base];[base][ovr]overlay=0:0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "ultrafast",
+            "-crf",
+            "23",
+            "-c:a",
+            "copy",
+            "-movflags",
+            "+faststart",
+            str(out_video),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, timeout=90, check=False)
+        if proc.returncode == 0 and out_video.exists() and out_video.stat().st_size > 0:
+            return out_video.read_bytes()
+        return None
+
+
+@router.post("/{brand_id}/video/finish")
+async def finish_brand_video(
+    brand_id: uuid.UUID,
+    body: VideoFinishIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Post-produce a raw video clip with a burned-in hook headline, styled
+    lower-third captions, and locked brand watermark."""
+    import asyncio
+    import base64
+    import logging
+
+    import httpx
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    hook = body.hook_title.strip()
+    caption = body.caption_text.strip()
+    watermark = body.watermark.strip() or brand.name
+
+    if not hook or not caption:
+        ctx_topic = body.prompt_context.strip() or brand.category or brand.name
+        prompt = f"""Write on-video text overlays for a short social video by "{brand.name}".
+Context: {ctx_topic}
+Return ONLY valid JSON:
+{{
+  "hook_title": "Short scroll-stopping hook (<= 48 chars)",
+  "caption_text": "Punchy lower-third caption summarizing the key takeaway (<= 110 chars)"
+}}"""
+        try:
+            gw = AIGateway()
+            comp = await gw.async_complete(
+                prompt=prompt,
+                tier=Tier.SMALL,
+                tenant_id=str(user.tenant_id),
+                max_tokens=300,
+            )
+            parsed = extract_json(comp.content) or {}
+            if isinstance(parsed, dict):
+                hook = hook or str(parsed.get("hook_title") or "").strip()[:80]
+                caption = caption or str(parsed.get("caption_text") or "").strip()[:160]
+        except Exception as exc:
+            logging.getLogger(__name__).warning("video finish LLM fallback: %s", exc)
+
+    if not hook or not claims_gate(hook).passed:
+        hook = f"{brand.name}: What Most Teams Miss"
+    if not caption or not claims_gate(caption).passed:
+        caption = f"Built for measurable momentum — {brand.name}"
+
+    overlay_png = _render_video_overlay_png(hook, caption, watermark)
+
+    # Fetch input video bytes (supports http(s) URL or data:video/mp4;base64,...)
+    video_bytes: bytes | None = None
+    try:
+        if body.video_url.startswith("data:"):
+            _, b64_part = body.video_url.split(",", 1)
+            video_bytes = base64.b64decode(b64_part)
+        else:
+            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
+                r = await client.get(body.video_url)
+                r.raise_for_status()
+                video_bytes = r.content
+    except Exception as exc:
+        logging.getLogger(__name__).warning("video finish download failed: %s", exc)
+
+    finished_url = body.video_url
+    burned = False
+    if video_bytes:
+        out_bytes = await asyncio.to_thread(_burn_overlay_with_ffmpeg, video_bytes, overlay_png)
+        if out_bytes:
+            finished_url, _ = _upload_bytes_to_s3(
+                out_bytes, "finished-video.mp4", "video/mp4", user.tenant_id, brand_id
+            )
+            burned = True
+
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.video.finish",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"burned": burned, "hook_title": hook, "watermark": watermark},
+    )
+    await session.commit()
+    return {
+        "video_url": finished_url,
+        "hook_title": hook,
+        "caption_text": caption,
+        "watermark": watermark,
+        "burned": burned,
+    }
+
+
+
