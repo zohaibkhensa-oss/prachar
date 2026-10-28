@@ -54,6 +54,7 @@ async def _request(
     json_body: dict[str, Any] | None = None,
     data: dict[str, Any] | None = None,
     token: str | None = None,
+    basic_auth: tuple[str, str] | None = None,
 ) -> httpx.Response:
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):
@@ -69,6 +70,7 @@ async def _request(
                     params=params,
                     json=json_body,
                     data=data,
+                    auth=basic_auth,
                 )
             if resp.status_code in _RETRY_STATUS and attempt < _MAX_RETRIES - 1:
                 logger.warning(
@@ -145,6 +147,10 @@ class XAdapter(ChannelAdapter):
                     "client_id": s.x_client_id,
                     "code_verifier": getattr(self, "_pkce_verifier", "plain"),
                 },
+                # Confidential clients must authenticate the exchange with
+                # HTTP Basic (client_id:client_secret); public PKCE apps
+                # accept the request without it too.
+                basic_auth=(s.x_client_id, s.x_client_secret),
             )
         )
         resp.raise_for_status()
