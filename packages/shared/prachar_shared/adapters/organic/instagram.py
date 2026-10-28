@@ -72,10 +72,32 @@ class InstagramAdapter(ChannelAdapter):
             data = resp.json()
         from datetime import datetime, timedelta
 
+        access_token = data["access_token"]
+        expires_in = data.get("expires_in", 3600)
+
+        # Exchange short-lived user token for a 60-day long-lived token (same as Facebook).
+        try:
+            async with httpx.AsyncClient() as client:
+                ll = await client.get(
+                    f"{IG_GRAPH_BASE}/oauth/access_token",
+                    params={
+                        "grant_type": "fb_exchange_token",
+                        "client_id": s.meta_app_id,
+                        "client_secret": s.meta_app_secret,
+                        "fb_exchange_token": access_token,
+                    },
+                )
+                if ll.status_code == 200:
+                    ll_data = ll.json()
+                    access_token = ll_data.get("access_token", access_token)
+                    expires_in = ll_data.get("expires_in", expires_in)
+        except Exception:
+            pass
+
         return TokenSet(
-            access_token=data["access_token"],
+            access_token=access_token,
             refresh_token=data.get("refresh_token"),
-            expires_at=datetime.now(UTC) + timedelta(seconds=data.get("expires_in", 3600)),
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
             scopes=IG_SCOPES,
         )
 

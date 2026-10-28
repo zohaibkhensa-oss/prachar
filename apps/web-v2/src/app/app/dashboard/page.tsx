@@ -1,20 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from "recharts";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPost } from "@/lib/api";
-import { useActiveBrand, useBrands } from "@/lib/hooks";
+import { apiGet, apiPost, apiPatch, apiUpload } from "@/lib/api";
+import { useActiveBrand } from "@/lib/hooks";
 import {
   Users, Heart, MousePointerClick, IndianRupee, AlertTriangle,
   ArrowUpRight, ArrowDownRight, ChevronDown, PenSquare, Megaphone,
   ImageIcon, VideoIcon, Link2, Sparkles, FileText, CheckCircle2,
-  Clock, XCircle, RefreshCw,
+  Clock, XCircle, RefreshCw, Zap, Camera, Loader2, CalendarDays,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -51,9 +52,44 @@ interface Campaign {
 
 interface Connection {
   id: string;
+  brand_id?: string;
   channel: string;
   status: string;
   expires_at: string | null;
+  account_label?: string | null;
+}
+
+interface AutopilotConfig {
+  enabled: boolean;
+  mode: "full_auto" | "approve_first" | "draft_only";
+  posts_per_week: number;
+  channels: string[];
+  pillars: string[];
+  connected_channels: string[];
+  next_loop_at: string | null;
+  queued_count: number;
+}
+
+interface ReadyQueueCard {
+  id: string;
+  teammate: string;
+  badge: string;
+  title: string;
+  preview: string;
+  channel: string;
+  scheduled_item_id: string | null;
+  state: string;
+  cta_label: string;
+  action_type: "approve_item" | "open_composer" | "fill_week" | "open_carousel";
+}
+
+interface ScheduledItem {
+  id: string;
+  channel: string;
+  text: string;
+  scheduled_at: string;
+  published_at: string | null;
+  state: string;
 }
 
 const METRIC_LABELS: Record<string, string> = {
@@ -87,11 +123,18 @@ function delta(t?: { current: number; previous: number }): { pct: number | null 
 
 export default function DashboardPage() {
   const { brand, brands, isLoading: brandsLoading } = useActiveBrand();
+  const router = useRouter();
+  const snapInputRef = useRef<HTMLInputElement>(null);
   const [days, setDays] = useState(30);
   const [daysOpen, setDaysOpen] = useState(false);
   const [chartMetric, setChartMetric] = useState("impressions");
   const [chartOpen, setChartOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [fillingWeek, setFillingWeek] = useState(false);
+  const [savingAutopilot, setSavingAutopilot] = useState(false);
+  const [approvingAll, setApprovingAll] = useState(false);
+  const [snapping, setSnapping] = useState(false);
+  const [busyCardId, setBusyCardId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: metrics } = useQuery<MetricsSummary>({
@@ -126,14 +169,123 @@ export default function DashboardPage() {
     retry: 1,
   });
 
-  const expiredConns = (connections ?? []).filter(
-    (c) => c.status !== "active" || (c.expires_at && new Date(c.expires_at).getTime() < Date.now()),
-  );
-  const connectedCount = (connections ?? []).length - expiredConns.length;
+  const { data: autopilot } = useQuery<AutopilotConfig>({
+    queryKey: ["autopilot", brand?.id],
+    queryFn: () => apiGet(`/brands/${brand!.id}/autopilot`),
+    enabled: !!brand?.id,
+    retry: 1,
+  });
+
+  const { data: readyQueue } = useQuery<{ cards: ReadyQueueCard[] }>({
+    queryKey: ["daily-ready-queue", brand?.id],
+    queryFn: () => apiGet(`/brands/${brand!.id}/daily-ready-queue`),
+    enabled: !!brand?.id,
+    retry: 1,
+  });
+
+  const { data: scheduledItems } = useQuery<ScheduledItem[]>({
+    queryKey: ["scheduled-posts", brand?.id],
+    queryFn: () => apiGet(`/brands/${brand!.id}/scheduled`),
+    enabled: !!brand?.id,
+    retry: 1,
+  });
+
+  const brandConns = useMemo(() => {
+    const all = connections ?? [];
+    if (!brand?.id) return all;
+    const filtered = all.filter((c) => !c.brand_id || c.brand_id === brand.id);
+    return filtered.length > 0 ? filtered : all;
+  }, [connections, brand?.id]);
+
+  const expiredConns = brandConns.filter((c) => c.status !== "active");
+  const activeConns = brandConns.filter((c) => c.status === "active");
+  const connectedCount = activeConns.length;
   const pendingReviews = (reviewQueue ?? []).length;
   const recentContent = (content ?? []).slice(0, 5);
   const recentCampaigns = (campaigns ?? []).slice(0, 3);
+  const awaitingApprovalCount = (scheduledItems ?? []).filter(
+    (s) => !s.published_at && (s.state === "pending_approval" || s.state === "draft")
+  ).length;
+  const upcomingScheduledCount = (scheduledItems ?? []).filter((s) => !s.published_at).length;
   const draftCount = (content ?? []).filter((c) => c.policy_status !== "passed").length;
+
+  const updateAutopilot = async (patch: Partial<AutopilotConfig>) => {
+    if (!brand?.id || savingAutopilot) return;
+    setSavingAutopilot(true);
+    try {
+      await apiPatch(`/brands/${brand.id}/autopilot`, patch);
+      queryClient.invalidateQueries({ queryKey: ["autopilot", brand.id] });
+    } finally {
+      setSavingAutopilot(false);
+    }
+  };
+
+  const handleFillWeek = async () => {
+    if (!brand?.id || fillingWeek) return;
+    setFillingWeek(true);
+    try {
+      await apiPost(`/brands/${brand.id}/autopilot/fill-week`, {
+        posts_per_week: autopilot?.posts_per_week ?? 5,
+        mode: autopilot?.mode ?? "approve_first",
+      });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-posts", brand.id] });
+      queryClient.invalidateQueries({ queryKey: ["autopilot", brand.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily-ready-queue", brand.id] });
+    } finally {
+      setFillingWeek(false);
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (!brand?.id || approvingAll) return;
+    setApprovingAll(true);
+    try {
+      await apiPost(`/brands/${brand.id}/autopilot/approve-all`, {});
+      queryClient.invalidateQueries({ queryKey: ["scheduled-posts", brand.id] });
+      queryClient.invalidateQueries({ queryKey: ["daily-ready-queue", brand.id] });
+    } finally {
+      setApprovingAll(false);
+    }
+  };
+
+  const handleSnapProduct = async (f: File | null) => {
+    if (!f || !brand?.id) return;
+    setSnapping(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await apiUpload<{ caption: string; media_urls: string[] }>(
+        `/brands/${brand.id}/snap-to-campaign`,
+        fd
+      );
+      const urlsParam = encodeURIComponent((res.media_urls || []).join(","));
+      const capParam = encodeURIComponent(res.caption || "");
+      router.push(`/app/post?media_urls=${urlsParam}&caption=${capParam}`);
+    } finally {
+      setSnapping(false);
+      if (snapInputRef.current) snapInputRef.current.value = "";
+    }
+  };
+
+  const handleReadyCard = async (card: ReadyQueueCard) => {
+    if (!brand?.id || busyCardId) return;
+    if (card.action_type === "open_composer" || card.action_type === "open_carousel") {
+      router.push(`/app/post?caption=${encodeURIComponent(card.preview)}`);
+      return;
+    }
+    setBusyCardId(card.id);
+    try {
+      if (card.action_type === "approve_item" && card.scheduled_item_id) {
+        await apiPost(`/brands/${brand.id}/schedule/${card.scheduled_item_id}/approve`, {});
+        queryClient.invalidateQueries({ queryKey: ["scheduled-posts", brand.id] });
+        queryClient.invalidateQueries({ queryKey: ["daily-ready-queue", brand.id] });
+      } else if (card.action_type === "fill_week") {
+        await handleFillWeek();
+      }
+    } finally {
+      setBusyCardId(null);
+    }
+  };
 
   const isNewUser =
     (connections ?? []).length === 0 &&
@@ -225,6 +377,7 @@ export default function DashboardPage() {
               value={brand?.id ?? ""}
               onChange={(e) => {
                 localStorage.setItem("prachar_active_brand", e.target.value);
+                localStorage.setItem("prachar_active_brand_id", e.target.value);
                 window.location.reload();
               }}
               className="px-3 py-2 rounded-xl bg-bg-card border border-line/10 text-xs text-text"
@@ -272,7 +425,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      {/* ─── Quick Actions + Snap Product → Campaign ─── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {QUICK.map((q) => (
           <Link
             key={q.label}
@@ -282,7 +436,193 @@ export default function DashboardPage() {
             <q.icon className="w-4 h-4" /> {q.label}
           </Link>
         ))}
+        <button
+          type="button"
+          disabled={snapping || !brand?.id}
+          onClick={() => snapInputRef.current?.click()}
+          className="col-span-2 lg:col-span-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-sm font-semibold hover:bg-amber-500/30 transition disabled:opacity-50"
+          title="Upload 1 product photo → AI creates a 3-slide carousel + caption"
+        >
+          {snapping ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Building…</>
+          ) : (
+            <><Camera className="w-4 h-4" /> Snap Product</>
+          )}
+        </button>
+        <input
+          ref={snapInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => handleSnapProduct(e.target.files?.[0] ?? null)}
+        />
       </div>
+
+      {/* ─── Social Autopilot Control Strip ─── */}
+      {autopilot && (
+        <div className="rounded-2xl border border-accent/25 bg-gradient-to-r from-accent/[0.08] via-bg-card to-bg-card p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <button
+                type="button"
+                disabled={savingAutopilot}
+                onClick={() => updateAutopilot({ enabled: !autopilot.enabled })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+                  autopilot.enabled ? "bg-emerald-500" : "bg-white/15"
+                )}
+                aria-label="Toggle Social Autopilot"
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+                    autopilot.enabled ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-display text-sm font-semibold text-text">
+                    Social Autopilot
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider",
+                      autopilot.enabled
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-white/10 text-text-muted"
+                    )}
+                  >
+                    {autopilot.enabled ? "Active" : "Paused"}
+                  </span>
+                  <span className="text-xs text-text-muted">
+                    · {upcomingScheduledCount} post{upcomingScheduledCount === 1 ? "" : "s"} queued on calendar
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Tara writes in your brand voice, slots posts at peak platform hours, and publishes on your rules.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex bg-white/[0.04] rounded-lg p-0.5 border border-white/[0.06]">
+                {(
+                  [
+                    { id: "draft_only", label: "Drafts Only" },
+                    { id: "approve_first", label: "Approve First" },
+                    { id: "full_auto", label: "Full Autopilot" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={savingAutopilot}
+                    onClick={() => updateAutopilot({ mode: m.id })}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap",
+                      autopilot.mode === m.id
+                        ? "bg-accent text-white"
+                        : "text-text-secondary hover:text-text"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              <select
+                value={autopilot.posts_per_week}
+                disabled={savingAutopilot}
+                onChange={(e) => updateAutopilot({ posts_per_week: Number(e.target.value) })}
+                className="bg-white/[0.04] text-text text-xs rounded-lg px-2.5 py-2 border border-white/[0.06] outline-none"
+              >
+                {[3, 5, 7, 10, 14].map((n) => (
+                  <option key={n} value={n} className="bg-bg-card">
+                    {n} posts / wk
+                  </option>
+                ))}
+              </select>
+
+              {awaitingApprovalCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleApproveAll}
+                  disabled={approvingAll}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-semibold hover:bg-emerald-500/30 transition disabled:opacity-50"
+                >
+                  {approvingAll ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Approving…</>
+                  ) : (
+                    <><CheckCircle2 className="w-3.5 h-3.5" /> Approve All ({awaitingApprovalCount})</>
+                  )}
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleFillWeek}
+                disabled={fillingWeek}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-50"
+              >
+                {fillingWeek ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Filling Week…</>
+                ) : (
+                  <><Zap className="w-3.5 h-3.5" /> Fill My Week</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── AI Teammates: Ready for Your 1-Tap Approval Today ─── */}
+      {(readyQueue?.cards?.length ?? 0) > 0 && (
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-sm font-semibold text-text flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-accent" />
+              Your AI Team · Ready for 1-Tap Approval Today
+            </h2>
+            <Link href="/app/calendar" className="text-xs text-accent hover:underline flex items-center gap-1">
+              <CalendarDays className="w-3.5 h-3.5" /> Open Calendar →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(readyQueue?.cards ?? []).map((card) => (
+              <div
+                key={card.id}
+                className="rounded-2xl border border-line/10 bg-bg-card p-4 flex flex-col justify-between gap-3 hover:border-accent/30 transition"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <span className="text-[11px] font-semibold text-accent">{card.teammate}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-secondary">
+                      {card.badge}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-text mb-1">{card.title}</div>
+                  <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
+                    {card.preview}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={busyCardId === card.id}
+                  onClick={() => handleReadyCard(card)}
+                  className="w-full py-2 px-3 rounded-xl bg-accent/15 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/25 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                >
+                  {busyCardId === card.id ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Working…</>
+                  ) : (
+                    <><CheckCircle2 className="w-3.5 h-3.5" /> {card.cta_label}</>
+                  )}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ─── Onboarding (new user) ─── */}
       {isNewUser && !brandsLoading && (
@@ -464,6 +804,37 @@ export default function DashboardPage() {
 
         {/* ─── Right column ─── */}
         <div className="space-y-4">
+          {/* Connected Channels live card */}
+          <div className="rounded-2xl border border-line/10 bg-bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Link2 className="w-4 h-4 text-emerald-400" />
+                <h2 className="font-display text-base font-semibold text-text">Connected Channels</h2>
+              </div>
+              <Link href="/app/connections" className="text-xs text-accent hover:underline">
+                Manage →
+              </Link>
+            </div>
+            {activeConns.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {activeConns.map((c) => (
+                  <span
+                    key={c.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-xs text-emerald-300 font-medium capitalize"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    {c.channel}
+                    {c.account_label ? <span className="text-text-muted font-normal">· {c.account_label}</span> : null}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-text-secondary">
+                No active channels on this brand yet — switch brand above or connect a channel.
+              </p>
+            )}
+          </div>
+
           <div className="rounded-2xl border border-line/10 bg-bg-card p-5">
             <div className="flex items-center gap-2 mb-4">
               <Sparkles className="w-4 h-4 text-accent" />

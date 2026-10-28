@@ -423,6 +423,18 @@ async def list_connections(user: CurrentUser, session: SessionDep) -> list[Conne
     for c in res.scalars().all():
         item = ConnectionOut.model_validate(c)
         item.account_label = _connection_label(c)
+        # Connections backed by a refresh_token (Google/YouTube/GSC/X) auto-refresh
+        # on demand, so their 1-hour access_token expiry does not mean the
+        # connection itself is expired.
+        if c.oauth_tokens_enc:
+            try:
+                from prachar_shared.security import decrypt_token
+
+                bundle = json.loads(decrypt_token(c.oauth_tokens_enc))
+                if bundle.get("refresh_token"):
+                    item.expires_at = None
+            except Exception:
+                pass
         out.append(item)
     return out
 
