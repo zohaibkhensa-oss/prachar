@@ -29,6 +29,9 @@ _LI_API = "https://api.linkedin.com"
 _LI_ANALYTICS = "https://api.linkedin.com/rest/organizationalEntityShareStatistics"
 
 _LI_SCOPES = [
+    "openid",
+    "profile",
+    "email",
     "w_member_social",
     "r_organization_social",
     "rw_organization_admin",
@@ -155,24 +158,21 @@ class LinkedInAdapter(ChannelAdapter):
         resp = asyncio.run(
             _request(
                 "GET",
-                f"{_LI_API}/v2/me",
-                params={"projection": "(id,localizedFirstName,localizedLastName,vanityName)",
-            },
+                f"{_LI_API}/v2/userinfo",
                 token=tokens.access_token,
             )
         )
         resp.raise_for_status()
         body = resp.json()
-        handle = body.get("vanityName", "") or body.get("id", "")
-        display = " ".join(
-            filter(None, [body.get("localizedFirstName"), body.get("localizedLastName")])
-        ).strip() or handle
+        member_id = body.get("sub", "")
+        handle = body.get("preferred_username") or member_id
+        display = body.get("name", "") or handle
         return ChannelProfile(
             channel=self.channel,
             handle=handle,
             display_name=display,
             follower_count=None,
-            metadata={"member_id": body.get("id", "")},
+            metadata={"member_id": member_id},
         )
 
     # ---- schema ----

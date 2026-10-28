@@ -185,7 +185,19 @@ class FacebookAdapter(ChannelAdapter):
             if "scheduled_publish_time" in payload:
                 params["scheduled_publish_time"] = payload["scheduled_publish_time"]
                 params["published"] = "false"
-            resp = await client.post(f"{FB_GRAPH_BASE}/{page_id}/feed", params=params)
+            if "picture" in payload:
+                # Photo post: Graph can't reliably fetch signed URLs via
+                # /feed?picture= — the /photos endpoint uploads it properly.
+                resp = await client.post(
+                    f"{FB_GRAPH_BASE}/{page_id}/photos",
+                    params={
+                        "url": payload["picture"],
+                        "caption": payload.get("message", ""),
+                        "access_token": page_token,
+                    },
+                )
+            else:
+                resp = await client.post(f"{FB_GRAPH_BASE}/{page_id}/feed", params=params)
             resp.raise_for_status()
             data = resp.json()
         post_id = data.get("id", "")
