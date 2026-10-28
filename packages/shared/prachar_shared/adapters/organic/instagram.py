@@ -172,13 +172,22 @@ class InstagramAdapter(ChannelAdapter):
                 for url in media_urls:
                     resp = await client.post(
                         f"{IG_GRAPH_BASE}/{ig_id}/media",
-                        params={**container_params, "media_type": "FEED", "image_url": url},
+                        params={
+                            "access_token": tokens.access_token,
+                            "is_carousel_item": "true",
+                            "image_url": url,
+                        },
                     )
                     resp.raise_for_status()
                     children_ids.append(resp.json()["id"])
                 resp = await client.post(
                     f"{IG_GRAPH_BASE}/{ig_id}/media",
-                    params={**container_params, "media_type": "CAROUSEL", "children": ",".join(children_ids)},
+                    params={
+                        "access_token": tokens.access_token,
+                        "caption": payload.get("caption", ""),
+                        "media_type": "CAROUSEL",
+                        "children": ",".join(children_ids),
+                    },
                 )
             else:
                 container_params["image_url"] = media_urls[0]

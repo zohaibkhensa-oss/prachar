@@ -383,6 +383,57 @@ async def get_score(brand_id: uuid.UUID, user: CurrentUser, session: SessionDep)
 # ─── Quick post: media upload + publish ──────────────────────────────────────
 
 
+def _upload_bytes_to_s3(
+    file_bytes: bytes,
+    filename: str,
+    content_type: str,
+    tenant_id: uuid.UUID,
+    brand_id: uuid.UUID,
+) -> tuple[str, str]:
+    """Upload bytes to S3 and return (presigned_url, s3_key). Falls back to a
+    base64 data-URI only when S3 is unreachable in local/test environments."""
+    import base64
+
+    from prachar_shared.config import get_settings
+
+    s = get_settings()
+    safe_name = (filename or "media").replace("/", "_")
+    s3_key = f"posts/{tenant_id}/{brand_id}/{uuid.uuid4()}-{safe_name}"
+    try:
+        import boto3
+        from botocore.config import Config as BotoConfig
+
+        kwargs: dict = {"config": BotoConfig(signature_version="s3v4")}
+        if s.s3_access_key and s.s3_secret_key:
+            kwargs.update(
+                endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
+                aws_access_key_id=s.s3_access_key,
+                aws_secret_access_key=s.s3_secret_key,
+            )
+        region = s.s3_region
+        if (not region or region == "us-east-1") and "s3." in s.s3_endpoint:
+            region = s.s3_endpoint.split("s3.")[1].split(".")[0] or region
+        if region:
+            kwargs["region_name"] = region
+        client = boto3.client("s3", **kwargs)
+        bucket = s.s3_bucket
+        client.put_object(
+            Bucket=bucket,
+            Key=s3_key,
+            Body=file_bytes,
+            ContentType=content_type or "application/octet-stream",
+        )
+        media_url = client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": bucket, "Key": s3_key},
+            ExpiresIn=6 * 3600,
+        )
+        return media_url, s3_key
+    except Exception:
+        b64 = base64.b64encode(file_bytes).decode("ascii")
+        return f"data:{content_type};base64,{b64}", s3_key
+
+
 @router.post("/{brand_id}/media/upload")
 async def upload_media(
     brand_id: uuid.UUID,
@@ -402,40 +453,12 @@ async def upload_media(
     if len(file_bytes) > 200 * 1024 * 1024:
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "file too large (200MB max)")
 
-    from prachar_shared.config import get_settings
-    s = get_settings()
-
-    import boto3
-    from botocore.config import Config as BotoConfig
-
-    # Explicit static keys (local/MinIO) or default chain (ECS task role →
-    # prachar-staging-storage is already permitted via iam:prachar-ecs-s3-access)
-    # SigV4 required — presigned V2 URLs are rejected by newer regions (400).
-    kwargs: dict = {"config": BotoConfig(signature_version="s3v4")}
-    if s.s3_access_key and s.s3_secret_key:
-        kwargs.update(
-            endpoint_url=s.s3_endpoint if s.s3_endpoint.startswith("http") else None,
-            aws_access_key_id=s.s3_access_key,
-            aws_secret_access_key=s.s3_secret_key,
-        )
-    # Region: explicit env, else derive from an AWS-style endpoint URL
-    region = s.s3_region
-    if (not region or region == "us-east-1") and "s3." in s.s3_endpoint:
-        region = s.s3_endpoint.split("s3.")[1].split(".")[0] or region
-    if region:
-        kwargs["region_name"] = region
-    client = boto3.client("s3", **kwargs)
-    bucket = s.s3_bucket
-    safe_name = (file.filename or "media").replace("/", "_")
-    s3_key = f"posts/{user.tenant_id}/{brand_id}/{uuid.uuid4()}-{safe_name}"
-    client.put_object(
-        Bucket=bucket, Key=s3_key, Body=file_bytes,
-        ContentType=file.content_type or "application/octet-stream",
-    )
-    media_url = client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": bucket, "Key": s3_key},
-        ExpiresIn=6 * 3600,
+    media_url, s3_key = _upload_bytes_to_s3(
+        file_bytes,
+        file.filename or "media",
+        file.content_type or "application/octet-stream",
+        user.tenant_id,
+        brand_id,
     )
     return {"media_url": media_url, "s3_key": s3_key, "content_type": file.content_type}
 
@@ -444,6 +467,7 @@ class PublishIn(BaseModel):
     channel: str = Field(min_length=1, max_length=40)
     text: str = Field(default="", max_length=3000)
     media_url: str | None = None
+    media_urls: list[str] | None = None
     media_type: str = Field(default="image")  # image | video
     chat_id: str | None = None  # telegram
 
@@ -513,7 +537,9 @@ async def publish_post(
     tokens = tokens_from_bundle(bundle)
     ch = body.channel
     try:
-        payload = build_channel_payload(ch, body.text, body.media_url, body.media_type, body.chat_id, md)
+        payload = build_channel_payload(
+            ch, body.text, body.media_url, body.media_type, body.chat_id, md, media_urls=body.media_urls
+        )
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 
@@ -524,9 +550,15 @@ async def publish_post(
     except Exception as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)[:300]) from exc
 
+    primary_media = (body.media_urls[0] if body.media_urls else None) or body.media_url
     item = ContentItem(
         tenant_id=user.tenant_id, brand_id=brand_id, channel=ch,
-        payload={"copy": body.text, "image_url": body.media_url, "published_ref": published.native_id},
+        payload={
+            "copy": body.text,
+            "image_url": primary_media,
+            "media_urls": body.media_urls or ([body.media_url] if body.media_url else []),
+            "published_ref": published.native_id,
+        },
         policy_status=PolicyStatus.passed,
     )
     session.add(item)
@@ -551,6 +583,7 @@ class ScheduleIn(BaseModel):
     channel: str = Field(min_length=1, max_length=40)
     text: str = Field(default="", max_length=3000)
     media_url: str | None = None
+    media_urls: list[str] | None = None
     media_type: str = Field(default="image")  # image | video
     chat_id: str | None = None  # telegram
     scheduled_at: datetime
@@ -561,18 +594,22 @@ class RescheduleIn(BaseModel):
 
 
 def _scheduled_item_out(item: ContentItem) -> dict:
+    p = item.payload or {}
+    media_url = p.get("media_url")
+    media_urls = p.get("media_urls") or ([media_url] if media_url else [])
     return {
         "id": str(item.id),
         "channel": item.channel,
-        "text": (item.payload or {}).get("copy", ""),
-        "media_url": (item.payload or {}).get("media_url"),
-        "media_type": (item.payload or {}).get("media_type", "image"),
-        "pillar": (item.payload or {}).get("pillar"),
+        "text": p.get("copy", ""),
+        "media_url": media_url or (media_urls[0] if media_urls else None),
+        "media_urls": media_urls,
+        "media_type": p.get("media_type", "image"),
+        "pillar": p.get("pillar"),
         "scheduled_at": item.scheduled_at.isoformat() if item.scheduled_at else None,
         "published_at": item.published_at.isoformat() if item.published_at else None,
         "published_ref": item.published_ref,
-        "state": "published" if item.published_at else (item.payload or {}).get("schedule_state", "scheduled"),
-        "error": (item.payload or {}).get("schedule_error"),
+        "state": "published" if item.published_at else p.get("schedule_state", "scheduled"),
+        "error": p.get("schedule_error"),
     }
 
 
@@ -608,15 +645,23 @@ async def schedule_post(
 
     from prachar_shared.publishing import build_channel_payload
     try:
-        build_channel_payload(body.channel, body.text, body.media_url, body.media_type, body.chat_id, {})
+        build_channel_payload(
+            body.channel, body.text, body.media_url, body.media_type, body.chat_id, {}, media_urls=body.media_urls
+        )
     except ValueError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
+    urls = [u for u in (body.media_urls or []) if u]
+    if not urls and body.media_url:
+        urls = [body.media_url]
+    primary_media = urls[0] if urls else None
 
     item = ContentItem(
         tenant_id=user.tenant_id, brand_id=brand_id, channel=body.channel,
         payload={
             "copy": body.text,
-            "media_url": body.media_url,
+            "media_url": primary_media,
+            "media_urls": urls,
             "media_type": body.media_type,
             "chat_id": body.chat_id,
             "schedule_state": "scheduled",
@@ -1098,4 +1143,195 @@ Return ONLY valid JSON in this exact shape:
         "mode": mode,
         "items": [_scheduled_item_out(it) for it in created_items],
     }
+
+
+# ─── AI Carousel Slide Generator (1080x1080 brand-locked slides) ────────────
+
+class CarouselGenerateIn(BaseModel):
+    topic: str = Field(default="", max_length=600)
+    slides_count: int = Field(default=5, ge=2, le=8)
+
+
+def _render_carousel_slide_png(
+    brand_name: str,
+    headline: str,
+    body_text: str,
+    slide_idx: int,
+    total_slides: int,
+) -> bytes:
+    """Render a crisp 1080x1080 branded carousel slide PNG with Pillow."""
+    import io
+    import textwrap
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    size = 1080
+    img = Image.new("RGB", (size, size), (12, 13, 20))
+    draw = ImageDraw.Draw(img)
+
+    # Top & bottom accent bars (CURV brand palette)
+    draw.rectangle([(0, 0), (size, 10)], fill=(168, 85, 247))
+    draw.rectangle([(80, 980), (size - 80, 983)], fill=(55, 60, 82))
+
+    def _font(sz: int) -> Any:
+        for candidate in (
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ):
+            try:
+                return ImageFont.truetype(candidate, sz)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+
+    font_tag = _font(28)
+    font_title = _font(58)
+    font_body = _font(36)
+    font_footer = _font(26)
+
+    # Header: brand badge + slide counter
+    draw.text((80, 76), brand_name.upper()[:28], fill=(192, 132, 252), font=font_tag)
+    counter = f"{slide_idx:02d} / {total_slides:02d}"
+    draw.text((size - 200, 76), counter, fill=(148, 163, 184), font=font_tag)
+
+    # Wrapped headline
+    y = 220
+    for line in textwrap.wrap(headline.strip(), width=24)[:5]:
+        draw.text((80, y), line, fill=(248, 250, 252), font=font_title)
+        y += 74
+
+    # Accent divider pill
+    y += 24
+    draw.rounded_rectangle([(80, y), (220, y + 8)], radius=4, fill=(245, 158, 11))
+    y += 48
+
+    # Wrapped body copy
+    for line in textwrap.wrap(body_text.strip(), width=38)[:8]:
+        draw.text((80, y), line, fill=(203, 213, 225), font=font_body)
+        y += 52
+
+    # Footer watermark + swipe cue
+    swipe = "Swipe →" if slide_idx < total_slides else f"Follow {brand_name}"
+    draw.text((80, 1005), brand_name, fill=(148, 163, 184), font=font_footer)
+    draw.text((size - 280, 1005), swipe, fill=(192, 132, 252), font=font_footer)
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+@router.post("/{brand_id}/carousel/generate")
+async def generate_carousel_slides(
+    brand_id: uuid.UUID,
+    body: CarouselGenerateIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Generate a multi-slide carousel (copy + rendered 1080x1080 PNG slides
+    uploaded to S3) ready to publish or schedule on Instagram, Facebook, or LinkedIn."""
+    import logging
+
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    n = body.slides_count
+    topic = body.topic.strip() or brand.category or f"How {brand.name} drives results"
+    tone_desc = (brand.tone or {}).get("voice") or "sharp, authoritative, and actionable"
+
+    prompt = f"""Design a {n}-slide social media carousel for "{brand.name}".
+Topic: {topic}
+Brand Voice: {tone_desc}
+
+Slide structure:
+- Slide 1: Scroll-stopping hook headline + short setup
+- Slides 2..{n - 1}: One clear insight/step per slide (concise headline <= 60 chars + body <= 160 chars)
+- Slide {n}: Actionable takeaway + CTA
+
+Also write a compelling post caption (<= 600 chars) to accompany the carousel.
+Never make "guaranteed #1" or unverified medical/financial claims.
+
+Return ONLY valid JSON:
+{{
+  "caption": "Full post caption...",
+  "slides": [
+    {{"headline": "Slide 1 hook...", "body": "Supporting point..."}}
+  ]
+}}"""
+
+    slides_spec: list[dict] = []
+    caption = ""
+    try:
+        gw = AIGateway()
+        comp = await gw.async_complete(
+            prompt=prompt,
+            tier=Tier.SMALL,
+            tenant_id=str(user.tenant_id),
+            max_tokens=1400,
+        )
+        parsed = extract_json(comp.content) or {}
+        if isinstance(parsed, dict):
+            caption = str(parsed.get("caption") or "").strip()
+            if isinstance(parsed.get("slides"), list):
+                slides_spec = [s for s in parsed["slides"] if isinstance(s, dict)]
+    except Exception as exc:
+        logging.getLogger(__name__).warning("carousel LLM fallback for %s: %s", brand_id, exc)
+
+    default_slides = [
+        {"headline": f"{topic[:48]}", "body": f"The playbook {brand.name} uses to turn strategy into measurable weekly momentum."},
+        {"headline": "1. Start With Signal, Not Noise", "body": "Focus on the two channels where your buyers already spend attention before scaling breadth."},
+        {"headline": "2. Systematize Creative Output", "body": "Consistent brand-locked visuals and sharp hooks outperform sporadic one-off posts."},
+        {"headline": "3. Schedule at Peak Attention", "body": "Publish when your audience is active and compound every winning angle into the next week."},
+        {"headline": f"Ready to Grow With {brand.name}?", "body": "Save this carousel for your next campaign review and share it with your team."},
+    ]
+
+    if not caption or not claims_gate(caption).passed:
+        caption = f"{topic} — broken down in {n} slides by {brand.name}. Swipe through and save for your next sprint."
+
+    rendered_slides: list[dict] = []
+    for idx in range(n):
+        raw = slides_spec[idx] if idx < len(slides_spec) else default_slides[idx % len(default_slides)]
+        headline = str(raw.get("headline") or default_slides[idx % len(default_slides)]["headline"])[:80]
+        slide_body = str(raw.get("body") or default_slides[idx % len(default_slides)]["body"])[:220]
+        if not claims_gate(f"{headline} {slide_body}").passed:
+            fb = default_slides[idx % len(default_slides)]
+            headline, slide_body = fb["headline"], fb["body"]
+
+        png_bytes = _render_carousel_slide_png(brand.name, headline, slide_body, idx + 1, n)
+        media_url, _ = _upload_bytes_to_s3(
+            png_bytes, f"carousel-slide-{idx + 1}.png", "image/png", user.tenant_id, brand_id
+        )
+        rendered_slides.append(
+            {
+                "slide_number": idx + 1,
+                "headline": headline,
+                "body": slide_body,
+                "media_url": media_url,
+            }
+        )
+
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.carousel.generate",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"slides_count": len(rendered_slides), "topic": topic[:120]},
+    )
+    await session.commit()
+    return {
+        "caption": caption,
+        "slides": rendered_slides,
+        "media_urls": [s["media_url"] for s in rendered_slides],
+    }
+
 

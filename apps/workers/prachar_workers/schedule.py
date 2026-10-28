@@ -176,5 +176,6 @@ def _publish(item: Any, session: Any) -> Any:
         payload.get("media_type", "image"),
         payload.get("chat_id"),
         bundle.get("metadata") or {},
+        media_urls=payload.get("media_urls"),
     )
     return _call_sync(adapter.publish(tokens, adapter_payload))

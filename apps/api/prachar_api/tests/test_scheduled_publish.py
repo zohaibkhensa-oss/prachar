@@ -44,6 +44,41 @@ class TestChannelPayloadBuilder:
         p = build_channel_payload("instagram", "cap", "https://i", "image", None, {})
         assert p["post_type"] == "feed"
 
+    def test_instagram_carousel_from_media_urls(self):
+        p = build_channel_payload(
+            "instagram",
+            "carousel cap",
+            None,
+            "image",
+            None,
+            {"ig_id": "123"},
+            media_urls=["https://img1", "https://img2", "https://img3"],
+        )
+        assert p["post_type"] == "carousel"
+        assert p["media_urls"] == ["https://img1", "https://img2", "https://img3"]
+
+    def test_facebook_carousel_from_media_urls(self):
+        p = build_channel_payload(
+            "facebook",
+            "fb album",
+            None,
+            "image",
+            None,
+            {"page_id": "pg", "page_access_token": "tok"},
+            media_urls=["https://img1", "https://img2"],
+        )
+        assert p["picture"] == "https://img1"
+        assert p["media_urls"] == ["https://img1", "https://img2"]
+
+    def test_render_carousel_slide_png_returns_valid_png(self):
+        from prachar_api.routers.brands import _render_carousel_slide_png
+
+        png = _render_carousel_slide_png(
+            "CURV AI", "1. Hook Your Audience", "Actionable insight body copy.", 1, 5
+        )
+        assert png[:8] == b"\x89PNG\r\n\x1a\n"
+        assert len(png) > 1000
+
     def test_linkedin_uses_member_urn(self):
         p = build_channel_payload("linkedin", "t", None, "image", None, {"member_id": "abc"})
         assert p["_author_urn"] == "urn:li:person:abc"

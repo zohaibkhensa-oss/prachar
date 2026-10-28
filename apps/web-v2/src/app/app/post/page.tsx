@@ -14,8 +14,14 @@ import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon, VideoIcon, X, ArrowUp, Loader2, CheckCircle2,
-  AlertCircle, PenSquare, Link2, Users, Clock,
+  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight,
 } from "lucide-react";
+
+interface SlideItem {
+  url: string;
+  preview: string;
+  headline?: string;
+}
 
 interface Connection {
   id: string;
@@ -50,16 +56,20 @@ export default function PostPage() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [text, setText] = useState("");
-  const [mediaUrl, setMediaUrl] = useState<string | null>(null);
+  const [slides, setSlides] = useState<SlideItem[]>([]);
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
-  const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [generatingCarousel, setGeneratingCarousel] = useState(false);
+  const [carouselSlidesCount, setCarouselSlidesCount] = useState(5);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [telegramChatId, setTelegramChatId] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [scheduleAt, setScheduleAt] = useState("");
   const [results, setResults] = useState<PublishResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const mediaUrl = slides[0]?.url ?? null;
+  const mediaUrls = slides.map((s) => s.url);
 
   const queryClient = useQueryClient();
   const { data: connections } = useQuery<Connection[]>({
@@ -86,25 +96,76 @@ export default function PostPage() {
     setMediaType(type);
     if (fileRef.current) {
       fileRef.current.accept = type === "image" ? "image/*" : "video/*";
+      fileRef.current.multiple = type === "image";
       fileRef.current.click();
     }
   };
 
-  const onFile = async (f: File | null) => {
-    if (!f || !brand?.id) return;
+  const onFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0 || !brand?.id) return;
     setUploading(true);
     setError(null);
-    setMediaPreview(URL.createObjectURL(f));
     try {
-      const fd = new FormData();
-      fd.append("file", f);
-      const res = await apiUpload<{ media_url: string }>(`/brands/${brand.id}/media/upload`, fd);
-      setMediaUrl(res.media_url);
+      const incoming = Array.from(fileList).slice(0, 10 - slides.length);
+      const uploaded: SlideItem[] = [];
+      for (const f of incoming) {
+        const preview = URL.createObjectURL(f);
+        const fd = new FormData();
+        fd.append("file", f);
+        const res = await apiUpload<{ media_url: string }>(`/brands/${brand.id}/media/upload`, fd);
+        uploaded.push({ url: res.media_url, preview });
+      }
+      setSlides((prev) => (mediaType === "video" ? uploaded.slice(0, 1) : [...prev, ...uploaded].slice(0, 10)));
     } catch (e) {
-      setMediaPreview(null);
       setError(e instanceof ApiError ? e.message : "Upload failed");
     } finally {
       setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const removeSlide = (idx: number) => {
+    setSlides((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const moveSlide = (idx: number, dir: -1 | 1) => {
+    setSlides((prev) => {
+      const target = idx + dir;
+      if (target < 0 || target >= prev.length) return prev;
+      const copy = [...prev];
+      const [item] = copy.splice(idx, 1);
+      if (item) copy.splice(target, 0, item);
+      return copy;
+    });
+  };
+
+  const generateAICarousel = async () => {
+    if (!brand?.id || generatingCarousel) return;
+    setGeneratingCarousel(true);
+    setError(null);
+    try {
+      const res = await apiPost<{
+        caption: string;
+        slides: { slide_number: number; headline: string; body: string; media_url: string }[];
+      }>(`/brands/${brand.id}/carousel/generate`, {
+        topic: text.trim(),
+        slides_count: carouselSlidesCount,
+      });
+      setMediaType("image");
+      setSlides(
+        res.slides.map((s) => ({
+          url: s.media_url,
+          preview: s.media_url,
+          headline: s.headline,
+        }))
+      );
+      if (!text.trim() && res.caption) {
+        setText(res.caption);
+      }
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Failed to generate carousel");
+    } finally {
+      setGeneratingCarousel(false);
     }
   };
 
@@ -121,6 +182,7 @@ export default function PostPage() {
               channel: ch,
               text,
               media_url: mediaUrl,
+              media_urls: mediaUrls,
               media_type: mediaType,
               chat_id: ch === "telegram" ? telegramChatId : null,
               scheduled_at: new Date(scheduledAt).toISOString(),
@@ -131,6 +193,7 @@ export default function PostPage() {
               channel: ch,
               text,
               media_url: mediaUrl,
+              media_urls: mediaUrls,
               media_type: mediaType,
               chat_id: ch === "telegram" ? telegramChatId : null,
             });
@@ -152,8 +215,7 @@ export default function PostPage() {
       // Reset the composer when everything succeeded
       if (out.every((r) => r.ok)) {
         setText("");
-        setMediaUrl(null);
-        setMediaPreview(null);
+        setSlides([]);
         setSelected(new Set());
       }
     } finally {
@@ -191,44 +253,135 @@ export default function PostPage() {
           className="w-full resize-none bg-transparent text-[15px] text-text placeholder:text-text-muted focus:outline-none"
         />
 
-        {/* Media preview */}
+        {/* Media / Carousel preview */}
         <AnimatePresence>
-          {mediaPreview && (
+          {slides.length > 0 && (
             <motion.div
               initial={{ opacity: 0, scale: 0.97 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="relative rounded-xl overflow-hidden bg-bg-hover"
+              className="space-y-2"
             >
-              {mediaType === "image" ? (
-                <img src={mediaPreview} alt="" className="w-full max-h-72 object-cover" />
-              ) : (
-                <video src={mediaPreview} controls className="w-full max-h-72" />
+              {slides.length > 1 && (
+                <div className="flex items-center justify-between text-xs text-text-secondary">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-accent">
+                    <Layers className="w-3.5 h-3.5" /> Carousel · {slides.length} slides
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setSlides([])}
+                    className="text-text-muted hover:text-text transition"
+                  >
+                    Clear all
+                  </button>
+                </div>
               )}
-              <button
-                onClick={() => { setMediaUrl(null); setMediaPreview(null); }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              {uploading && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+
+              {mediaType === "video" && slides[0] ? (
+                <div className="relative rounded-xl overflow-hidden bg-bg-hover">
+                  <video src={slides[0].preview} controls className="w-full max-h-72" />
+                  <button
+                    type="button"
+                    onClick={() => setSlides([])}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {slides.map((sl, idx) => (
+                    <div
+                      key={`${sl.url}-${idx}`}
+                      className="relative group rounded-xl overflow-hidden bg-bg-hover border border-line/10 aspect-square"
+                    >
+                      <img src={sl.preview} alt={sl.headline ?? `Slide ${idx + 1}`} className="w-full h-full object-cover" />
+                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/70 text-[10px] font-semibold text-white">
+                        {String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeSlide(idx)}
+                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black/90"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      {slides.length > 1 && (
+                        <div className="absolute bottom-2 inset-x-2 flex justify-between opacity-0 group-hover:opacity-100 transition">
+                          <button
+                            type="button"
+                            disabled={idx === 0}
+                            onClick={() => moveSlide(idx, -1)}
+                            className="w-6 h-6 rounded-md bg-black/70 text-white flex items-center justify-center disabled:opacity-30"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={idx === slides.length - 1}
+                            onClick={() => moveSlide(idx, 1)}
+                            className="w-6 h-6 rounded-md bg-black/70 text-white flex items-center justify-center disabled:opacity-30"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Attachment row */}
-        <div className="flex items-center gap-2 pt-3 border-t border-line/10">
-          <span className="text-xs text-text-secondary mr-1">Add:</span>
-          <button onClick={() => pickFile("image")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-hover text-xs text-text-secondary hover:text-text">
-            <ImageIcon className="w-3.5 h-3.5 text-emerald-400" /> Photo
-          </button>
-          <button onClick={() => pickFile("video")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-hover text-xs text-text-secondary hover:text-text">
-            <VideoIcon className="w-3.5 h-3.5 text-sky-400" /> Video
-          </button>
-          <input ref={fileRef} type="file" className="hidden" onChange={(e) => onFile(e.target.files?.[0] ?? null)} />
+        {/* Attachment + AI Carousel row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-line/10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-text-secondary mr-1">Add:</span>
+            <button
+              type="button"
+              onClick={() => pickFile("image")}
+              disabled={uploading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-hover text-xs text-text-secondary hover:text-text"
+            >
+              {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />}
+              {slides.length > 0 && mediaType === "image" ? "Add Slide" : "Photo / Carousel"}
+            </button>
+            <button
+              type="button"
+              onClick={() => pickFile("video")}
+              disabled={uploading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-hover text-xs text-text-secondary hover:text-text"
+            >
+              <VideoIcon className="w-3.5 h-3.5 text-sky-400" /> Video
+            </button>
+            <input ref={fileRef} type="file" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <select
+              value={carouselSlidesCount}
+              onChange={(e) => setCarouselSlidesCount(Number(e.target.value))}
+              className="bg-bg-hover text-text-secondary text-xs rounded-lg px-2 py-1.5 border border-line/10 outline-none"
+            >
+              {[3, 5, 7].map((n) => (
+                <option key={n} value={n} className="bg-bg-card">
+                  {n} slides
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={generateAICarousel}
+              disabled={generatingCarousel || !brand?.id}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/30 text-xs font-medium text-accent hover:bg-accent/25 transition disabled:opacity-50"
+            >
+              {generatingCarousel ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Designing…</>
+              ) : (
+                <><Sparkles className="w-3.5 h-3.5" /> AI Carousel</>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

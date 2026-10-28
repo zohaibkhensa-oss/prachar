@@ -185,7 +185,28 @@ class FacebookAdapter(ChannelAdapter):
             if "scheduled_publish_time" in payload:
                 params["scheduled_publish_time"] = payload["scheduled_publish_time"]
                 params["published"] = "false"
-            if "picture" in payload:
+            media_urls = [u for u in (payload.get("media_urls") or []) if u]
+            if len(media_urls) > 1:
+                import json as _json
+
+                photo_ids: list[str] = []
+                for u in media_urls[:10]:
+                    p_resp = await client.post(
+                        f"{FB_GRAPH_BASE}/{page_id}/photos",
+                        params={"url": u, "published": "false", "access_token": page_token},
+                    )
+                    p_resp.raise_for_status()
+                    fid = p_resp.json().get("id")
+                    if fid:
+                        photo_ids.append(fid)
+                feed_params: dict[str, Any] = {
+                    "message": payload.get("message", ""),
+                    "access_token": page_token,
+                }
+                for idx, fid in enumerate(photo_ids):
+                    feed_params[f"attached_media[{idx}]"] = _json.dumps({"media_fbid": fid})
+                resp = await client.post(f"{FB_GRAPH_BASE}/{page_id}/feed", params=feed_params)
+            elif "picture" in payload:
                 # Photo post: Graph can't reliably fetch signed URLs via
                 # /feed?picture= — the /photos endpoint uploads it properly.
                 resp = await client.post(

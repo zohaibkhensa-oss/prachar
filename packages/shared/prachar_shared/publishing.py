@@ -20,19 +20,27 @@ def build_channel_payload(
     media_type: str,
     chat_id: str | None,
     metadata: dict[str, Any],
+    media_urls: list[str] | None = None,
 ) -> dict[str, Any]:
     """Map composer inputs to the adapter payload schema.
 
     Raises ``ValueError`` for unsupported/invalid combinations — callers
     translate to HTTP 400 (API) or task failure (worker)."""
+    urls = [u for u in (media_urls or []) if u]
+    if not urls and media_url:
+        urls = [media_url]
+    primary_url = urls[0] if urls else None
+
     if channel == "facebook":
         payload: dict[str, Any] = {
             "message": text,
             "_page_access_token": metadata.get("page_access_token"),
             "_page_id": metadata.get("page_id"),
         }
-        if media_url:
-            payload["picture"] = media_url
+        if primary_url:
+            payload["picture"] = primary_url
+        if len(urls) > 1:
+            payload["media_urls"] = urls[:10]
         return payload
     if channel == "x":
         return {"text": text}
@@ -41,23 +49,32 @@ def build_channel_payload(
             "text": text,
             "_author_urn": f"urn:li:person:{metadata.get('member_id', '')}",
         }
-        if media_url:
-            payload["media_url"] = media_url
+        if primary_url:
+            payload["media_url"] = primary_url
+        if len(urls) > 1:
+            payload["media_urls"] = urls[:9]
         return payload
     if channel == "instagram":
-        if not media_url:
+        if not urls:
             raise ValueError("instagram requires an image or video")
+        if len(urls) > 10:
+            raise ValueError("instagram carousel supports at most 10 items")
+        post_type = (
+            "reels"
+            if media_type == "video"
+            else ("carousel" if len(urls) > 1 else "feed")
+        )
         return {
             "caption": text,
-            "media_urls": [media_url],
-            "post_type": "reels" if media_type == "video" else "feed",
+            "media_urls": urls,
+            "post_type": post_type,
             "_profile_metadata": metadata,
         }
     if channel == "youtube":
-        if not (media_url and media_type == "video"):
+        if not (primary_url and media_type == "video"):
             raise ValueError("youtube requires a video file")
         return {
-            "video_url": media_url,
+            "video_url": primary_url,
             "title": text[:100] or "Untitled",
             "description": text,
             "privacy": "public",
@@ -68,8 +85,8 @@ def build_channel_payload(
         return {
             "text": text,
             "chat_id": chat_id,
-            "media_type": "photo" if media_url else "none",
-            "media_url": media_url or "",
+            "media_type": "photo" if primary_url else "none",
+            "media_url": primary_url or "",
         }
     raise ValueError(f"publishing to {channel} is not supported yet")
 
