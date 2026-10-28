@@ -17,7 +17,7 @@ import {
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { apiGet, apiPost, apiPatch, ApiError } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiDelete, ApiError } from "@/lib/api";
 import { useActiveBrand } from "@/lib/hooks";
 import { Card3D, Card } from "@/components/ui/card-3d";
 import { SectionHeader } from "@/components/ui/empty-state";
@@ -46,11 +46,23 @@ interface ScheduledItem {
   channel: string;
   text: string;
   media_url: string | null;
+  pillar?: string | null;
   scheduled_at: string;
   published_at: string | null;
   published_ref: string | null;
-  state: string; // scheduled | publishing | published | failed
+  state: string; // scheduled | publishing | published | failed | pending_approval | draft
   error: string | null;
+}
+
+interface AutopilotConfig {
+  enabled: boolean;
+  mode: "full_auto" | "approve_first" | "draft_only";
+  posts_per_week: number;
+  channels: string[];
+  pillars: string[];
+  connected_channels: string[];
+  next_loop_at: string | null;
+  queued_count: number;
 }
 
 type CalendarEntry =
@@ -190,12 +202,17 @@ export default function CalendarPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<CampaignEvent | null>(null);
+  const [selectedScheduled, setSelectedScheduled] = useState<ScheduledItem | null>(null);
   const [draggedEvent, setDraggedEvent] = useState<CalendarEntry | null>(null);
   const [heatmapChannel, setHeatmapChannel] = useState<string>("meta");
   const [aiPlan, setAiPlan] = useState<{ day: string; tasks: string[] }[] | null>(null);
   const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [autopilot, setAutopilot] = useState<AutopilotConfig | null>(null);
+  const [fillingWeek, setFillingWeek] = useState(false);
+  const [savingAutopilot, setSavingAutopilot] = useState(false);
+  const [approvingAll, setApprovingAll] = useState(false);
 
-  // Fetch campaigns + scheduled posts + connections
+  // Fetch campaigns + scheduled posts + connections + autopilot state
   const loadData = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -205,16 +222,93 @@ export default function CalendarPage() {
       brand?.id
         ? apiGet<ScheduledItem[]>(`/brands/${brand.id}/scheduled`).catch(() => [])
         : Promise.resolve([]),
-    ]).then(([camp, conn, sched]) => {
+      brand?.id
+        ? apiGet<AutopilotConfig>(`/brands/${brand.id}/autopilot`).catch(() => null)
+        : Promise.resolve(null),
+    ]).then(([camp, conn, sched, ap]) => {
       setCampaigns(camp);
       setConnections(conn);
       setScheduledItems(sched);
+      setAutopilot(ap);
       setLoading(false);
     }).catch(() => {
       setError("Failed to load calendar data");
       setLoading(false);
     });
   }, [brand?.id]);
+
+  const updateAutopilotConfig = async (patch: Partial<AutopilotConfig>) => {
+    if (!brand?.id) return;
+    setSavingAutopilot(true);
+    setError(null);
+    try {
+      const updated = await apiPatch<AutopilotConfig>(`/brands/${brand.id}/autopilot`, patch);
+      setAutopilot(updated);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update Autopilot");
+    } finally {
+      setSavingAutopilot(false);
+    }
+  };
+
+  const handleFillWeek = async () => {
+    if (!brand?.id) return;
+    setFillingWeek(true);
+    setError(null);
+    try {
+      const res = await apiPost<{ created: number; items: ScheduledItem[] }>(
+        `/brands/${brand.id}/autopilot/fill-week`,
+        {
+          posts_per_week: autopilot?.posts_per_week ?? 5,
+          mode: autopilot?.mode ?? "approve_first",
+          channels: autopilot?.channels,
+        }
+      );
+      if (res?.items) {
+        setScheduledItems((prev) => [...prev, ...res.items]);
+      }
+      loadData();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to generate weekly schedule");
+    } finally {
+      setFillingWeek(false);
+    }
+  };
+
+  const handleApproveItem = async (itemId: string) => {
+    if (!brand?.id) return;
+    try {
+      const updated = await apiPost<ScheduledItem>(`/brands/${brand.id}/schedule/${itemId}/approve`, {});
+      setScheduledItems((prev) => prev.map((it) => (it.id === itemId ? updated : it)));
+      setSelectedScheduled((prev) => (prev?.id === itemId ? updated : prev));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to approve post");
+    }
+  };
+
+  const handleCancelItem = async (itemId: string) => {
+    if (!brand?.id) return;
+    try {
+      await apiDelete(`/brands/${brand.id}/schedule/${itemId}`);
+      setScheduledItems((prev) => prev.filter((it) => it.id !== itemId));
+      setSelectedScheduled(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to cancel post");
+    }
+  };
+
+  const handleApproveAll = async () => {
+    if (!brand?.id) return;
+    setApprovingAll(true);
+    try {
+      await apiPost(`/brands/${brand.id}/autopilot/approve-all`, {});
+      loadData();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to approve queued posts");
+    } finally {
+      setApprovingAll(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -367,15 +461,18 @@ export default function CalendarPage() {
     const pending = campaigns.filter((c) => c.status === "draft" || c.status === "in_review").length;
     const rejected = campaigns.filter((c) => c.status === "rejected").length;
     const totalBudget = campaigns.reduce((sum, c) => sum + c.budget_daily, 0);
-    return { approved, pending, rejected, totalBudget };
-  }, [campaigns]);
+    const awaitingApproval = scheduledItems.filter(
+      (s) => !s.published_at && (s.state === "pending_approval" || s.state === "draft")
+    ).length;
+    return { approved, pending, rejected, totalBudget, awaitingApproval };
+  }, [campaigns, scheduledItems]);
 
   const monthName = currentDate.toLocaleString("default", { month: "long", year: "numeric" });
 
   return (
     <div className="p-4 lg:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="font-display text-2xl lg:text-3xl font-semibold text-text flex items-center gap-3">
             <CalendarDays className="w-7 h-7 text-accent" />
@@ -385,20 +482,143 @@ export default function CalendarPage() {
             Schedule, visualise, and publish content across all platforms
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {stats.awaitingApproval > 0 && (
+            <button
+              onClick={handleApproveAll}
+              disabled={approvingAll}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-sm font-semibold hover:bg-emerald-500/30 transition disabled:opacity-50"
+            >
+              {approvingAll ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Approving...</>
+              ) : (
+                <><CheckCircle2 className="w-4 h-4" /> Approve All ({stats.awaitingApproval})</>
+              )}
+            </button>
+          )}
+          <button
+            onClick={handleFillWeek}
+            disabled={fillingWeek || !brand?.id}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+          >
+            {fillingWeek ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Filling Week...</>
+            ) : (
+              <><Zap className="w-4 h-4" /> Fill My Week</>
+            )}
+          </button>
           <button
             onClick={generateAIPlan}
             disabled={generatingPlan}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.06] text-text text-sm font-medium hover:bg-white/[0.1] transition disabled:opacity-50"
           >
             {generatingPlan ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+              <><Loader2 className="w-4 h-4 animate-spin" /> Strategy...</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> AI Weekly Plan</>
+              <><Sparkles className="w-4 h-4 text-accent" /> Strategy Brief</>
             )}
           </button>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-xs text-red-300 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-200 hover:text-white">Dismiss</button>
+        </div>
+      )}
+
+      {/* Autopilot Control Bar */}
+      {autopilot && (
+        <Card className="p-4 mb-6 border border-accent/20 bg-gradient-to-r from-accent/[0.06] via-white/[0.02] to-transparent">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <button
+                type="button"
+                disabled={savingAutopilot}
+                onClick={() => updateAutopilotConfig({ enabled: !autopilot.enabled })}
+                className={cn(
+                  "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200",
+                  autopilot.enabled ? "bg-emerald-500" : "bg-white/15"
+                )}
+                aria-label="Toggle Autopilot"
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200",
+                    autopilot.enabled ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-display text-sm font-semibold text-text">
+                    Social Autopilot
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider",
+                      autopilot.enabled
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-white/10 text-text-muted"
+                    )}
+                  >
+                    {autopilot.enabled ? "Active" : "Paused"}
+                  </span>
+                  <span className="text-xs text-text-muted">
+                    · {scheduledItems.filter((s) => !s.published_at).length} queued on calendar
+                  </span>
+                </div>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Set your autonomy level and cadence once — CURV writes in your brand voice, slots posts at peak hours, and ships on schedule.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Tiered autonomy selector */}
+              <div className="flex bg-white/[0.04] rounded-lg p-0.5 border border-white/[0.06]">
+                {(
+                  [
+                    { id: "draft_only", label: "Drafts Only" },
+                    { id: "approve_first", label: "Approve First" },
+                    { id: "full_auto", label: "Full Autopilot" },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    disabled={savingAutopilot}
+                    onClick={() => updateAutopilotConfig({ mode: m.id })}
+                    className={cn(
+                      "px-2.5 py-1.5 rounded-md text-xs font-medium transition whitespace-nowrap",
+                      autopilot.mode === m.id
+                        ? "bg-accent text-white"
+                        : "text-text-secondary hover:text-text"
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Cadence selector */}
+              <select
+                value={autopilot.posts_per_week}
+                disabled={savingAutopilot}
+                onChange={(e) => updateAutopilotConfig({ posts_per_week: Number(e.target.value) })}
+                className="bg-white/[0.04] text-text text-xs rounded-lg px-2.5 py-2 border border-white/[0.06] outline-none"
+              >
+                {[3, 5, 7, 10, 14].map((n) => (
+                  <option key={n} value={n} className="bg-bg-surface">
+                    {n} posts / week
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -549,13 +769,23 @@ export default function CalendarPage() {
                             ? { label: "Published", icon: CheckCircle2, color: "#22C55E" }
                             : entry.data.state === "failed"
                               ? { label: "Failed", icon: XCircle, color: "#EF4444" }
-                              : { label: "Scheduled", icon: Clock, color: "#F59E0B" };
+                              : entry.data.state === "pending_approval"
+                                ? { label: "Needs Approval", icon: AlertCircle, color: "#38BDF8" }
+                                : entry.data.state === "draft"
+                                  ? { label: "Draft", icon: Clock, color: "#94A3B8" }
+                                  : { label: "Scheduled", icon: Clock, color: "#F59E0B" };
                         return (
                           <div
                             key={entry.data.id}
                             draggable={draggable}
                             onDragStart={(e) => handleDragStart(e, entry)}
-                            onClick={() => setSelectedEvent(entry.kind === "campaign" ? entry.data : null)}
+                            onClick={() => {
+                              if (entry.kind === "campaign") {
+                                setSelectedEvent(entry.data);
+                              } else {
+                                setSelectedScheduled(entry.data);
+                              }
+                            }}
                             className={cn(
                               "text-[10px] px-1.5 py-1 rounded-md cursor-pointer hover:scale-[1.02] transition",
                               !draggable && "opacity-80",
@@ -795,6 +1025,102 @@ export default function CalendarPage() {
                       <button
                         onClick={() => setSelectedEvent(null)}
                         className="flex-1 px-4 py-2 rounded-xl bg-white/[0.06] text-text text-sm font-medium hover:bg-white/[0.1] transition"
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Scheduled post detail + approval modal */}
+      <AnimatePresence>
+        {selectedScheduled && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedScheduled(null)}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="glass-strong rounded-2xl border border-white/[0.1] p-6 max-w-md w-full"
+            >
+              {(() => {
+                const meta = CHANNEL_META[selectedScheduled.channel] || DEFAULT_CHANNEL;
+                const needsApproval =
+                  !selectedScheduled.published_at &&
+                  (selectedScheduled.state === "pending_approval" || selectedScheduled.state === "draft");
+                return (
+                  <>
+                    <div className="flex items-center justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center text-xl"
+                          style={{ backgroundColor: `${meta.color}15` }}
+                        >
+                          {meta.emoji}
+                        </div>
+                        <div>
+                          <h3 className="font-display text-base font-semibold text-text">
+                            {meta.name} Post
+                          </h3>
+                          <p className="text-xs text-text-muted">
+                            {selectedScheduled.scheduled_at
+                              ? new Date(selectedScheduled.scheduled_at).toLocaleString()
+                              : "Unscheduled"}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[11px] px-2.5 py-1 rounded-full bg-white/[0.06] text-text-secondary capitalize">
+                        {selectedScheduled.state.replace("_", " ")}
+                      </span>
+                    </div>
+
+                    {selectedScheduled.pillar && (
+                      <div className="mb-2 text-[11px] text-accent font-medium">
+                        Pillar: {selectedScheduled.pillar}
+                      </div>
+                    )}
+
+                    <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 text-xs text-text whitespace-pre-wrap max-h-48 overflow-y-auto">
+                      {selectedScheduled.text || "(No caption)"}
+                    </div>
+
+                    {selectedScheduled.error && (
+                      <div className="mt-3 rounded-lg bg-red-500/10 border border-red-500/30 p-2.5 text-xs text-red-300">
+                        {selectedScheduled.error}
+                      </div>
+                    )}
+
+                    <div className="mt-5 flex gap-2">
+                      {needsApproval && (
+                        <button
+                          onClick={() => handleApproveItem(selectedScheduled.id)}
+                          className="flex-1 px-4 py-2 rounded-xl bg-emerald-500 text-white text-xs font-semibold hover:bg-emerald-600 transition"
+                        >
+                          Approve & Schedule
+                        </button>
+                      )}
+                      {!selectedScheduled.published_at && (
+                        <button
+                          onClick={() => handleCancelItem(selectedScheduled.id)}
+                          className="px-4 py-2 rounded-xl bg-red-500/15 text-red-300 text-xs font-medium hover:bg-red-500/25 transition"
+                        >
+                          Delete
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedScheduled(null)}
+                        className="px-4 py-2 rounded-xl bg-white/[0.06] text-text text-xs font-medium hover:bg-white/[0.1] transition"
                       >
                         Close
                       </button>

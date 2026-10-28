@@ -567,6 +567,7 @@ def _scheduled_item_out(item: ContentItem) -> dict:
         "text": (item.payload or {}).get("copy", ""),
         "media_url": (item.payload or {}).get("media_url"),
         "media_type": (item.payload or {}).get("media_type", "image"),
+        "pillar": (item.payload or {}).get("pillar"),
         "scheduled_at": item.scheduled_at.isoformat() if item.scheduled_at else None,
         "published_at": item.published_at.isoformat() if item.published_at else None,
         "published_ref": item.published_ref,
@@ -700,3 +701,401 @@ async def cancel_scheduled(
         raise HTTPException(status.HTTP_409_CONFLICT, "post already published")
     await session.delete(item)
     await session.commit()
+
+
+# ─── Autopilot (tiered autonomy + one-click week filler) ────────────────────
+
+_DEFAULT_PILLARS = [
+    "Educational & Insights",
+    "Customer Proof & Wins",
+    "Product / Service Spotlight",
+    "Behind the Scenes & Founder POV",
+]
+
+_BEST_HOUR_BY_CHANNEL: dict[str, int] = {
+    "linkedin": 10,
+    "x": 9,
+    "facebook": 13,
+    "instagram": 13,
+    "youtube": 15,
+    "tiktok": 18,
+    "pinterest": 14,
+    "threads": 11,
+}
+
+_MEDIA_REQUIRED_CHANNELS = frozenset({"instagram", "youtube", "tiktok", "pinterest"})
+
+
+class AutopilotConfigIn(BaseModel):
+    enabled: bool | None = None
+    mode: str | None = Field(default=None, pattern="^(full_auto|approve_first|draft_only)$")
+    posts_per_week: int | None = Field(default=None, ge=1, le=14)
+    channels: list[str] | None = None
+    pillars: list[str] | None = None
+
+
+class FillWeekIn(BaseModel):
+    posts_per_week: int | None = Field(default=None, ge=1, le=14)
+    channels: list[str] | None = None
+    mode: str | None = Field(default=None, pattern="^(full_auto|approve_first|draft_only)$")
+    focus_topic: str | None = Field(default=None, max_length=500)
+    media_url: str | None = None
+
+
+def _autopilot_state(brand: Brand, active_channels: list[str], queued_count: int) -> dict:
+    raw = dict((brand.brand_graph or {}).get("autopilot") or {})
+    channels = raw.get("channels") or active_channels or ["linkedin", "facebook", "x"]
+    pillars = raw.get("pillars") or list(_DEFAULT_PILLARS)
+    mode = raw.get("mode") if raw.get("mode") in ("full_auto", "approve_first", "draft_only") else "approve_first"
+    posts_per_week = int(raw.get("posts_per_week") or 5)
+    enabled = bool(raw.get("enabled", brand.next_loop_at is not None))
+    return {
+        "enabled": enabled,
+        "mode": mode,
+        "posts_per_week": max(1, min(14, posts_per_week)),
+        "channels": channels,
+        "pillars": pillars,
+        "connected_channels": active_channels,
+        "next_loop_at": brand.next_loop_at.isoformat() if brand.next_loop_at else None,
+        "queued_count": queued_count,
+    }
+
+
+async def _load_brand_autopilot_context(
+    brand_id: uuid.UUID, tenant_id: uuid.UUID, session: SessionDep
+) -> tuple[Brand, list[str], int]:
+    from datetime import UTC, datetime
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    conn_res = await session.execute(
+        select(Connection.channel).where(
+            Connection.brand_id == brand_id,
+            Connection.tenant_id == tenant_id,
+            Connection.status == "active",
+        )
+    )
+    active_channels = [
+        ch for (ch,) in conn_res.all()
+        if ch not in ("gsc", "gmb", "google")
+    ]
+
+    sched_res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == tenant_id,
+            ContentItem.scheduled_at.is_not(None),
+            ContentItem.published_at.is_(None),
+            ContentItem.scheduled_at >= datetime.now(UTC),
+        )
+    )
+    queued_count = len(sched_res.scalars().all())
+    return brand, active_channels, queued_count
+
+
+@router.get("/{brand_id}/autopilot")
+async def get_autopilot(
+    brand_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict:
+    brand, active_channels, queued_count = await _load_brand_autopilot_context(
+        brand_id, user.tenant_id, session
+    )
+    return _autopilot_state(brand, active_channels, queued_count)
+
+
+@router.patch("/{brand_id}/autopilot")
+async def update_autopilot(
+    brand_id: uuid.UUID,
+    body: AutopilotConfigIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    from datetime import UTC, datetime, timedelta
+
+    brand, active_channels, queued_count = await _load_brand_autopilot_context(
+        brand_id, user.tenant_id, session
+    )
+    graph = dict(brand.brand_graph or {})
+    ap = dict(graph.get("autopilot") or {})
+    if body.enabled is not None:
+        ap["enabled"] = body.enabled
+        brand.next_loop_at = (
+            datetime.now(UTC) + timedelta(days=7) if body.enabled else None
+        )
+    if body.mode is not None:
+        ap["mode"] = body.mode
+    if body.posts_per_week is not None:
+        ap["posts_per_week"] = body.posts_per_week
+    if body.channels is not None:
+        ap["channels"] = [c.strip().lower() for c in body.channels if c.strip()]
+    if body.pillars is not None:
+        ap["pillars"] = [p.strip() for p in body.pillars if p.strip()]
+
+    graph["autopilot"] = ap
+    brand.brand_graph = graph
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.autopilot.update",
+        entity_type="brand",
+        entity_id=brand.id,
+        payload=ap,
+    )
+    await session.commit()
+    return _autopilot_state(brand, active_channels, queued_count)
+
+
+@router.post("/{brand_id}/schedule/{item_id}/approve")
+async def approve_scheduled_post(
+    brand_id: uuid.UUID,
+    item_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Promote a draft / pending_approval post to 'scheduled' so the worker publishes it at scheduled_at."""
+    from datetime import UTC, datetime, timedelta
+
+    res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.id == item_id,
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+        )
+    )
+    item = res.scalar_one_or_none()
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "scheduled post not found")
+    if item.published_at is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "post already published")
+
+    now = datetime.now(UTC)
+    if item.scheduled_at is None or item.scheduled_at <= now + timedelta(seconds=60):
+        item.scheduled_at = now + timedelta(minutes=5)
+    item.payload = {**(item.payload or {}), "schedule_state": "scheduled", "schedule_attempts": 0}
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="content.approve",
+        entity_type="content_item",
+        entity_id=item.id,
+        payload={"channel": item.channel, "scheduled_at": item.scheduled_at.isoformat()},
+    )
+    await session.commit()
+    return _scheduled_item_out(item)
+
+
+@router.post("/{brand_id}/autopilot/approve-all")
+async def approve_all_scheduled(
+    brand_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """One-tap approval for all pending_approval / draft posts on the calendar."""
+    from datetime import UTC, datetime, timedelta
+
+    res = await session.execute(
+        select(ContentItem).where(
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+            ContentItem.scheduled_at.is_not(None),
+            ContentItem.published_at.is_(None),
+        )
+    )
+    items = res.scalars().all()
+    now = datetime.now(UTC)
+    approved = 0
+    for idx, item in enumerate(items):
+        st = (item.payload or {}).get("schedule_state", "scheduled")
+        if st in ("pending_approval", "draft"):
+            if item.scheduled_at is None or item.scheduled_at <= now + timedelta(seconds=60):
+                item.scheduled_at = now + timedelta(minutes=5 + idx * 2)
+            item.payload = {**(item.payload or {}), "schedule_state": "scheduled", "schedule_attempts": 0}
+            approved += 1
+
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="content.approve_all",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"approved_count": approved},
+    )
+    await session.commit()
+    return {"approved": approved}
+
+
+def _fallback_post_copy(
+    brand: Brand, channel: str, pillar: str, day_num: int, focus_topic: str | None
+) -> str:
+    topic = focus_topic or brand.category or "growth & customer outcomes"
+    voice = (brand.tone or {}).get("voice") or "clear, confident, and helpful"
+    templates = [
+        f"{brand.name} insight ({pillar}): Most teams overcomplicate {topic}. Start with one measurable workflow, track weekly lift, and compound what works.",
+        f"{brand.name} — {pillar}: Three signals your {topic} strategy is working: faster response loops, consistent creative output, and lower wasted spend.",
+        f"Behind the scenes at {brand.name}: How we approach {topic} with a {voice} mindset — focus on clarity, customer proof, and repeatable execution.",
+        f"{brand.name} spotlight ({pillar}): Ready to streamline {topic}? Here is the exact checklist our team runs every week to stay ahead.",
+    ]
+    text = templates[day_num % len(templates)]
+    if channel == "x" and len(text) > 275:
+        text = text[:272] + "..."
+    return text
+
+
+@router.post("/{brand_id}/autopilot/fill-week")
+async def autopilot_fill_week(
+    brand_id: uuid.UUID,
+    body: FillWeekIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Generate a full week of on-brand posts across selected channels and place
+    them directly onto the Content Calendar at each platform's peak hour."""
+    from datetime import UTC, datetime, timedelta
+
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    brand, active_channels, _ = await _load_brand_autopilot_context(
+        brand_id, user.tenant_id, session
+    )
+    ap_cfg = _autopilot_state(brand, active_channels, 0)
+    count = body.posts_per_week or ap_cfg["posts_per_week"] or 5
+    mode = body.mode or ap_cfg["mode"] or "approve_first"
+    channels = (
+        [c.strip().lower() for c in body.channels if c.strip()]
+        if body.channels
+        else ap_cfg["channels"]
+    )
+    if not channels:
+        channels = active_channels or ["linkedin", "facebook", "x"]
+    pillars = ap_cfg["pillars"] or list(_DEFAULT_PILLARS)
+
+    tone_desc = (brand.tone or {}).get("voice") or "professional, specific, and engaging"
+    prompt = f"""You are the Autonomous Social Media Director for "{brand.name}".
+Website: {brand.website or 'N/A'}
+Category: {brand.category or 'General Business'}
+Brand Voice: {tone_desc}
+Content Pillars: {', '.join(pillars)}
+Target Channels: {', '.join(channels)}
+Focus Topic: {body.focus_topic or 'Core brand value, customer wins, and actionable tips'}
+
+Generate {count} distinct, ready-to-publish social media posts spread across the next 7 days.
+Rules:
+- Adapt copy to each channel (e.g. X <= 260 chars, LinkedIn thought-leadership with line breaks, Facebook/Instagram engaging hook + CTA).
+- Never make "guaranteed #1" or unverified medical/financial guarantees.
+- Rotate across the target channels and content pillars.
+
+Return ONLY valid JSON in this exact shape:
+{{
+  "posts": [
+    {{
+      "day_offset": 1,
+      "channel": "{channels[0]}",
+      "pillar": "{pillars[0]}",
+      "text": "Full post caption ready to publish..."
+    }}
+  ]
+}}"""
+
+    generated_posts: list[dict] = []
+    try:
+        gw = AIGateway()
+        completion = await gw.async_complete(
+            prompt=prompt,
+            tier=Tier.SMALL,
+            tenant_id=str(user.tenant_id),
+            max_tokens=1600,
+        )
+        parsed = extract_json(completion.content) or {}
+        if isinstance(parsed, dict) and isinstance(parsed.get("posts"), list):
+            generated_posts = [p for p in parsed["posts"] if isinstance(p, dict) and p.get("text")]
+    except Exception as exc:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "autopilot fill-week LLM fallback for brand %s: %s", brand_id, exc
+        )
+
+    now = datetime.now(UTC)
+    created_items: list[ContentItem] = []
+
+    for i in range(count):
+        raw_post = generated_posts[i] if i < len(generated_posts) else {}
+        ch = str(raw_post.get("channel") or channels[i % len(channels)]).lower()
+        if ch not in channels:
+            ch = channels[i % len(channels)]
+        pillar = str(raw_post.get("pillar") or pillars[i % len(pillars)])
+        text = str(raw_post.get("text") or "").strip()
+        if not text:
+            text = _fallback_post_copy(brand, ch, pillar, i, body.focus_topic)
+
+        # Enforce X character limit and claims_gate safety
+        if ch == "x" and len(text) > 275:
+            text = text[:272] + "..."
+        gate = claims_gate(text)
+        if not gate.passed:
+            text = _fallback_post_copy(brand, ch, pillar, i, None)
+
+        day_offset = int(raw_post.get("day_offset") or ((i % 7) + 1))
+        day_offset = max(1, min(7, day_offset))
+        best_hour = _BEST_HOUR_BY_CHANNEL.get(ch, 11)
+        slot = (now + timedelta(days=day_offset)).replace(
+            hour=best_hour, minute=(i * 7) % 60, second=0, microsecond=0
+        )
+        if slot <= now + timedelta(minutes=2):
+            slot = now + timedelta(hours=2 + i)
+
+        # Determine initial state based on autonomy mode + channel readiness
+        is_connected = ch in active_channels
+        needs_media = ch in _MEDIA_REQUIRED_CHANNELS and not body.media_url
+        if mode == "draft_only":
+            sched_state = "draft"
+        elif mode == "approve_first" or not is_connected or needs_media:
+            sched_state = "pending_approval"
+        else:
+            sched_state = "scheduled"
+
+        item = ContentItem(
+            tenant_id=user.tenant_id,
+            brand_id=brand_id,
+            channel=ch,
+            payload={
+                "copy": text,
+                "media_url": body.media_url,
+                "media_type": "image",
+                "pillar": pillar,
+                "autopilot": True,
+                "schedule_state": sched_state,
+            },
+            policy_status=PolicyStatus.passed,
+            scheduled_at=slot,
+        )
+        session.add(item)
+        created_items.append(item)
+
+    await session.flush()
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.autopilot.fill_week",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"count": len(created_items), "mode": mode, "channels": channels},
+    )
+    await session.commit()
+    return {
+        "created": len(created_items),
+        "mode": mode,
+        "items": [_scheduled_item_out(it) for it in created_items],
+    }
+

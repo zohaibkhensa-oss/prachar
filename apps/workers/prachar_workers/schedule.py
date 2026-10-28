@@ -81,6 +81,9 @@ def publish_scheduled_item(item_id: str) -> dict[str, Any]:
             return {"ok": True, "skipped": "already published"}
 
         payload = dict(item["payload"] or {})
+        state = payload.get("schedule_state", "scheduled")
+        if state in ("pending_approval", "draft"):
+            return {"ok": True, "skipped": f"state={state}"}
         attempts = int(payload.get("schedule_attempts") or 0)
         # Claim the item so a concurrent beat tick can't double-publish.
         session.execute(

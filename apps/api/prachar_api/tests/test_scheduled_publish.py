@@ -115,3 +115,50 @@ class TestTokensFromBundle:
         }
         t = tokens_from_bundle(bundle)
         assert t.access_token == "a" and t.metadata == {"m": 1}
+
+
+class TestAutopilotHelpers:
+    def test_autopilot_state_defaults(self):
+        from prachar_api.routers.brands import _autopilot_state
+
+        brand = MagicMock(brand_graph={}, next_loop_at=None)
+        st = _autopilot_state(brand, ["facebook", "linkedin"], 3)
+        assert st["enabled"] is False
+        assert st["mode"] == "approve_first"
+        assert st["posts_per_week"] == 5
+        assert st["channels"] == ["facebook", "linkedin"]
+        assert st["queued_count"] == 3
+
+    def test_autopilot_state_respects_custom_config(self):
+        from prachar_api.routers.brands import _autopilot_state
+
+        now = datetime.now(UTC) + timedelta(days=7)
+        brand = MagicMock(
+            brand_graph={
+                "autopilot": {
+                    "enabled": True,
+                    "mode": "full_auto",
+                    "posts_per_week": 7,
+                    "channels": ["x"],
+                    "pillars": ["Wins"],
+                }
+            },
+            next_loop_at=now,
+        )
+        st = _autopilot_state(brand, ["x", "linkedin"], 5)
+        assert st["enabled"] is True
+        assert st["mode"] == "full_auto"
+        assert st["posts_per_week"] == 7
+        assert st["channels"] == ["x"]
+        assert st["pillars"] == ["Wins"]
+
+    def test_fallback_post_copy_respects_x_limit(self):
+        from prachar_api.routers.brands import _fallback_post_copy
+
+        brand = MagicMock()
+        brand.name = "CURV AI"
+        brand.category = "A" * 300
+        brand.tone = {"voice": "bold"}
+        copy = _fallback_post_copy(brand, "x", "Insights", 0, None)
+        assert len(copy) <= 280
+
