@@ -14,7 +14,7 @@ import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon, VideoIcon, X, ArrowUp, Loader2, CheckCircle2,
-  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight, Wand2,
+  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight, Wand2, Camera, Mic,
 } from "lucide-react";
 
 interface SlideItem {
@@ -61,21 +61,92 @@ export default function PostPage() {
   const [uploading, setUploading] = useState(false);
   const [generatingCarousel, setGeneratingCarousel] = useState(false);
   const [finishingVideo, setFinishingVideo] = useState(false);
+  const [snappingCampaign, setSnappingCampaign] = useState(false);
+  const [listeningVoice, setListeningVoice] = useState(false);
   const [carouselSlidesCount, setCarouselSlidesCount] = useState(5);
+  const snapFileRef = useRef<HTMLInputElement>(null);
+  const speechRef = useRef<any>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const vUrl = params.get("video_url");
+    const mUrls = params.get("media_urls");
     const cap = params.get("caption");
     if (vUrl) {
       setMediaType("video");
       setSlides([{ url: vUrl, preview: vUrl }]);
+    } else if (mUrls) {
+      const list = mUrls.split(",").map((s) => s.trim()).filter(Boolean);
+      if (list.length > 0) {
+        setMediaType("image");
+        setSlides(list.map((u) => ({ url: u, preview: u })));
+      }
     }
     if (cap) {
       setText(cap);
     }
   }, []);
+
+  const toggleVoiceNote = () => {
+    if (listeningVoice) {
+      speechRef.current?.stop();
+      setListeningVoice(false);
+      return;
+    }
+    const SR =
+      typeof window !== "undefined" &&
+      ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+    if (!SR) {
+      setError("Voice input requires Chrome, Edge, or Safari.");
+      return;
+    }
+    const rec = new SR();
+    rec.lang = "en-IN";
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onstart = () => setListeningVoice(true);
+    rec.onresult = (ev: any) => {
+      const transcript = ev.results?.[0]?.[0]?.transcript || "";
+      if (transcript) {
+        setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      }
+    };
+    rec.onerror = () => setListeningVoice(false);
+    rec.onend = () => setListeningVoice(false);
+    speechRef.current = rec;
+    rec.start();
+  };
+
+  const onSnapProductFile = async (f: File | null) => {
+    if (!f || !brand?.id) return;
+    setSnappingCampaign(true);
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      if (text.trim()) fd.append("note", text.trim());
+      const res = await apiUpload<{
+        caption: string;
+        whatsapp_copy: string;
+        slides: { slide_number: number; headline: string; media_url: string }[];
+      }>(`/brands/${brand.id}/snap-to-campaign`, fd);
+      setMediaType("image");
+      setSlides(
+        res.slides.map((s) => ({
+          url: s.media_url,
+          preview: s.media_url,
+          headline: s.headline,
+        }))
+      );
+      if (res.caption) setText(res.caption);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Snap-to-Campaign failed");
+    } finally {
+      setSnappingCampaign(false);
+      if (snapFileRef.current) snapFileRef.current.value = "";
+    }
+  };
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [telegramChatId, setTelegramChatId] = useState("");
   const [publishing, setPublishing] = useState(false);
@@ -416,7 +487,40 @@ export default function PostPage() {
             >
               <VideoIcon className="w-3.5 h-3.5 text-sky-400" /> Video
             </button>
+            <button
+              type="button"
+              onClick={() => snapFileRef.current?.click()}
+              disabled={snappingCampaign || !brand?.id}
+              title="Upload 1 product photo → AI creates a 3-slide carousel + caption"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-xs font-medium text-amber-300 hover:bg-amber-500/25 transition disabled:opacity-50"
+            >
+              {snappingCampaign ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Building…</>
+              ) : (
+                <><Camera className="w-3.5 h-3.5" /> Snap Product → Campaign</>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={toggleVoiceNote}
+              title="Speak your caption or idea (English / Hinglish)"
+              className={cn(
+                "inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition",
+                listeningVoice
+                  ? "bg-accent/25 text-accent animate-pulse"
+                  : "bg-bg-hover text-text-secondary hover:text-text"
+              )}
+            >
+              <Mic className="w-3.5 h-3.5" /> {listeningVoice ? "Listening…" : "Voice"}
+            </button>
             <input ref={fileRef} type="file" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+            <input
+              ref={snapFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onSnapProductFile(e.target.files?.[0] ?? null)}
+            />
           </div>
 
           <div className="flex items-center gap-1.5">

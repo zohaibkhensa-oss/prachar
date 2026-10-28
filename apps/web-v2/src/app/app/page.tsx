@@ -9,7 +9,7 @@ import { TypewriterText } from "@/components/TypewriterText";
 import { ThinkingBubble } from "@/components/ThinkingBubble";
 import { useActiveBrand } from "@/lib/hooks";
 import { useRuntimeSession, type AIEvent } from "@/lib/runtime";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost, apiUpload } from "@/lib/api";
 import { getToolLabel, getContextualSuggestions } from "@/lib/tool-labels";
 import {
   type OrbState,
@@ -34,15 +34,83 @@ import {
   X,
   Sparkles,
   Plus,
+  Camera,
+  CheckCircle2,
+  Loader2,
+  Zap,
 } from "lucide-react";
 
-// ─── Suggestion chips ───────────────────────────────────────────────────────
-const SUGGESTIONS = [
-  "Generate an image of a sunset over Mumbai",
-  "Create a 5-second video ad for coffee",
-  "Build a campaign for my brand",
-  "How is my performance doing?",
+type TeammateId = "all" | "tara" | "maya" | "ved";
+
+const TEAMMATES: {
+  id: TeammateId;
+  name: string;
+  role: string;
+  placeholder: string;
+  suggestions: string[];
+}[] = [
+  {
+    id: "all",
+    name: "All CURV AI",
+    role: "Full AI Growth Team",
+    placeholder: "Ask your AI team anything — or tap Mic and speak in English / Hinglish…",
+    suggestions: [
+      "Plan & schedule my week of social posts",
+      "Run a Weekend Flash Sale campaign (20% off)",
+      "Create a 5-slide product carousel for Instagram",
+      "Write a WhatsApp follow-up for warm leads",
+    ],
+  },
+  {
+    id: "tara",
+    name: "Tara",
+    role: "Marketing & Ads",
+    placeholder: "Ask Tara to plan calendars, write posts, or launch Meta & Google ads…",
+    suggestions: [
+      "Create a 7-day Instagram + LinkedIn content plan",
+      "Launch a ₹500/day Meta Ad campaign for new customers",
+      "Write a Festive Offer campaign across all channels",
+      "How is my social performance doing this week?",
+    ],
+  },
+  {
+    id: "maya",
+    name: "Maya",
+    role: "Creative Studio",
+    placeholder: "Ask Maya for product shoots, 1080×1080 carousels, or finished Reels…",
+    suggestions: [
+      "Generate a studio product image on a marble background",
+      "Create a 5-second cinematic product reel",
+      "Design a 5-slide educational carousel for my brand",
+      "Write a scroll-stopping video hook and script",
+    ],
+  },
+  {
+    id: "ved",
+    name: "Ved",
+    role: "WhatsApp & Leads",
+    placeholder: "Ask Ved for WhatsApp broadcasts, customer replies, or lead follow-ups…",
+    suggestions: [
+      "Write a WhatsApp broadcast for weekend offer leads",
+      "Create a 3-step follow-up sequence for price enquiries",
+      "Draft polite instant replies for Instagram & WhatsApp DMs",
+      "Write a re-engagement message for past customers",
+    ],
+  },
 ];
+
+interface ReadyQueueCard {
+  id: string;
+  teammate: string;
+  badge: string;
+  title: string;
+  preview: string;
+  channel: string;
+  scheduled_item_id: string | null;
+  state: string;
+  cta_label: string;
+  action_type: "approve_item" | "open_composer" | "fill_week" | "open_carousel";
+}
 
 // ─── Time-based greeting ────────────────────────────────────────────────────
 function getTimeGreeting(): string {
@@ -109,14 +177,76 @@ export default function DashboardPage() {
     { label: string; status: "pending" | "running" | "done" | "error" }[]
   >([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [selectedTeammate, setSelectedTeammate] = useState<TeammateId>("all");
+  const [readyCards, setReadyCards] = useState<ReadyQueueCard[]>([]);
+  const [busyCardId, setBusyCardId] = useState<string | null>(null);
+  const [snappingHome, setSnappingHome] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const snapHomeInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const processedEventsRef = useRef<Set<string>>(new Set());
+
+  const activeTeammate = TEAMMATES.find((t) => t.id === selectedTeammate) ?? TEAMMATES[0]!;
+
+  useEffect(() => {
+    if (!brand?.id) return;
+    apiGet<{ cards: ReadyQueueCard[] }>(`/brands/${brand.id}/daily-ready-queue`)
+      .then((res) => setReadyCards(res.cards || []))
+      .catch(() => {});
+  }, [brand?.id]);
+
+  const handleReadyCardAction = async (card: ReadyQueueCard) => {
+    if (!brand?.id || busyCardId) return;
+    if (card.action_type === "open_composer") {
+      router.push(`/app/post?caption=${encodeURIComponent(card.preview)}`);
+      return;
+    }
+    if (card.action_type === "open_carousel") {
+      router.push(`/app/post?caption=${encodeURIComponent(card.preview)}`);
+      return;
+    }
+    setBusyCardId(card.id);
+    try {
+      if (card.action_type === "approve_item" && card.scheduled_item_id) {
+        await apiPost(`/brands/${brand.id}/schedule/${card.scheduled_item_id}/approve`, {});
+        setReadyCards((prev) =>
+          prev.map((c) =>
+            c.id === card.id ? { ...c, state: "scheduled", badge: "Scheduled ✓", cta_label: "View Calendar" } : c
+          )
+        );
+      } else if (card.action_type === "fill_week") {
+        await apiPost(`/brands/${brand.id}/autopilot/fill-week`, { posts_per_week: 5 });
+        router.push("/app/calendar");
+      }
+    } finally {
+      setBusyCardId(null);
+    }
+  };
+
+  const handleSnapProductHome = async (f: File | null) => {
+    if (!f || !brand?.id) return;
+    setSnappingHome(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      if (prompt.trim()) fd.append("note", prompt.trim());
+      const res = await apiUpload<{
+        caption: string;
+        media_urls: string[];
+      }>(`/brands/${brand.id}/snap-to-campaign`, fd);
+      const urlsParam = encodeURIComponent((res.media_urls || []).join(","));
+      const capParam = encodeURIComponent(res.caption || "");
+      router.push(`/app/post?media_urls=${urlsParam}&caption=${capParam}`);
+    } finally {
+      setSnappingHome(false);
+      if (snapHomeInputRef.current) snapHomeInputRef.current.value = "";
+    }
+  };
 
   const email = typeof window !== "undefined" ? localStorage.getItem("prachar_email") : null;
   const displayName = getDisplayName(email, brand?.name ?? null);
@@ -442,7 +572,7 @@ export default function DashboardPage() {
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    recognition.lang = "en-IN";
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -674,12 +804,65 @@ export default function DashboardPage() {
           </p>
         </motion.div>
 
+        {/* ═══ AI Teammate Switcher (Tara · Maya · Ved) ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, delay: 0.25 }}
+          className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl"
+        >
+          {TEAMMATES.map((tm) => {
+            const activePill = selectedTeammate === tm.id;
+            return (
+              <button
+                key={tm.id}
+                type="button"
+                onClick={() => setSelectedTeammate(tm.id)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
+                  activePill
+                    ? "bg-accent/20 border-accent/50 text-text shadow-glow"
+                    : "bg-white/[0.03] border-white/[0.06] text-text-secondary hover:text-text"
+                )}
+              >
+                <span className="font-semibold">{tm.name}</span>
+                <span className="text-[10px] text-text-muted">· {tm.role}</span>
+              </button>
+            );
+          })}
+
+          {brand?.id && (
+            <>
+              <button
+                type="button"
+                disabled={snappingHome}
+                onClick={() => snapHomeInputRef.current?.click()}
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold border border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 transition flex items-center gap-1.5 disabled:opacity-50"
+                title="Upload 1 product photo → AI creates a 3-slide carousel + caption"
+              >
+                {snappingHome ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Building Campaign…</>
+                ) : (
+                  <><Camera className="w-3.5 h-3.5" /> Snap Product → Campaign</>
+                )}
+              </button>
+              <input
+                ref={snapHomeInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleSnapProductHome(e.target.files?.[0] ?? null)}
+              />
+            </>
+          )}
+        </motion.div>
+
         {/* ═══ Gemini-style multimodal input ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
-          className="mt-8 w-full max-w-2xl"
+          className="mt-5 w-full max-w-2xl"
         >
           <PromptInput
             inputRef={inputRef}
@@ -687,6 +870,7 @@ export default function DashboardPage() {
             videoInputRef={videoInputRef}
             fileInputRef={fileInputRef}
             prompt={prompt}
+            placeholder={activeTeammate.placeholder}
             attachments={attachments}
             isListening={isListening}
             onInputChange={handleInputChange}
@@ -704,19 +888,83 @@ export default function DashboardPage() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.4 }}
-          className="mt-6 flex flex-wrap gap-2 justify-center max-w-2xl"
+          className="mt-5 flex flex-wrap gap-2 justify-center max-w-2xl"
         >
-          {SUGGESTIONS.map((suggestion) => (
+          {activeTeammate.suggestions.map((suggestion) => (
             <button
               key={suggestion}
               onClick={() => handleSuggestion(suggestion)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 min-h-[40px] rounded-full bg-white/[0.03] border border-white/[0.06] text-xs sm:text-sm text-text-secondary hover:bg-white/[0.06] hover:text-text hover:border-accent/20 transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 min-h-[38px] rounded-full bg-white/[0.03] border border-white/[0.06] text-xs sm:text-sm text-text-secondary hover:bg-white/[0.06] hover:text-text hover:border-accent/20 transition-all cursor-pointer"
             >
               <Sparkles className="w-3 h-3 text-accent/60" />
               {suggestion}
             </button>
           ))}
         </motion.div>
+
+        {/* ═══ Today's Ready Queue (SOLO-style 1-tap approval feed) ═══ */}
+        {readyCards.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.45 }}
+            className="mt-8 w-full max-w-4xl"
+          >
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-accent" /> Ready for Your 1-Tap Approval Today
+              </span>
+              <button
+                type="button"
+                onClick={() => router.push("/app/calendar")}
+                className="text-xs text-accent hover:underline"
+              >
+                Open Content Calendar →
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {readyCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="rounded-2xl border border-white/[0.08] bg-bg-card/80 p-4 flex flex-col justify-between gap-3 hover:border-accent/30 transition"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-semibold text-accent">
+                        {card.teammate}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-secondary">
+                        {card.badge}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-text mb-1">{card.title}</h3>
+                    <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
+                      {card.preview}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyCardId === card.id}
+                    onClick={() => {
+                      if (card.state === "scheduled") {
+                        router.push("/app/calendar");
+                      } else {
+                        handleReadyCardAction(card);
+                      }
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-accent/15 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/25 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {busyCardId === card.id ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Working…</>
+                    ) : (
+                      <><CheckCircle2 className="w-3.5 h-3.5" /> {card.cta_label}</>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
         </div>
       </div>
     );
@@ -989,6 +1237,7 @@ interface PromptInputProps {
   videoInputRef: React.RefObject<HTMLInputElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   prompt: string;
+  placeholder?: string;
   attachments: AttachedFile[];
   isListening: boolean;
   onInputChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
@@ -1006,6 +1255,7 @@ function PromptInput({
   videoInputRef,
   fileInputRef,
   prompt,
+  placeholder,
   attachments,
   isListening,
   onInputChange,
@@ -1065,7 +1315,7 @@ function PromptInput({
           value={prompt}
           onChange={onInputChange}
           onKeyDown={onKeyDown}
-          placeholder="Ask CURV AI anything…"
+          placeholder={placeholder || "Ask CURV AI anything…"}
           rows={1}
           aria-label="Ask CURV AI anything"
           className="w-full bg-transparent text-text placeholder:text-text-muted text-sm sm:text-base px-5 pt-4 pb-2 resize-none outline-none max-h-[200px]"

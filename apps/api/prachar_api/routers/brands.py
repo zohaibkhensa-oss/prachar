@@ -1575,4 +1575,211 @@ Return ONLY valid JSON:
     }
 
 
+# ─── Today's Ready Queue + Snap-to-Campaign (SOLO-style Teammate UX) ─────────
+
+@router.get("/{brand_id}/daily-ready-queue")
+async def get_daily_ready_queue(
+    brand_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Return 3 ready-to-approve teammate cards for the Home screen so the
+    founder sees finished work waiting for 1-tap approval instead of a blank page."""
+    brand, active_channels, queued_count = await _load_brand_autopilot_context(
+        brand_id, user.tenant_id, session
+    )
+    primary_ch = active_channels[0] if active_channels else "instagram"
+
+    # Check if there is an existing pending/draft scheduled item to surface first
+    res = await session.execute(
+        select(ContentItem)
+        .where(
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+            ContentItem.scheduled_at.is_not(None),
+            ContentItem.published_at.is_(None),
+        )
+        .order_by(ContentItem.scheduled_at.asc())
+        .limit(1)
+    )
+    next_item = res.scalar_one_or_none()
+    if next_item is not None:
+        social_copy = (next_item.payload or {}).get("copy") or _fallback_post_copy(
+            brand, next_item.channel, "Educational & Insights", 0, None
+        )
+        social_item_id = str(next_item.id)
+        social_channel = next_item.channel
+        social_state = (next_item.payload or {}).get("schedule_state", "scheduled")
+    else:
+        social_copy = _fallback_post_copy(brand, primary_ch, "Customer Proof & Wins", 0, None)
+        social_item_id = None
+        social_channel = primary_ch
+        social_state = "ready_to_queue"
+
+    topic = brand.category or "your core offer"
+    whatsapp_msg = (
+        f"Hi! Quick update from {brand.name} — we've opened priority slots for {topic} this week. "
+        f"Reply YES and we'll share the details right here on WhatsApp."
+    )
+
+    cards = [
+        {
+            "id": "tara-social",
+            "teammate": "Tara · Marketing",
+            "badge": "Ready to Post",
+            "title": f"Today's {social_channel.capitalize()} Post",
+            "preview": social_copy,
+            "channel": social_channel,
+            "scheduled_item_id": social_item_id,
+            "state": social_state,
+            "cta_label": "Approve & Schedule" if social_item_id and social_state != "scheduled" else "Edit & Post",
+            "action_type": "approve_item" if (social_item_id and social_state != "scheduled") else "open_composer",
+        },
+        {
+            "id": "ved-whatsapp",
+            "teammate": "Ved · Customer & Leads",
+            "badge": "WhatsApp Follow-Up",
+            "title": "Warm Lead Follow-Up Broadcast",
+            "preview": whatsapp_msg,
+            "channel": "whatsapp",
+            "scheduled_item_id": None,
+            "state": "ready",
+            "cta_label": "Open in Composer",
+            "action_type": "open_composer",
+        },
+        {
+            "id": "maya-growth",
+            "teammate": "Maya · Creative Studio",
+            "badge": f"{queued_count} Queued" if queued_count else "Autopilot",
+            "title": "Fill This Week's Content Calendar" if queued_count < 3 else "Design a 5-Slide Product Carousel",
+            "preview": (
+                f"Generate and schedule 5 on-brand posts across {', '.join(active_channels or ['LinkedIn', 'Facebook', 'X'])} at peak hours."
+                if queued_count < 3
+                else f"Turn {brand.name}'s top value prop into a 1080×1080 multi-slide carousel."
+            ),
+            "channel": primary_ch,
+            "scheduled_item_id": None,
+            "state": "ready",
+            "cta_label": "Fill My Week" if queued_count < 3 else "Design Carousel",
+            "action_type": "fill_week" if queued_count < 3 else "open_carousel",
+        },
+    ]
+    return {"brand_id": str(brand.id), "brand_name": brand.name, "cards": cards}
+
+
+@router.post("/{brand_id}/snap-to-campaign")
+async def snap_to_campaign(
+    brand_id: uuid.UUID,
+    user: CurrentUser,
+    session: SessionDep,
+    file: UploadFile = File(...),
+    note: str = "",
+) -> dict:
+    """Upload 1 product/service photo → returns a ready 3-slide product carousel
+    (uploaded photo as slide 1 + 2 branded insight/CTA slides), channel-ready
+    caption, and WhatsApp broadcast copy."""
+    import logging
+
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    raw_bytes = await file.read()
+    if len(raw_bytes) > 50 * 1024 * 1024:
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "file too large (50MB max)")
+
+    hero_url, _ = _upload_bytes_to_s3(
+        raw_bytes,
+        file.filename or "product.jpg",
+        file.content_type or "image/jpeg",
+        user.tenant_id,
+        brand_id,
+    )
+
+    context_hint = note.strip() or (file.filename or "").rsplit(".", 1)[0].replace("-", " ").replace("_", " ")
+    prompt = f"""You are Tara, the AI Marketing Teammate for "{brand.name}" ({brand.category or 'Business'}).
+The founder just uploaded a product/service photo ({context_hint or 'featured product'}).
+Write:
+1. A high-converting social caption (<= 500 chars) with hook, value, and CTA.
+2. Slide 2 headline (<= 52 chars) & body (<= 140 chars) highlighting why customers love it.
+3. Slide 3 headline (<= 52 chars) & body (<= 140 chars) with a clear offer / next step.
+4. A short WhatsApp broadcast message (<= 220 chars) to send to warm leads.
+Never use "guaranteed #1" or unverified medical/financial claims.
+
+Return ONLY valid JSON:
+{{
+  "caption": "...",
+  "slide2_headline": "...",
+  "slide2_body": "...",
+  "slide3_headline": "...",
+  "slide3_body": "...",
+  "whatsapp_copy": "..."
+}}"""
+
+    parsed: dict = {}
+    try:
+        gw = AIGateway()
+        comp = await gw.async_complete(
+            prompt=prompt,
+            tier=Tier.SMALL,
+            tenant_id=str(user.tenant_id),
+            max_tokens=800,
+        )
+        parsed = extract_json(comp.content) or {}
+    except Exception as exc:
+        logging.getLogger(__name__).warning("snap_to_campaign LLM fallback: %s", exc)
+
+    caption = str(parsed.get("caption") or "").strip()
+    if not caption or not claims_gate(caption).passed:
+        caption = (
+            f" Meet the latest from {brand.name}"
+            f"{f' — {context_hint}' if context_hint else ''}. "
+            f"Built for real results and crafted with care. Swipe for details and DM us to order!"
+        ).strip()
+
+    s2_h = str(parsed.get("slide2_headline") or f"Why {brand.name} Stands Out")[:65]
+    s2_b = str(parsed.get("slide2_body") or "Designed around customer feedback for standout quality and everyday reliability.")[:180]
+    s3_h = str(parsed.get("slide3_headline") or f"Get Yours From {brand.name}")[:65]
+    s3_b = str(parsed.get("slide3_body") or "Tap the link in bio or message us on WhatsApp for priority delivery.")[:180]
+
+    slide2_png = _render_carousel_slide_png(brand.name, s2_h, s2_b, 2, 3)
+    slide3_png = _render_carousel_slide_png(brand.name, s3_h, s3_b, 3, 3)
+    s2_url, _ = _upload_bytes_to_s3(slide2_png, "snap-slide-2.png", "image/png", user.tenant_id, brand_id)
+    s3_url, _ = _upload_bytes_to_s3(slide3_png, "snap-slide-3.png", "image/png", user.tenant_id, brand_id)
+
+    whatsapp_copy = str(parsed.get("whatsapp_copy") or "").strip() or (
+        f"Hi from {brand.name}! Check out our featured release — reply HERE to claim yours today."
+    )
+
+    media_urls = [hero_url, s2_url, s3_url]
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.snap_to_campaign",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"slides": len(media_urls)},
+    )
+    await session.commit()
+    return {
+        "caption": caption,
+        "whatsapp_copy": whatsapp_copy,
+        "media_urls": media_urls,
+        "slides": [
+            {"slide_number": 1, "headline": "Featured Product", "media_url": hero_url},
+            {"slide_number": 2, "headline": s2_h, "media_url": s2_url},
+            {"slide_number": 3, "headline": s3_h, "media_url": s3_url},
+        ],
+    }
+
+
+
 
