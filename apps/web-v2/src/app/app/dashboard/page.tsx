@@ -16,6 +16,7 @@ import {
   ArrowUpRight, ArrowDownRight, ChevronDown, PenSquare, Megaphone,
   ImageIcon, VideoIcon, Link2, Sparkles, FileText, CheckCircle2,
   Clock, XCircle, RefreshCw, Zap, Camera, Loader2, CalendarDays,
+  Radar, Trophy, Wand2, Search,
 } from "lucide-react";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -92,6 +93,41 @@ interface ScheduledItem {
   state: string;
 }
 
+interface VisibilityRadar {
+  overall_score: number | null;
+  sub_scores: Record<string, number | null> | null;
+  gsc: {
+    connected: boolean;
+    site: string | null;
+    quick_wins: { query: string; clicks: number; impressions: number; ctr: number; position: number }[];
+    error?: string;
+  };
+  ai_citations: {
+    queries_tested: number;
+    brand_mentioned: number;
+    citation_rate: number | null;
+    probes: { query: string; mentioned: boolean; snippet: string }[];
+  };
+  recommendations: string[];
+}
+
+interface WinnerPost {
+  id: string;
+  channel: string;
+  copy: string;
+  media_url: string | null;
+  published_at: string | null;
+  impressions: number;
+  engagements: number;
+  score: number;
+}
+
+interface CloneVariation {
+  angle: string;
+  hook: string;
+  caption: string;
+}
+
 const METRIC_LABELS: Record<string, string> = {
   impressions: "People Reached",
   engagements: "Engagements",
@@ -135,6 +171,8 @@ export default function DashboardPage() {
   const [approvingAll, setApprovingAll] = useState(false);
   const [snapping, setSnapping] = useState(false);
   const [busyCardId, setBusyCardId] = useState<string | null>(null);
+  const [cloning, setCloning] = useState(false);
+  const [cloneVariations, setCloneVariations] = useState<CloneVariation[] | null>(null);
   const queryClient = useQueryClient();
 
   const { data: metrics } = useQuery<MetricsSummary>({
@@ -190,6 +228,21 @@ export default function DashboardPage() {
     retry: 1,
   });
 
+  const { data: radar } = useQuery<VisibilityRadar>({
+    queryKey: ["visibility-radar", brand?.id],
+    queryFn: () => apiGet(`/brands/${brand!.id}/visibility-radar`),
+    enabled: !!brand?.id,
+    retry: 1,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: winners } = useQuery<{ posts: WinnerPost[]; has_metrics: boolean }>({
+    queryKey: ["winner-posts", brand?.id],
+    queryFn: () => apiGet(`/brands/${brand!.id}/winner-posts`),
+    enabled: !!brand?.id,
+    retry: 1,
+  });
+
   const brandConns = useMemo(() => {
     const all = connections ?? [];
     if (!brand?.id) return all;
@@ -208,6 +261,7 @@ export default function DashboardPage() {
   ).length;
   const upcomingScheduledCount = (scheduledItems ?? []).filter((s) => !s.published_at).length;
   const draftCount = (content ?? []).filter((c) => c.policy_status !== "passed").length;
+  const topWinner = winners?.posts?.[0];
 
   const updateAutopilot = async (patch: Partial<AutopilotConfig>) => {
     if (!brand?.id || savingAutopilot) return;
@@ -284,6 +338,21 @@ export default function DashboardPage() {
       }
     } finally {
       setBusyCardId(null);
+    }
+  };
+
+  const handleCloneWinner = async (post: WinnerPost) => {
+    if (!brand?.id || cloning) return;
+    setCloning(true);
+    setCloneVariations(null);
+    try {
+      const res = await apiPost<{ variations: CloneVariation[] }>(
+        `/brands/${brand.id}/clone-winner`,
+        { content_item_id: post.id, channel: post.channel, count: 3 }
+      );
+      setCloneVariations(res.variations ?? []);
+    } finally {
+      setCloning(false);
     }
   };
 
@@ -773,6 +842,78 @@ export default function DashboardPage() {
             )}
           </div>
 
+          {/* Winner Engine — Clone What Works */}
+          {topWinner && (
+            <div className="rounded-2xl border border-line/10 bg-bg-card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  <h2 className="font-display text-base font-semibold text-text">Winner Engine — Clone What Works</h2>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-muted">
+                  {winners?.has_metrics ? "ranked by real engagement" : "recent posts"}
+                </span>
+              </div>
+              <div className="flex items-start gap-3 rounded-xl bg-bg-hover/50 border border-line/10 p-3.5">
+                <div className="w-12 h-12 rounded-lg bg-white/[0.04] flex items-center justify-center overflow-hidden shrink-0">
+                  {topWinner.media_url ? (
+                    <img src={topWinner.media_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <FileText className="w-5 h-5 text-text-muted" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/15 text-accent font-semibold capitalize">
+                      {topWinner.channel}
+                    </span>
+                    {topWinner.engagements > 0 && (
+                      <span className="text-[10px] text-emerald-400 font-medium">
+                        {fmt(topWinner.engagements)} engagements · {fmt(topWinner.impressions)} reached
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary line-clamp-2 leading-relaxed">
+                    {topWinner.copy || "Published post"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleCloneWinner(topWinner)}
+                  disabled={cloning}
+                  className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-xs font-semibold hover:opacity-90 transition disabled:opacity-50"
+                >
+                  {cloning ? (
+                    <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Cloning…</>
+                  ) : (
+                    <><Wand2 className="w-3.5 h-3.5" /> Clone ×3</>
+                  )}
+                </button>
+              </div>
+
+              {cloneVariations && cloneVariations.length > 0 && (
+                <div className="mt-3 space-y-2.5">
+                  <p className="text-[11px] text-text-muted">Fresh variations of your winning structure:</p>
+                  {cloneVariations.map((v, i) => (
+                    <div key={i} className="rounded-xl border border-line/10 bg-bg-hover/40 p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 font-semibold">{v.angle}</span>
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/app/post?caption=${encodeURIComponent(v.caption)}`)}
+                          className="text-[11px] text-accent font-medium hover:underline shrink-0"
+                        >
+                          Use in Composer →
+                        </button>
+                      </div>
+                      <p className="text-xs text-text-secondary leading-relaxed line-clamp-3">{v.caption}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Recent campaigns */}
           <div className="rounded-2xl border border-line/10 bg-bg-card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -834,6 +975,108 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
+
+          {/* AI & Google Visibility Radar */}
+          {radar && (
+            <div className="rounded-2xl border border-line/10 bg-bg-card p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Radar className="w-4 h-4 text-sky-400" />
+                  <h2 className="font-display text-base font-semibold text-text">AI & Google Visibility</h2>
+                </div>
+                {radar.overall_score != null && (
+                  <span className="font-display text-lg font-bold text-sky-300">
+                    {Math.round(radar.overall_score)}
+                    <span className="text-[10px] text-text-muted font-normal">/100</span>
+                  </span>
+                )}
+              </div>
+
+              {radar.sub_scores && (
+                <div className="space-y-2">
+                  {(
+                    [
+                      ["organic_rank_index", "Google rank"],
+                      ["ai_citation_rate", "AI citations"],
+                      ["social_reach_index", "Social reach"],
+                    ] as const
+                  ).map(([key, label]) => {
+                    const val = radar.sub_scores?.[key];
+                    if (val == null) return null;
+                    const pct = Math.max(0, Math.min(100, val));
+                    return (
+                      <div key={key}>
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-text-secondary">{label}</span>
+                          <span className="text-text-muted">{Math.round(val)}/100</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div
+                            className={cn(
+                              "h-full rounded-full",
+                              pct >= 70 ? "bg-emerald-400" : pct >= 40 ? "bg-amber-400" : "bg-sky-400"
+                            )}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {radar.ai_citations.queries_tested > 0 && (
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 space-y-2">
+                  <div className="text-[11px] font-semibold text-text">
+                    ChatGPT-style AI answers cited {brand?.name ?? "your brand"} in{" "}
+                    {radar.ai_citations.brand_mentioned}/{radar.ai_citations.queries_tested} buyer questions
+                  </div>
+                  {radar.ai_citations.probes.map((p, i) => (
+                    <div key={i} className="flex items-center gap-2 text-[11px]">
+                      {p.mentioned ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 text-text-muted shrink-0" />
+                      )}
+                      <span className="text-text-secondary truncate">"{p.query}"</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {radar.gsc.connected && radar.gsc.quick_wins.length > 0 && (
+                <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3 space-y-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-semibold text-text">
+                    <Search className="w-3.5 h-3.5 text-emerald-400" />
+                    Google quick wins{radar.gsc.site ? ` · ${radar.gsc.site.replace(/^https?:\/\//, "").replace(/\/$/, "")}` : ""}
+                  </div>
+                  {radar.gsc.quick_wins.slice(0, 3).map((q, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-[11px]">
+                      <span className="text-text-secondary truncate">"{q.query}"</span>
+                      <span className="text-text-muted shrink-0">
+                        rank #{Math.round(q.position)} · {fmt(q.impressions)} imp
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {radar.recommendations.slice(0, 2).map((r, i) => (
+                <p key={i} className="text-[11px] text-text-secondary leading-relaxed flex gap-2">
+                  <Sparkles className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" /> {r}
+                </p>
+              ))}
+
+              {!radar.gsc.connected && (
+                <Link
+                  href="/app/connections"
+                  className="block text-center py-2 rounded-xl bg-sky-500/15 border border-sky-500/30 text-xs font-semibold text-sky-300 hover:bg-sky-500/25 transition"
+                >
+                  Connect Search Console →
+                </Link>
+              )}
+            </div>
+          )}
 
           <div className="rounded-2xl border border-line/10 bg-bg-card p-5">
             <div className="flex items-center gap-2 mb-4">

@@ -244,6 +244,47 @@ class GSCAdapter(ChannelAdapter):
             published_at=datetime.now(UTC),
         )
 
+    # ---- search analytics (raw query rows for a specific site) ----
+    async def search_analytics(
+        self,
+        tokens: TokenSet,
+        site: str,
+        since: datetime,
+        row_limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        """Query-level search analytics for `site` (e.g. 'sc-domain:example.com'
+        or 'https://example.com/'). Returns raw rows so callers can apply their
+        own ranking/striking-distance logic."""
+        body = {
+            "startDate": since.date().isoformat(),
+            "endDate": datetime.now(UTC).date().isoformat(),
+            "dimensions": ["query"],
+            "rowLimit": row_limit,
+        }
+        from urllib.parse import quote
+
+        resp = await _request(
+            "POST",
+            _GSC_SEARCH_ANALYTICS_URL.format(site=quote(site, safe="")),
+            json_body=body,
+            token=tokens.access_token,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        rows: list[dict[str, Any]] = []
+        for row in data.get("rows", []):
+            keys = row.get("keys", [])
+            rows.append(
+                {
+                    "query": keys[0] if keys else "",
+                    "clicks": float(row.get("clicks", 0)),
+                    "impressions": float(row.get("impressions", 0)),
+                    "ctr": float(row.get("ctr", 0)),
+                    "position": float(row.get("position", 0)),
+                }
+            )
+        return rows
+
     # ---- metrics ----
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
         site = "sc-domain:example.com"

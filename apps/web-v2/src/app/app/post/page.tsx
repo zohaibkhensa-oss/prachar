@@ -14,7 +14,7 @@ import { useActiveBrand } from "@/lib/hooks";
 import { cn } from "@/lib/utils";
 import {
   ImageIcon, VideoIcon, X, ArrowUp, Loader2, CheckCircle2,
-  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight, Wand2, Camera, Mic,
+  AlertCircle, PenSquare, Link2, Clock, Sparkles, Layers, ChevronLeft, ChevronRight, Wand2, Camera, Mic, Gauge,
 } from "lucide-react";
 
 interface SlideItem {
@@ -35,6 +35,34 @@ interface PublishResult {
   url?: string;
   error?: string;
 }
+
+interface ScoreSignal {
+  score: number;
+  tip: string;
+}
+
+interface ScoreResult {
+  score: number;
+  verdict: string;
+  signals: Record<string, ScoreSignal>;
+  boosted_caption: string;
+  boosted_hook: string;
+  source: string;
+}
+
+const SIGNAL_LABELS: Record<string, string> = {
+  hook: "Hook stop-power",
+  save_share: "Save / share trigger",
+  channel_fit: "Channel fit",
+  cta: "CTA clarity",
+};
+
+const VERDICT_META: Record<string, { label: string; cls: string }> = {
+  viral_ready: { label: "Viral-ready", cls: "text-emerald-300 bg-emerald-500/15 border-emerald-500/30" },
+  strong: { label: "Strong", cls: "text-emerald-300 bg-emerald-500/15 border-emerald-500/30" },
+  good: { label: "Good", cls: "text-amber-300 bg-amber-500/15 border-amber-500/30" },
+  needs_work: { label: "Needs work", cls: "text-red-300 bg-red-500/15 border-red-500/30" },
+};
 
 // Channels that support a quick caption+media post through their adapters
 const POSTABLE = ["facebook", "instagram", "youtube", "linkedin", "x", "telegram"];
@@ -63,6 +91,8 @@ export default function PostPage() {
   const [finishingVideo, setFinishingVideo] = useState(false);
   const [snappingCampaign, setSnappingCampaign] = useState(false);
   const [listeningVoice, setListeningVoice] = useState(false);
+  const [scoring, setScoring] = useState(false);
+  const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [carouselSlidesCount, setCarouselSlidesCount] = useState(5);
   const snapFileRef = useRef<HTMLInputElement>(null);
   const speechRef = useRef<any>(null);
@@ -252,6 +282,26 @@ export default function PostPage() {
       setError(e instanceof ApiError ? e.message : "Failed to generate carousel");
     } finally {
       setGeneratingCarousel(false);
+    }
+  };
+
+  const checkScore = async () => {
+    if (!brand?.id || scoring) return;
+    setScoring(true);
+    setError(null);
+    try {
+      const res = await apiPost<ScoreResult>(`/brands/${brand.id}/post/score`, {
+        caption: text,
+        channels: [...selected],
+        media_type:
+          slides.length > 1 ? "carousel" : slides.length === 0 ? "text" : mediaType,
+        slides_count: slides.length,
+      });
+      setScoreResult(res);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Score check failed");
+    } finally {
+      setScoring(false);
     }
   };
 
@@ -607,6 +657,105 @@ export default function PostPage() {
           </p>
         )}
       </div>
+
+      {/* Algorithm Score */}
+      {(text.trim() || slides.length > 0) && (
+        <div className="rounded-2xl border border-line/10 bg-bg-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Gauge className="w-4 h-4 text-accent shrink-0" />
+              <span className="text-xs font-semibold text-text">Algorithm Score</span>
+              {scoreResult && (
+                <>
+                  <span
+                    className={cn(
+                      "text-sm font-display font-bold",
+                      scoreResult.score >= 85
+                        ? "text-emerald-300"
+                        : scoreResult.score >= 60
+                          ? "text-amber-300"
+                          : "text-red-300"
+                    )}
+                  >
+                    {scoreResult.score}
+                    <span className="text-[10px] text-text-muted font-normal">/100</span>
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wider",
+                      (VERDICT_META[scoreResult.verdict] ?? VERDICT_META.good)?.cls
+                    )}
+                  >
+                    {(VERDICT_META[scoreResult.verdict] ?? VERDICT_META.good)?.label ?? scoreResult.verdict}
+                  </span>
+                </>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={checkScore}
+              disabled={scoring}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/15 border border-accent/30 text-xs font-medium text-accent hover:bg-accent/25 transition disabled:opacity-50 shrink-0"
+            >
+              {scoring ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Scoring…</>
+              ) : (
+                <><Gauge className="w-3.5 h-3.5" /> {scoreResult ? "Re-check" : "Check Score"}</>
+              )}
+            </button>
+          </div>
+
+          <AnimatePresence>
+            {scoreResult && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="space-y-2.5 overflow-hidden"
+              >
+                {Object.entries(SIGNAL_LABELS).map(([key, label]) => {
+                  const sig = scoreResult.signals?.[key];
+                  if (!sig) return null;
+                  const pct = Math.max(0, Math.min(100, (sig.score / 25) * 100));
+                  return (
+                    <div key={key} className="space-y-1">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="text-text-secondary">{label}</span>
+                        <span className="text-text-muted">{sig.score}/25</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            pct >= 70 ? "bg-emerald-400" : pct >= 45 ? "bg-amber-400" : "bg-red-400"
+                          )}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      {sig.score < 18 && sig.tip && (
+                        <p className="text-[10px] text-text-muted leading-snug">{sig.tip}</p>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {scoreResult.boosted_caption && scoreResult.score < 90 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setText(scoreResult.boosted_caption);
+                      setScoreResult(null);
+                    }}
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-br from-accent to-amber-500 text-white text-xs font-semibold hover:opacity-90 transition flex items-center justify-center gap-1.5"
+                  >
+                    <Wand2 className="w-3.5 h-3.5" /> Boost to 90+ — Apply AI Rewrite
+                  </button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* Results */}
       <AnimatePresence>

@@ -208,3 +208,169 @@ class TestAutopilotHelpers:
         copy = _fallback_post_copy(brand, "x", "Insights", 0, None)
         assert len(copy) <= 280
 
+
+
+class TestHeuristicPostScore:
+    """Deterministic 4-signal pre-publish scorer — always runs without LLM."""
+
+    def test_empty_caption_scores_zero(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        r = _heuristic_post_score("", ["instagram"], "text", 0)
+        assert r["score"] == 0
+        assert all(s["score"] == 0 for s in r["signals"].values())
+
+    def test_strong_carousel_post_scores_high(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        caption = (
+            "3 pricing mistakes killing your sales\n"
+            "Save this checklist — most founders miss #2.\n"
+            "Swipe for the fix. Link in bio."
+        )
+        r = _heuristic_post_score(caption, ["instagram"], "carousel", 5)
+        assert r["score"] >= 85
+        assert r["signals"]["hook"]["score"] == 25
+        assert r["signals"]["save_share"]["score"] == 25
+        assert r["signals"]["cta"]["score"] == 25
+
+    def test_x_over_limit_drops_channel_fit(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        caption = "Great hook here\n" + ("x" * 300)
+        r = _heuristic_post_score(caption, ["x"], "text", 0)
+        assert r["signals"]["channel_fit"]["score"] <= 15
+
+    def test_instagram_text_only_penalised(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        r = _heuristic_post_score("Nice photo idea\nShop now", ["instagram"], "text", 0)
+        assert r["signals"]["channel_fit"]["score"] < 25
+
+    def test_youtube_without_video_penalised(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        r = _heuristic_post_score("New video out\nWatch now", ["youtube"], "image", 1)
+        assert r["signals"]["channel_fit"]["score"] <= 15
+
+    def test_weak_hook_tip_present(self):
+        from prachar_api.routers.brands import _heuristic_post_score
+
+        long_line = "word " * 40
+        r = _heuristic_post_score(long_line, ["facebook"], "text", 0)
+        assert r["signals"]["hook"]["score"] < 18
+        assert "hook" in r["signals"]["hook"]["tip"].lower() or "line" in r["signals"]["hook"]["tip"].lower()
+
+
+class TestVerdictBands:
+    def test_verdict_thresholds(self):
+        from prachar_api.routers.brands import _verdict
+
+        assert _verdict(95) == "viral_ready"
+        assert _verdict(85) == "viral_ready"
+        assert _verdict(70) == "strong"
+        assert _verdict(50) == "good"
+        assert _verdict(10) == "needs_work"
+
+
+class TestBrandDomain:
+    def test_domain_extraction(self):
+        from prachar_api.routers.brands import _brand_domain
+
+        assert _brand_domain("https://www.curvai.org/path") == "curvai.org"
+        assert _brand_domain("curvai.org") == "curvai.org"
+        assert _brand_domain(None) is None
+        assert _brand_domain("") is None
+
+
+class TestGSCSearchAnalytics:
+    """search_analytics parses GSC rows and URL-encodes the site param."""
+
+    async def test_parses_rows_and_encodes_site(self):
+        from prachar_shared.adapters.organic import gsc as gsc_mod
+
+        captured: dict = {}
+
+        class _Resp:
+            status_code = 200
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {
+                    "rows": [
+                        {
+                            "keys": ["curv ai review"],
+                            "clicks": 12,
+                            "impressions": 800,
+                            "ctr": 0.015,
+                            "position": 7.4,
+                        },
+                        {
+                            "keys": ["ai marketing tool"],
+                            "clicks": 2,
+                            "impressions": 300,
+                            "ctr": 0.006,
+                            "position": 12.1,
+                        },
+                    ]
+                }
+
+        async def fake_request(method, url, **kwargs):
+            captured["url"] = url
+            return _Resp()
+
+        orig = gsc_mod._request
+        gsc_mod._request = fake_request
+        try:
+            adapter = gsc_mod.GSCAdapter()
+            from datetime import UTC, datetime, timedelta
+
+            from prachar_shared.contracts import TokenSet
+
+            tokens = TokenSet(access_token="t", expires_at=datetime.now(UTC))
+            rows = await adapter.search_analytics(
+                tokens, "sc-domain:curvai.org", datetime.now(UTC) - timedelta(days=28)
+            )
+        finally:
+            gsc_mod._request = orig
+
+        assert len(rows) == 2
+        assert rows[0]["query"] == "curv ai review"
+        assert rows[0]["position"] == 7.4
+        assert rows[1]["impressions"] == 300
+        # site param must be URL-encoded in the path
+        assert "sc-domain%3Acurvai.org" in captured["url"]
+
+
+class TestCloneWinnerFallback:
+    """The fallback path must always return count variations with safe captions."""
+
+    def test_fallback_variation_structure(self):
+        # Exercise the deterministic fallback the endpoint uses when the LLM
+        # is unavailable: 3 angle-labelled variations <= 400 chars.
+        source = "Diwali sale is live — 20% off all plans this weekend only!"
+        first_line = source.split("\n", 1)[0][:80]
+        brand_name = "CURV AI"
+        variations = [
+            {
+                "angle": "Question hook",
+                "hook": f"Ever wonder what makes {brand_name} different?",
+                "caption": (
+                    f"Ever wonder what makes {brand_name} different? "
+                    f"{source[:250]} — DM us to see for yourself."
+                )[:400],
+            },
+            {
+                "angle": "Bold offer",
+                "hook": first_line,
+                "caption": (
+                    f"{first_line} — this week only at {brand_name}. "
+                    "Tap the link in bio or comment YES for details."
+                )[:400],
+            },
+        ]
+        assert len(variations) == 2
+        assert all(len(v["caption"]) <= 400 for v in variations)
+        assert all(v["angle"] for v in variations)

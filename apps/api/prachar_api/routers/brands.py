@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 
 from ..audit import log_audit
-from ..deps import CurrentUser, SessionDep
+from ..deps import CurrentUser, SessionDep, get_tenant_plan
 from ..models import Actor, Brand, Connection, ContentItem, PolicyStatus
 from ..schemas import BrandIn, BrandOut, VisibilityScoreOut
 
@@ -1053,14 +1053,16 @@ Return ONLY valid JSON in this exact shape:
 
     generated_posts: list[dict] = []
     try:
+        plan = await get_tenant_plan(session, user)
         gw = AIGateway()
         completion = await gw.async_complete(
             prompt=prompt,
-            tier=Tier.SMALL,
-            tenant_id=str(user.tenant_id),
+            tier=Tier.small,
+            tenant_id=user.tenant_id,
+            plan=plan,
             max_tokens=1600,
         )
-        parsed = extract_json(completion.content) or {}
+        parsed = extract_json(completion.text) or {}
         if isinstance(parsed, dict) and isinstance(parsed.get("posts"), list):
             generated_posts = [p for p in parsed["posts"] if isinstance(p, dict) and p.get("text")]
     except Exception as exc:
@@ -1270,14 +1272,16 @@ Return ONLY valid JSON:
     slides_spec: list[dict] = []
     caption = ""
     try:
+        plan = await get_tenant_plan(session, user)
         gw = AIGateway()
         comp = await gw.async_complete(
             prompt=prompt,
-            tier=Tier.SMALL,
-            tenant_id=str(user.tenant_id),
+            tier=Tier.small,
+            tenant_id=user.tenant_id,
+            plan=plan,
             max_tokens=1400,
         )
-        parsed = extract_json(comp.content) or {}
+        parsed = extract_json(comp.text) or {}
         if isinstance(parsed, dict):
             caption = str(parsed.get("caption") or "").strip()
             if isinstance(parsed.get("slides"), list):
@@ -1511,14 +1515,16 @@ Return ONLY valid JSON:
   "caption_text": "Punchy lower-third caption summarizing the key takeaway (<= 110 chars)"
 }}"""
         try:
+            plan = await get_tenant_plan(session, user)
             gw = AIGateway()
             comp = await gw.async_complete(
                 prompt=prompt,
-                tier=Tier.SMALL,
-                tenant_id=str(user.tenant_id),
+                tier=Tier.small,
+                tenant_id=user.tenant_id,
+                plan=plan,
                 max_tokens=300,
             )
-            parsed = extract_json(comp.content) or {}
+            parsed = extract_json(comp.text) or {}
             if isinstance(parsed, dict):
                 hook = hook or str(parsed.get("hook_title") or "").strip()[:80]
                 caption = caption or str(parsed.get("caption_text") or "").strip()[:160]
@@ -1725,14 +1731,16 @@ Return ONLY valid JSON:
 
     parsed: dict = {}
     try:
+        plan = await get_tenant_plan(session, user)
         gw = AIGateway()
         comp = await gw.async_complete(
             prompt=prompt,
-            tier=Tier.SMALL,
-            tenant_id=str(user.tenant_id),
+            tier=Tier.small,
+            tenant_id=user.tenant_id,
+            plan=plan,
             max_tokens=800,
         )
-        parsed = extract_json(comp.content) or {}
+        parsed = extract_json(comp.text) or {}
     except Exception as exc:
         logging.getLogger(__name__).warning("snap_to_campaign LLM fallback: %s", exc)
 
@@ -1783,3 +1791,680 @@ Return ONLY valid JSON:
 
 
 
+
+
+# ─── A) Pre-Publish Algorithm Score ──────────────────────────────────────────
+# Scores a post on the four signals feed algorithms actually reward
+# (3s hook hold, save/share trigger, channel fit, CTA clarity) and offers a
+# 1-click AI rewrite ("Boost to 90+"). Deterministic heuristic baseline always
+# runs; AIGateway refines signals + writes the boosted caption when live.
+
+
+class PostScoreIn(BaseModel):
+    caption: str = ""
+    channels: list[str] = Field(default_factory=list)
+    media_type: str = "text"  # text | image | video | carousel
+    slides_count: int = 1
+
+
+_CTA_TERMS = (
+    "shop", "buy", "book", "order", "dm", "link in bio", "tap", "visit",
+    "call", "whatsapp", "sign up", "try", "get yours", "join", "save this",
+    "claim", "comment", "learn more", "swipe", "subscribe",
+)
+_SAVE_TERMS = (
+    "save", "share", "tag", "send this", "checklist", "steps", "tips",
+    "guide", "how to", "ways to", "mistakes", "recipe", "before you",
+    "did you know", "vs ", "top ", "secret", "hack",
+)
+_CHANNEL_LIMITS = {
+    "x": 280,
+    "linkedin": 3000,
+    "tiktok": 2200,
+    "instagram": 2200,
+    "telegram": 4096,
+    "youtube": 5000,
+}
+
+
+def _heuristic_post_score(
+    caption: str, channels: list[str], media_type: str, slides_count: int
+) -> dict:
+    """Deterministic 4-signal baseline (0-25 each). Always available."""
+    text = (caption or "").strip()
+    first_line = text.split("\n", 1)[0].strip()
+    hook_words = len(first_line.split()) if first_line else 0
+    if not text:
+        hook = 0
+    elif 3 <= hook_words <= 9:
+        hook = 25
+    elif hook_words <= 14:
+        hook = 18
+    elif hook_words <= 25:
+        hook = 11
+    else:
+        hook = 6
+
+    low = text.lower()
+    save_hits = sum(1 for t in _SAVE_TERMS if t in low)
+    save = 6 + min(save_hits, 2) * 6
+    if media_type == "carousel" or slides_count > 1:
+        save += 9  # carousels are the highest save-rate format on IG/LinkedIn
+    if "?" in first_line:
+        save += 2
+    save = min(25, save) if text else 0
+
+    fit = 25.0
+    eval_channels = channels or ["instagram"]
+    for ch in eval_channels:
+        limit = _CHANNEL_LIMITS.get(ch)
+        if limit and len(text) > limit:
+            fit -= 10
+        if ch == "instagram" and media_type == "text" and slides_count == 0:
+            fit -= 8
+        if ch == "youtube" and media_type != "video":
+            fit -= 12
+    fit = max(0.0, min(25.0, fit)) if text else 0.0
+
+    cta_hits = sum(1 for t in _CTA_TERMS if t in low)
+    cta = min(25, 8 + cta_hits * 7) if text else 0
+    if any(t in low for t in ("link in bio", "dm us", "comment")):
+        cta = 25
+
+    def _tips() -> dict[str, str]:
+        return {
+            "hook": (
+                "Lead with a punchy 3-9 word first line — it decides the "
+                "3-second hold rate." if hook < 18 else "Strong scroll-stopping first line."
+            ),
+            "save_share": (
+                "Add a save-worthy element (checklist, steps, 'save this') "
+                "or convert to a carousel." if save < 18 else "Built-in save/share trigger."
+            ),
+            "channel_fit": (
+                "Caption exceeds a channel limit or required media is missing."
+                if fit < 20 else "Fits the selected channels' limits & format."
+            ),
+            "cta": (
+                "End with one clear CTA — 'DM us', 'link in bio', 'comment YES'."
+                if cta < 18 else "Clear call-to-action present."
+            ),
+        }
+
+    tips = _tips()
+    signals = {
+        "hook": {"score": int(hook), "tip": tips["hook"]},
+        "save_share": {"score": int(save), "tip": tips["save_share"]},
+        "channel_fit": {"score": int(fit), "tip": tips["channel_fit"]},
+        "cta": {"score": int(cta), "tip": tips["cta"]},
+    }
+    return {"score": int(hook + save + fit + cta), "signals": signals}
+
+
+def _verdict(score: int) -> str:
+    if score >= 85:
+        return "viral_ready"
+    if score >= 70:
+        return "strong"
+    if score >= 50:
+        return "good"
+    return "needs_work"
+
+
+@router.post("/{brand_id}/post/score")
+async def score_post(
+    brand_id: uuid.UUID, body: PostScoreIn, user: CurrentUser, session: SessionDep
+) -> dict:
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    result = _heuristic_post_score(
+        body.caption, body.channels, body.media_type, body.slides_count
+    )
+    boosted_caption = ""
+    boosted_hook = ""
+    source = "heuristic"
+
+    if body.caption.strip():
+        import logging
+
+        from prachar_shared.ai_gateway import AIGateway, Tier
+        from prachar_shared.ai_gateway.json_utils import extract_json
+        from prachar_shared.policy.claims import claims_gate
+
+        prompt = f"""You are Maya, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
+Score this social post on the four signals feed algorithms reward. Channels: {', '.join(body.channels) or 'general'}. Media: {body.media_type}{f' ({body.slides_count} slides)' if body.slides_count > 1 else ''}.
+
+POST:
+\"\"\"{body.caption[:1500]}\"\"\"
+
+Then rewrite it into a higher-scoring version (<= 400 chars) with a stronger hook, a save/share trigger, and one clear CTA. Keep the brand voice. Never use "guaranteed" or unverified claims.
+
+Return ONLY valid JSON:
+{{
+  "hook_score": 0-25, "hook_tip": "...",
+  "save_score": 0-25, "save_tip": "...",
+  "fit_score": 0-25, "fit_tip": "...",
+  "cta_score": 0-25, "cta_tip": "...",
+  "boosted_caption": "...",
+  "boosted_hook": "first line only, <= 60 chars"
+}}"""
+        try:
+            plan = await get_tenant_plan(session, user)
+            gw = AIGateway()
+            comp = await gw.async_complete(
+                prompt=prompt,
+                tier=Tier.small,
+                tenant_id=user.tenant_id,
+                plan=plan,
+                max_tokens=900,
+                user_input=body.caption,
+            )
+            parsed = extract_json(comp.text) or {}
+            if isinstance(parsed, dict):
+                llm_signals: dict[str, dict] = {}
+                key_map = {
+                    "hook": ("hook_score", "hook_tip"),
+                    "save_share": ("save_score", "save_tip"),
+                    "channel_fit": ("fit_score", "fit_tip"),
+                    "cta": ("cta_score", "cta_tip"),
+                }
+                for sig_key, (s_key, t_key) in key_map.items():
+                    try:
+                        s_val = int(parsed.get(s_key))
+                    except (TypeError, ValueError):
+                        s_val = None
+                    if s_val is not None:
+                        s_val = max(0, min(25, s_val))
+                        llm_signals[sig_key] = {
+                            "score": s_val,
+                            "tip": str(parsed.get(t_key) or "")[:220],
+                        }
+                if len(llm_signals) == 4:
+                    result = {
+                        "score": sum(s["score"] for s in llm_signals.values()),
+                        "signals": llm_signals,
+                    }
+                    source = "ai"
+                bc = str(parsed.get("boosted_caption") or "").strip()
+                if bc and claims_gate(bc).passed:
+                    boosted_caption = bc[:600]
+                bh = str(parsed.get("boosted_hook") or "").strip()
+                if bh and claims_gate(bh).passed:
+                    boosted_hook = bh[:80]
+        except Exception as exc:  # noqa: BLE001 — heuristic already computed
+            logging.getLogger(__name__).warning("post/score LLM refine skipped: %s", exc)
+
+    return {
+        "score": result["score"],
+        "verdict": _verdict(result["score"]),
+        "signals": result["signals"],
+        "boosted_caption": boosted_caption,
+        "boosted_hook": boosted_hook,
+        "source": source,
+    }
+
+
+# ─── B) AI & Google Visibility Radar ─────────────────────────────────────────
+# Surfaces the audit VisibilityScore + live AI-citation probes (does ChatGPT
+# recommend the brand?) + GSC striking-distance "quick win" queries.
+
+
+def _brand_domain(website: str | None) -> str | None:
+    if not website or not website.strip():
+        return None
+    t = website.strip()
+    if "://" not in t:
+        t = "https://" + t
+    try:
+        from urllib.parse import urlparse
+
+        host = (urlparse(t).netloc or "").lower()
+    except ValueError:
+        return None
+    return host.removeprefix("www.") or None
+
+
+@router.get("/{brand_id}/visibility-radar")
+async def visibility_radar(
+    brand_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict:
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    import asyncio
+    import json
+    import logging
+    from datetime import timedelta
+
+    from ..models import AuditJob
+
+    log = logging.getLogger(__name__)
+
+    # 1) Latest completed audit for this brand's domain → VisibilityScore subs
+    overall = brand.visibility_score
+    sub_scores: dict | None = None
+    domain = _brand_domain(brand.website)
+    if domain:
+        jres = await session.execute(
+            select(AuditJob)
+            .where(AuditJob.domain == domain, AuditJob.status == "completed")
+            .order_by(AuditJob.completed_at.desc())
+            .limit(1)
+        )
+        job = jres.scalar_one_or_none()
+        if job and job.score_snapshot:
+            snap = job.score_snapshot
+            sub_scores = {
+                k: snap.get(k)
+                for k in (
+                    "organic_rank_index",
+                    "ai_citation_rate",
+                    "social_reach_index",
+                    "paid_efficiency",
+                    "momentum",
+                )
+            }
+            if overall is None:
+                overall = snap.get("overall")
+
+    # 2) GSC striking-distance quick wins (positions 4-15, sorted by impressions)
+    gsc_out: dict = {"connected": False, "site": None, "quick_wins": []}
+    cres = await session.execute(
+        select(Connection).where(
+            Connection.brand_id == brand_id,
+            Connection.tenant_id == user.tenant_id,
+            Connection.channel == "gsc",
+            Connection.status == "active",
+        )
+    )
+    gsc_conn = cres.scalar_one_or_none()
+    if gsc_conn and gsc_conn.oauth_tokens_enc:
+        gsc_out["connected"] = True
+        try:
+            from prachar_shared.contracts import TokenSet
+            from prachar_shared.security import decrypt_token, encrypt_token
+
+            from .connections import _organic_adapter
+
+            bundle = json.loads(decrypt_token(gsc_conn.oauth_tokens_enc))
+            meta = bundle.get("metadata") or {}
+            sites = meta.get("verified_sites") or []
+            site = sites[0] if sites else meta.get("account_name")
+            gsc_out["site"] = site
+            if site:
+                tokens = TokenSet(
+                    access_token=bundle["access_token"],
+                    refresh_token=bundle.get("refresh_token"),
+                    expires_at=datetime.fromisoformat(bundle["expires_at"])
+                    if bundle.get("expires_at")
+                    else datetime.now(UTC),
+                    scopes=bundle.get("scopes") or [],
+                    metadata=meta,
+                )
+                adapter = _organic_adapter("gsc")
+                if (
+                    tokens.expires_at <= datetime.now(UTC) + timedelta(seconds=30)
+                    and tokens.refresh_token
+                    and hasattr(adapter, "refresh_access_token")
+                ):
+                    new_tokens = await asyncio.to_thread(
+                        adapter.refresh_access_token, tokens.refresh_token
+                    )
+                    bundle.update(
+                        {
+                            "access_token": new_tokens.access_token,
+                            "refresh_token": new_tokens.refresh_token
+                            or tokens.refresh_token,
+                            "expires_at": new_tokens.expires_at.isoformat(),
+                            "scopes": new_tokens.scopes,
+                        }
+                    )
+                    gsc_conn.oauth_tokens_enc = encrypt_token(
+                        json.dumps(bundle, default=str)
+                    )
+                    gsc_conn.expires_at = new_tokens.expires_at
+                    await session.flush()
+                    tokens = new_tokens
+                if hasattr(adapter, "search_analytics"):
+                    rows = await adapter.search_analytics(
+                        tokens, site, datetime.now(UTC) - timedelta(days=28)
+                    )
+                    quick = [
+                        r
+                        for r in rows
+                        if 4.0 <= r["position"] <= 15.0 and r["impressions"] >= 50
+                    ]
+                    quick.sort(key=lambda r: r["impressions"], reverse=True)
+                    gsc_out["quick_wins"] = quick[:5]
+        except Exception as exc:  # noqa: BLE001 — radar must stay up
+            log.warning("visibility-radar gsc failed: %s", exc)
+            gsc_out["error"] = str(exc)[:160]
+
+    # 3) Live AI citation probes — does an AI answer engine name the brand?
+    probes: list[dict] = []
+    mentioned = 0
+    try:
+        from prachar_shared.ai_gateway import AIGateway, Tier
+        from prachar_shared.ai_gateway.json_utils import extract_json
+
+        gw = AIGateway()
+        if not getattr(gw, "_stub_mode", lambda: True)():
+            plan = await get_tenant_plan(session, user)
+            category = brand.category or "business"
+            queries = [
+                f"best {category} brands",
+                f"top {category} for small business",
+                f"{category} recommendations",
+            ]
+            for q in queries:
+                try:
+                    comp = await gw.async_complete(
+                        prompt=(
+                            f"Answer as an AI answer engine: '{q}'. List 3-5 "
+                            f"brands you would recommend. Then set mentions_brand "
+                            f"to true only if '{brand.name}' appears in your answer. "
+                            'Return JSON {"mentions_brand": bool, "answer": '
+                            '"one-line summary of your recommendations"}'
+                        ),
+                        tier=Tier.small,
+                        tenant_id=user.tenant_id,
+                        plan=plan,
+                        max_tokens=250,
+                        task="geo_probes",
+                    )
+                    parsed = extract_json(comp.text) or {}
+                    m = bool(parsed.get("mentions_brand"))
+                    mentioned += int(m)
+                    probes.append(
+                        {
+                            "query": q,
+                            "mentioned": m,
+                            "snippet": str(parsed.get("answer") or "")[:220],
+                        }
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    log.warning("citation probe failed q=%s err=%s", q, exc)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("citation probe setup failed: %s", exc)
+
+    citations = {
+        "queries_tested": len(probes),
+        "brand_mentioned": mentioned,
+        "citation_rate": round(mentioned / len(probes), 2) if probes else None,
+        "probes": probes,
+    }
+
+    # 4) Recommendations derived strictly from real signals
+    recs: list[str] = []
+    if overall is None and sub_scores is None:
+        recs.append(
+            "Run a Visibility Audit to baseline your AI & search presence."
+        )
+    if gsc_out["connected"] and gsc_out["quick_wins"]:
+        q = gsc_out["quick_wins"][0]
+        recs.append(
+            f"Quick win: you rank #{round(q['position'])} for "
+            f'"{q["query"]}" ({int(q["impressions"]):,} impressions) — a '
+            "targeted post + FAQ push can move it into the Top 3."
+        )
+    elif not gsc_out["connected"]:
+        recs.append(
+            "Connect Google Search Console to reveal striking-distance "
+            "keywords you can win this week."
+        )
+    if citations["citation_rate"] is not None and citations["citation_rate"] < 0.5:
+        recs.append(
+            f"AI answer engines cited {brand.name} in "
+            f"{mentioned}/{len(probes)} buyer questions — publish FAQ and "
+            "comparison content so ChatGPT & Perplexity can cite you."
+        )
+    if not recs:
+        recs.append(
+            "Visibility engine healthy — keep Social Autopilot running to "
+            "compound reach week over week."
+        )
+
+    return {
+        "overall_score": overall,
+        "sub_scores": sub_scores,
+        "gsc": gsc_out,
+        "ai_citations": citations,
+        "recommendations": recs,
+    }
+
+
+# ─── C) Winner Engine — Clone What Works ─────────────────────────────────────
+# Ranks published posts by real engagement metrics, then mutates the winning
+# post's structure into fresh variations (creative evolution, on demand).
+
+
+@router.get("/{brand_id}/winner-posts")
+async def winner_posts(
+    brand_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> dict:
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    from datetime import timedelta
+
+    from sqlalchemy import func
+
+    from ..models import MetricEvent
+
+    ires = await session.execute(
+        select(ContentItem)
+        .where(
+            ContentItem.brand_id == brand_id,
+            ContentItem.tenant_id == user.tenant_id,
+            ContentItem.published_at.is_not(None),
+        )
+        .order_by(ContentItem.published_at.desc())
+        .limit(60)
+    )
+    items = ires.scalars().all()
+    if not items:
+        return {"posts": [], "has_metrics": False}
+
+    candidates: set[str] = set()
+    for it in items:
+        candidates.add(str(it.id))
+        if it.published_ref:
+            candidates.add(it.published_ref)
+
+    since = datetime.now(UTC) - timedelta(days=120)
+    mres = await session.execute(
+        select(
+            MetricEvent.entity_id,
+            MetricEvent.metric,
+            func.sum(MetricEvent.value),
+        )
+        .where(
+            MetricEvent.brand_id == brand_id,
+            MetricEvent.tenant_id == user.tenant_id,
+            MetricEvent.entity_id.in_(candidates),
+            MetricEvent.ts >= since,
+        )
+        .group_by(MetricEvent.entity_id, MetricEvent.metric)
+    )
+    stats: dict[str, dict[str, float]] = {}
+    for eid, metric, total in mres.all():
+        stats.setdefault(eid, {})[metric] = float(total or 0)
+
+    engagement_metrics = {"likes", "comments", "shares", "saves", "engagements"}
+    posts: list[dict] = []
+    for it in items:
+        merged: dict[str, float] = {}
+        for key in (str(it.id), it.published_ref):
+            if not key:
+                continue
+            for m, v in (stats.get(key) or {}).items():
+                merged[m] = merged.get(m, 0.0) + v
+        impr = merged.get("impressions") or merged.get("views") or 0.0
+        eng = sum(merged.get(m, 0.0) for m in engagement_metrics)
+        clicks = merged.get("clicks") or merged.get("website_visits") or 0.0
+        rate = (eng / impr) if impr > 0 else 0.0
+        score = eng * 2 + clicks + rate * 200
+        payload = it.payload or {}
+        media_urls = payload.get("media_urls") or []
+        posts.append(
+            {
+                "id": str(it.id),
+                "channel": it.channel,
+                "copy": payload.get("copy") or payload.get("text") or "",
+                "media_url": payload.get("image_url")
+                or (media_urls[0] if media_urls else None),
+                "published_at": it.published_at.isoformat()
+                if it.published_at
+                else None,
+                "impressions": int(impr),
+                "engagements": int(eng),
+                "score": round(score, 1),
+            }
+        )
+    posts.sort(key=lambda p: p["score"], reverse=True)
+    return {"posts": posts[:5], "has_metrics": bool(stats)}
+
+
+class CloneWinnerIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    content_item_id: uuid.UUID | None = None
+    copy_: str = Field(default="", alias="copy")
+    channel: str | None = None
+    count: int = Field(default=3, ge=1, le=5)
+
+
+@router.post("/{brand_id}/clone-winner")
+async def clone_winner(
+    brand_id: uuid.UUID, body: CloneWinnerIn, user: CurrentUser, session: SessionDep
+) -> dict:
+    """Mutate a winning post's structure into fresh variations — the on-demand
+    face of the creative-evolution engine (median±1σ winners spawn children)."""
+    import logging
+
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    source_copy = body.copy_.strip()
+    channel = body.channel or "instagram"
+    if body.content_item_id:
+        ires = await session.execute(
+            select(ContentItem).where(
+                ContentItem.id == body.content_item_id,
+                ContentItem.brand_id == brand_id,
+                ContentItem.tenant_id == user.tenant_id,
+            )
+        )
+        item = ires.scalar_one_or_none()
+        if item is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "content item not found")
+        payload = item.payload or {}
+        source_copy = source_copy or (
+            payload.get("copy") or payload.get("text") or ""
+        )
+        channel = body.channel or item.channel or channel
+    if not source_copy:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST, "no source post to clone"
+        )
+
+    prompt = f"""You are Maya, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
+This post outperformed the brand's average on {channel}:
+
+WINNING POST:
+\"\"\"{source_copy[:1200]}\"\"\"
+
+Generate exactly {body.count} fresh variations that KEEP the winning structure (hook pattern, format, CTA style) but change the angle. Use proven angles: data/stat hook, question hook, bold offer, customer story, myth-busting. Each caption <= 400 chars, native to {channel}, in the brand voice. Never use "guaranteed" or unverified claims.
+
+Return ONLY valid JSON:
+{{"variations": [{{"angle": "...", "hook": "...", "caption": "..."}}]}}"""
+
+    variations: list[dict] = []
+    try:
+        plan = await get_tenant_plan(session, user)
+        gw = AIGateway()
+        comp = await gw.async_complete(
+            prompt=prompt,
+            tier=Tier.small,
+            tenant_id=user.tenant_id,
+            plan=plan,
+            max_tokens=1200,
+            user_input=source_copy,
+        )
+        parsed = extract_json(comp.text) or {}
+        if isinstance(parsed, dict) and isinstance(parsed.get("variations"), list):
+            for v in parsed["variations"]:
+                if not isinstance(v, dict):
+                    continue
+                caption = str(v.get("caption") or "").strip()
+                if caption and claims_gate(caption).passed:
+                    variations.append(
+                        {
+                            "angle": str(v.get("angle") or "Variation")[:60],
+                            "hook": str(v.get("hook") or "")[:80],
+                            "caption": caption[:600],
+                        }
+                    )
+    except Exception as exc:  # noqa: BLE001
+        logging.getLogger(__name__).warning("clone-winner LLM fallback: %s", exc)
+
+    if not variations:
+        first_line = source_copy.split("\n", 1)[0][:80]
+        variations = [
+            {
+                "angle": "Question hook",
+                "hook": f"Ever wonder what makes {brand.name} different?",
+                "caption": (
+                    f"Ever wonder what makes {brand.name} different? "
+                    f"{source_copy[:250]} — DM us to see for yourself."
+                )[:400],
+            },
+            {
+                "angle": "Bold offer",
+                "hook": first_line,
+                "caption": (
+                    f"{first_line} — this week only at {brand.name}. "
+                    "Tap the link in bio or comment YES for details."
+                )[:400],
+            },
+            {
+                "angle": "Customer story",
+                "hook": f"Real results from {brand.name} customers",
+                "caption": (
+                    f"Our customers said it best: {source_copy[:230]} "
+                    "Share this with someone who needs it."
+                )[:400],
+            },
+        ][: body.count]
+
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="brand.post.clone_winner",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={"channel": channel, "variations": len(variations)},
+    )
+    await session.commit()
+    return {"variations": variations, "channel": channel}
