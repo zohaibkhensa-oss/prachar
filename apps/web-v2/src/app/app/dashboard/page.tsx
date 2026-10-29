@@ -598,7 +598,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">
-                  Tara writes in your brand voice, slots posts at peak platform hours, and publishes on your rules.
+                  CURV AI writes in your brand voice, slots posts at peak platform hours, and publishes on your rules.
                 </p>
               </div>
             </div>

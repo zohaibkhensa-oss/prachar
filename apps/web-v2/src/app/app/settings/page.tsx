@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -106,6 +106,18 @@ interface InvoiceOut {
 
 interface InvoicesResponse {
   invoices: InvoiceOut[];
+}
+
+interface UsageOut {
+  plan: string;
+  ai_tokens_used: number;
+  ai_budget: number;
+  videos_used: number;
+  videos_limit: number;
+  images_used: number;
+  images_limit: number;
+  brands_count: number;
+  brands_limit: number;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -230,6 +242,15 @@ function usePlans() {
   });
 }
 
+function useUsage(enabled: boolean) {
+  return useQuery<UsageOut>({
+    queryKey: ["billing", "usage"],
+    queryFn: () => apiGet<UsageOut>("/billing/usage"),
+    enabled,
+    retry: 1,
+  });
+}
+
 function useApiTokens(enabled: boolean) {
   return useQuery<ApiTokenOut[]>({
     queryKey: ["admin", "api-tokens"],
@@ -243,18 +264,46 @@ function useApiTokens(enabled: boolean) {
 
 export default function SettingsPage() {
   const [tab, setTab] = useState("profile");
+  const [billingSuccess, setBillingSuccess] = useState(false);
   const [notifs, setNotifs] = useState(() =>
     Object.fromEntries(NOTIF_TYPES.map((n) => [n.id, n.on])),
   );
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("billing") === "success") {
+      setTab("billing");
+      setBillingSuccess(true);
+    }
+  }, []);
+
   const userQuery = useCurrentUser();
   const subQuery = useSubscription();
   const plansQuery = usePlans();
+  const usageQuery = useUsage(tab === "billing");
   const isAgencyPlan = subQuery.data?.plan === "agency";
   const tokensQuery = useApiTokens(tab === "api" && !!isAgencyPlan);
   const invoicesQuery = useInvoices(tab === "billing" && !!subQuery.data);
   const invoices = invoicesQuery.data?.invoices ?? [];
+  const usage = usageQuery.data;
+
+  const downloadInvoicePdf = async (invoiceNumber: string) => {
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
+    const { authedFetch } = await import("@/lib/auth");
+    const res = await authedFetch(`${apiBase}/billing/invoices/${invoiceNumber}/pdf`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${invoiceNumber}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const user = userQuery.data;
   const sub = subQuery.data;
@@ -425,6 +474,11 @@ export default function SettingsPage() {
           {/* Billing */}
           {tab === "billing" && (
             <div className="space-y-6">
+              {billingSuccess && (
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/15 px-4 py-3 text-sm text-emerald-300 flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" /> Subscription activated! Your monthly credits and GST tax invoice are ready below.
+                </div>
+              )}
               {/* Current Plan */}
               <Card hover={false}>
                 <SectionHeader title="Current Plan" subtitle="Your subscription details" />
@@ -458,6 +512,67 @@ export default function SettingsPage() {
                   </div>
                 ) : null}
               </Card>
+
+              {/* Monthly Credits & Usage */}
+              {usage && (
+                <Card hover={false}>
+                  <SectionHeader
+                    title="Monthly Credits & Usage"
+                    subtitle="Live usage across AI Videos, Images, Brand Workspaces, and AI Token Budget"
+                    icon={<Zap className="w-4 h-4" />}
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                      {
+                        label: "AI Videos",
+                        used: usage.videos_used,
+                        limit: usage.videos_limit,
+                        unit: "videos",
+                      },
+                      {
+                        label: "AI Images & Carousels",
+                        used: usage.images_used,
+                        limit: usage.images_limit,
+                        unit: "creatives",
+                      },
+                      {
+                        label: "Brand Workspaces",
+                        used: usage.brands_count,
+                        limit: usage.brands_limit,
+                        unit: "brands",
+                      },
+                      {
+                        label: "AI Token Budget",
+                        used: usage.ai_tokens_used,
+                        limit: usage.ai_budget,
+                        unit: "tokens",
+                      },
+                    ].map((item) => {
+                      const unlimited = item.limit === -1;
+                      const pct = unlimited || item.limit <= 0 ? 15 : Math.min(100, Math.round((item.used / item.limit) * 100));
+                      return (
+                        <div key={item.label} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-text-secondary font-medium">{item.label}</span>
+                            <span className="text-text font-semibold tabular-nums">
+                              {item.used.toLocaleString()} / {unlimited ? "Unlimited" : item.limit.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all",
+                                pct >= 90 ? "bg-danger" : pct >= 70 ? "bg-amber-400" : "bg-accent"
+                              )}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Card>
+              )}
 
               {/* Plans */}
               <Card hover={false}>
@@ -608,14 +723,14 @@ export default function SettingsPage() {
                           >
                             {inv.status.toUpperCase()}
                           </span>
-                          <a
-                            href={`/api/billing/invoices/${inv.invoice_number}/pdf`}
-                            download={`${inv.invoice_number}.pdf`}
+                          <button
+                            type="button"
+                            onClick={() => void downloadInvoicePdf(inv.invoice_number)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition"
                           >
                             <Download className="w-4 h-4" />
                             PDF
-                          </a>
+                          </button>
                         </div>
                       </div>
                     ))}

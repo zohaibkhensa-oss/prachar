@@ -54,6 +54,9 @@ export default function PricingPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null); // plan_key being checked out
   const [currency, setCurrency] = useState<"INR" | "USD">("INR");
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_pct: number; message: string } | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
     void loadPlans();
@@ -75,6 +78,34 @@ export default function PricingPage() {
     }
   }
 
+  async function applyCoupon(codeToTry?: string) {
+    const raw = (codeToTry ?? couponCode).trim().toUpperCase();
+    if (!raw) return;
+    setValidatingCoupon(true);
+    setError(null);
+    try {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE ?? "/api";
+      const { authedFetch } = await import("@/lib/auth");
+      const res = await authedFetch(`${apiBase}/billing/coupons/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: raw, plan: "growth" }),
+      });
+      const json = await res.json();
+      if (json.valid) {
+        setCouponCode(raw);
+        setAppliedCoupon({ code: json.code, discount_pct: json.discount_pct, message: json.message });
+      } else {
+        setAppliedCoupon(null);
+        setError(json.message || "Invalid coupon code");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not validate coupon");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  }
+
   async function startCheckout(planKey: string, provider: "stripe" | "razorpay") {
     setCheckoutLoading(`${planKey}-${provider}`);
     try {
@@ -86,6 +117,7 @@ export default function PricingPage() {
         body: JSON.stringify({
           plan: planKey,
           provider,
+          coupon_code: appliedCoupon?.code || couponCode.trim().toUpperCase(),
           success_url: `${window.location.origin}/app/settings?billing=success`,
           cancel_url: `${window.location.origin}/app/pricing?billing=cancelled`,
         }),
@@ -159,6 +191,35 @@ export default function PricingPage() {
           >
             $ USD
           </button>
+        </div>
+
+        {/* Promo / Test Client Coupon Bar */}
+        <div className="pt-2 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-2 max-w-sm w-full">
+            <input
+              type="text"
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              placeholder="Promo / Test code (e.g. LAUNCH50, CURVTEST)"
+              className="flex-1 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-text placeholder:text-text-muted focus:outline-none focus:border-accent/50"
+            />
+            <button
+              type="button"
+              onClick={() => void applyCoupon()}
+              disabled={validatingCoupon || !couponCode.trim()}
+              className="px-3.5 py-2 rounded-lg bg-accent/20 border border-accent/40 text-xs font-semibold text-accent hover:bg-accent/30 transition disabled:opacity-50"
+            >
+              {validatingCoupon ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {appliedCoupon && (
+            <div className="text-xs text-emerald-400 font-medium">
+              ✓ Code <strong>{appliedCoupon.code}</strong> applied ({appliedCoupon.discount_pct}% off) — {appliedCoupon.message}
+            </div>
+          )}
+          {error && data && (
+            <div className="text-xs text-danger">{error}</div>
+          )}
         </div>
       </div>
 

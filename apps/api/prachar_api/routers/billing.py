@@ -81,6 +81,7 @@ class CheckoutRequest(BaseModel):
     provider: str  # stripe | razorpay
     success_url: str = ""
     cancel_url: str = ""
+    coupon_code: str = ""
 
 
 class CheckoutResponse(BaseModel):
@@ -183,9 +184,41 @@ async def create_checkout(
         raise HTTPException(status_code=400, detail=f"Unknown plan: {req.plan}")
 
     s = _settings()
-    base_url = s.next_public_api_base or "http://localhost:8000"
+    base_url = s.web_url or s.next_public_api_base or "http://localhost:3002"
     success_url = req.success_url or f"{base_url}/app/settings?billing=success"
-    cancel_url = req.cancel_url or f"{base_url}/app/settings?billing=cancelled"
+    cancel_url = req.cancel_url or f"{base_url}/app/pricing?billing=cancelled"
+
+    discount_pct = 0
+    code = (req.coupon_code or "").strip().upper()
+    if code and code in _COUPONS:
+        c_entry = _COUPONS[code]
+        if req.plan in c_entry["plans"] and c_entry["uses"] < c_entry["max_uses"]:
+            discount_pct = int(c_entry["discount_pct"])
+
+    provider_enum = BillingProvider.stripe if req.provider == "stripe" else BillingProvider.razorpay
+
+    # 100% coupon (e.g. CURVTEST / VIP100): ₹0 due, activate subscription immediately
+    if discount_pct >= 100:
+        if code and code in _COUPONS:
+            _COUPONS[code]["uses"] += 1
+        sub_id = f"sub_{req.provider}_{uuid.uuid4().hex[:10]}"
+        await _update_billing(
+            session,
+            user.tenant_id,
+            provider_enum,
+            sub_id,
+            BillingStatus.active,
+            plan.key,
+        )
+        await _email_invoice_after_payment(session, user.tenant_id, plan.key)
+        return CheckoutResponse(
+            checkout_url=success_url,
+            session_id=sub_id,
+            provider=req.provider,
+            plan=plan.key,
+            amount_inr=0,
+            amount_usd=0,
+        )
 
     if req.provider == "stripe":
         return await _stripe_checkout(plan, success_url, cancel_url, user)
@@ -531,20 +564,44 @@ async def get_usage(
     plan = get_plan(plan_key) or get_plan("starter")
     billing = await _get_billing(session, user.tenant_id)
 
-    # Count brands for this tenant
-    from ..models import Brand
+    # Count brands and current-month video/image generations for this tenant
+    import datetime as _dt
+
+    from sqlalchemy import func
+
+    from ..models import AuditEvent, Brand
     res = await session.execute(
         select(Brand).where(Brand.tenant_id == user.tenant_id)
     )
     brands_count = len(res.scalars().all())
 
+    now = _dt.datetime.now(_dt.UTC)
+    month_start = _dt.datetime(now.year, now.month, 1, tzinfo=_dt.UTC)
+    vid_res = await session.execute(
+        select(func.count()).select_from(AuditEvent).where(
+            AuditEvent.tenant_id == user.tenant_id,
+            AuditEvent.action.in_(("video.generate", "brand.video.finish")),
+            AuditEvent.ts >= month_start,
+        )
+    )
+    videos_used = int(vid_res.scalar() or 0)
+
+    img_res = await session.execute(
+        select(func.count()).select_from(AuditEvent).where(
+            AuditEvent.tenant_id == user.tenant_id,
+            AuditEvent.action.in_(("image.generate", "brand.carousel.generate", "brand.snap_to_campaign")),
+            AuditEvent.ts >= month_start,
+        )
+    )
+    images_used = int(img_res.scalar() or 0)
+
     return UsageOut(
         plan=plan_key,
         ai_tokens_used=billing.ai_tokens_used_month if billing else 0,
-        ai_budget=billing.ai_budget_month if billing else plan.ai_budget_inr,
-        videos_used=0,  # would track from video_gen audit events
+        ai_budget=billing.ai_budget_month if (billing and billing.ai_budget_month) else plan.ai_budget_inr,
+        videos_used=videos_used,
         videos_limit=plan.videos_per_month,
-        images_used=0,
+        images_used=images_used,
         images_limit=plan.images_per_month,
         brands_count=brands_count,
         brands_limit=plan.brands_limit,
@@ -967,6 +1024,8 @@ _COUPONS: dict[str, dict] = {
     "LAUNCH50": {"discount_pct": 50, "plans": ["starter", "growth", "agency"], "max_uses": 100, "uses": 0},
     "EARLYBIRD25": {"discount_pct": 25, "plans": ["starter", "growth"], "max_uses": 200, "uses": 0},
     "AGENCY20": {"discount_pct": 20, "plans": ["agency"], "max_uses": 50, "uses": 0},
+    "CURVTEST": {"discount_pct": 100, "plans": ["starter", "growth", "agency"], "max_uses": 500, "uses": 0},
+    "VIP100": {"discount_pct": 100, "plans": ["starter", "growth", "agency"], "max_uses": 500, "uses": 0},
 }
 
 

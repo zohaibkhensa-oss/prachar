@@ -1943,8 +1943,8 @@ async def get_daily_ready_queue(
 
     cards = [
         {
-            "id": "tara-social",
-            "teammate": "Tara · Marketing",
+            "id": "aria-social",
+            "teammate": "Aria · Marketing",
             "badge": "Ready to Post",
             "title": f"Today's {social_channel.capitalize()} Post",
             "preview": social_copy,
@@ -1955,8 +1955,8 @@ async def get_daily_ready_queue(
             "action_type": "approve_item" if (social_item_id and social_state != "scheduled") else "open_composer",
         },
         {
-            "id": "ved-whatsapp",
-            "teammate": "Ved · Customer & Leads",
+            "id": "kian-whatsapp",
+            "teammate": "Kian · Customer & Leads",
             "badge": "WhatsApp Follow-Up",
             "title": "Warm Lead Follow-Up Broadcast",
             "preview": whatsapp_msg,
@@ -1967,8 +1967,8 @@ async def get_daily_ready_queue(
             "action_type": "open_composer",
         },
         {
-            "id": "maya-growth",
-            "teammate": "Maya · Creative Studio",
+            "id": "nova-growth",
+            "teammate": "Nova · Creative Studio",
             "badge": f"{queued_count} Queued" if queued_count else "Autopilot",
             "title": "Fill This Week's Content Calendar" if queued_count < 3 else "Design a 5-Slide Product Carousel",
             "preview": (
@@ -2023,7 +2023,7 @@ async def snap_to_campaign(
     )
 
     context_hint = note.strip() or (file.filename or "").rsplit(".", 1)[0].replace("-", " ").replace("_", " ")
-    prompt = f"""You are Tara, the AI Marketing Teammate for "{brand.name}" ({brand.category or 'Business'}).
+    prompt = f"""You are Aria, the AI Marketing Specialist for "{brand.name}" ({brand.category or 'Business'}).
 The founder just uploaded a product/service photo ({context_hint or 'featured product'}).
 Write:
 1. A high-converting social caption (<= 500 chars) with hook, value, and CTA.
@@ -2249,7 +2249,7 @@ async def score_post(
         from prachar_shared.ai_gateway.json_utils import extract_json
         from prachar_shared.policy.claims import claims_gate
 
-        prompt = f"""You are Maya, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
+        prompt = f"""You are Nova, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
 Score this social post on the four signals feed algorithms reward. Channels: {', '.join(body.channels) or 'general'}. Media: {body.media_type}{f' ({body.slides_count} slides)' if body.slides_count > 1 else ''}.
 
 POST:
@@ -2713,7 +2713,7 @@ async def clone_winner(
             status.HTTP_400_BAD_REQUEST, "no source post to clone"
         )
 
-    prompt = f"""You are Maya, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
+    prompt = f"""You are Nova, Creative Director for "{brand.name}" ({brand.category or 'Business'}).
 This post outperformed the brand's average on {channel}:
 
 WINNING POST:

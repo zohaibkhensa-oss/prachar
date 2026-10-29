@@ -40,7 +40,7 @@ import {
   Zap,
 } from "lucide-react";
 
-type TeammateId = "all" | "tara" | "maya" | "ved";
+type TeammateId = "all" | "aria" | "nova" | "kian";
 
 const TEAMMATES: {
   id: TeammateId;
@@ -62,10 +62,10 @@ const TEAMMATES: {
     ],
   },
   {
-    id: "tara",
-    name: "Tara",
+    id: "aria",
+    name: "Aria",
     role: "Marketing & Ads",
-    placeholder: "Ask Tara to plan calendars, write posts, or launch Meta & Google ads…",
+    placeholder: "Ask Aria to plan calendars, write posts, or launch Meta & Google ads…",
     suggestions: [
       "Create a 7-day Instagram + LinkedIn content plan",
       "Launch a ₹500/day Meta Ad campaign for new customers",
@@ -74,10 +74,10 @@ const TEAMMATES: {
     ],
   },
   {
-    id: "maya",
-    name: "Maya",
+    id: "nova",
+    name: "Nova",
     role: "Creative Studio",
-    placeholder: "Ask Maya for product shoots, 1080×1080 carousels, or finished Reels…",
+    placeholder: "Ask Nova for product shoots, 1080×1080 carousels, or finished Reels…",
     suggestions: [
       "Generate a studio product image on a marble background",
       "Create a 5-second cinematic product reel",
@@ -86,10 +86,10 @@ const TEAMMATES: {
     ],
   },
   {
-    id: "ved",
-    name: "Ved",
+    id: "kian",
+    name: "Kian",
     role: "WhatsApp & Leads",
-    placeholder: "Ask Ved for WhatsApp broadcasts, customer replies, or lead follow-ups…",
+    placeholder: "Ask Kian for WhatsApp broadcasts, customer replies, or lead follow-ups…",
     suggestions: [
       "Write a WhatsApp broadcast for weekend offer leads",
       "Create a 3-step follow-up sequence for price enquiries",
@@ -804,7 +804,7 @@ export default function DashboardPage() {
           </p>
         </motion.div>
 
-        {/* ═══ AI Teammate Switcher (Tara · Maya · Ved) ═══ */}
+        {/* ═══ AI Teammate Switcher (Aria · Nova · Kian) ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

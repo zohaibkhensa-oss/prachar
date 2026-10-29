@@ -233,7 +233,21 @@ async def generate_video(
         req_copy = req.model_copy()
         req_copy.model = FAL_DEFAULT_MODEL
         try:
-            return await _call_fal_video(fal_key, req_copy, enhanced_prompt, aspect)
+            res_out = await _call_fal_video(fal_key, req_copy, enhanced_prompt, aspect)
+            from ..audit import log_audit
+            from ..models import Actor
+
+            await log_audit(
+                session,
+                tenant_id=user.tenant_id,
+                actor=Actor.user,
+                action="video.generate",
+                entity_type="video",
+                entity_id=res_out.model,
+                payload={"duration": res_out.duration, "quality": quality},
+            )
+            await session.commit()
+            return res_out
         except HTTPException as e:
             log.error("Kling (fal.ai) failed: %s", str(e.detail)[:200])
         except Exception as e:
@@ -244,7 +258,7 @@ async def generate_video(
     if gemini_key and quality in VEO_MODELS:
         try:
             log.info("Falling back to Gemini Veo %s", quality)
-            return await _call_gemini_veo(
+            res_out = await _call_gemini_veo(
                 api_key=gemini_key,
                 prompt=enhanced_prompt,
                 quality=quality,
@@ -252,6 +266,20 @@ async def generate_video(
                 aspect_ratio=GEMINI_ASPECT_RATIOS.get(req.video_type, req.aspect_ratio),
                 with_audio=req.with_audio,
             )
+            from ..audit import log_audit
+            from ..models import Actor
+
+            await log_audit(
+                session,
+                tenant_id=user.tenant_id,
+                actor=Actor.user,
+                action="video.generate",
+                entity_type="video",
+                entity_id=res_out.model,
+                payload={"duration": res_out.duration, "quality": quality},
+            )
+            await session.commit()
+            return res_out
         except HTTPException:
             raise
         except Exception as e:
@@ -340,14 +368,32 @@ async def get_video_job_status(job_id: str, user: CurrentUser) -> dict:
 async def generate_image(
     req: ImageGenRequest,
     user: CurrentUser,
+    session: SessionDep,
 ) -> ImageGenResponse:
     """Generate an image from text (FastAPI endpoint)."""
-    return await _generate_image_core(
+    out = await _generate_image_core(
         prompt=req.prompt,
         width=req.width,
         height=req.height,
         num_inference_steps=req.num_inference_steps,
     )
+    try:
+        from ..audit import log_audit
+        from ..models import Actor
+
+        await log_audit(
+            session,
+            tenant_id=user.tenant_id,
+            actor=Actor.user,
+            action="image.generate",
+            entity_type="image",
+            entity_id=out.model,
+            payload={"width": req.width, "height": req.height},
+        )
+        await session.commit()
+    except Exception:
+        pass
+    return out
 
 
 async def _generate_image_core(
@@ -639,14 +685,26 @@ def _download_gemini_video(client, video) -> bytes:
 
 
 async def _store_video_bytes(data: bytes, filename: str) -> str:
-    """Store video bytes and return a URL.
+    """Store video bytes and return a public/presigned URL.
 
-    Uploads to fal.ai storage (which returns a public URL), falling back to
-    a data URL (base64) only if upload fails.
+    Uploads to S3 first (production path), then fal.ai storage, falling back to
+    a data URL (base64) only if both uploads fail.
     """
     import asyncio
     import base64
     import os
+    import uuid as _uuid
+
+    try:
+        from .brands import _upload_bytes_to_s3
+
+        s3_url, _ = _upload_bytes_to_s3(
+            data, filename, "video/mp4", _uuid.UUID(int=0), _uuid.UUID(int=0)
+        )
+        if s3_url and s3_url.startswith("http"):
+            return s3_url
+    except Exception as exc:
+        log.debug("S3 video upload skipped: %s", exc)
 
     # Read FAL_KEY from env
     env = {}
@@ -717,8 +775,22 @@ async def _call_gemini_imagen(api_key: str, prompt: str, width: int, height: int
     if not img_bytes:
         raise RuntimeError("Gemini image model returned no image data")
 
-    b64 = base64.b64encode(img_bytes).decode("ascii")
-    url = f"data:image/png;base64,{b64}"
+    url = ""
+    try:
+        import uuid as _uuid
+
+        from .brands import _upload_bytes_to_s3
+
+        s3_url, _ = _upload_bytes_to_s3(
+            img_bytes, "gemini-imagen.png", "image/png", _uuid.UUID(int=0), _uuid.UUID(int=0)
+        )
+        if s3_url and s3_url.startswith("http"):
+            url = s3_url
+    except Exception:
+        pass
+    if not url:
+        b64 = base64.b64encode(img_bytes).decode("ascii")
+        url = f"data:image/png;base64,{b64}"
 
     return ImageGenResponse(
         image_url=url,
