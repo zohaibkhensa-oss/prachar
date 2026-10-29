@@ -53,3 +53,4 @@ infra/terraform/*.tfvars
 
 # minio / local s3
 minio_data/
+reports/
