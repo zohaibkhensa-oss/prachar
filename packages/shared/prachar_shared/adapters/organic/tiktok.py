@@ -142,6 +142,32 @@ class TikTokAdapter(ChannelAdapter):
             scopes=body.get("scope", ",".join(_TT_SCOPES)).split(","),
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        if not _has_creds():
+            raise NotImplementedError("TikTok refresh requires TIKTOK_CLIENT_KEY/SECRET")
+        s = get_settings()
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _TT_TOKEN_URL,
+                data={
+                    "client_key": s.tiktok_client_key,
+                    "client_secret": s.tiktok_client_secret,
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 3600))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or ",".join(_TT_SCOPES)).split(","),
+        )
+
     # ---- profile ----
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         resp = asyncio.run(

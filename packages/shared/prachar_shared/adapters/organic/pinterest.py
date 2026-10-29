@@ -145,6 +145,37 @@ class PinterestAdapter(ChannelAdapter):
             scopes=body.get("scope", ",".join(_PIN_SCOPES)).split(","),
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        if not _has_creds():
+            raise NotImplementedError("Pinterest refresh requires PINTEREST_CLIENT_ID/SECRET")
+        s = get_settings()
+        basic = base64.b64encode(
+            f"{s.pinterest_client_id}:{s.pinterest_client_secret}".encode()
+        ).decode("ascii")
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _PIN_TOKEN_URL,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+                headers={
+                    "Authorization": f"Basic {basic}",
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 2592000))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or ",".join(_PIN_SCOPES)).split(","),
+        )
+
     # ---- profile ----
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         resp = asyncio.run(

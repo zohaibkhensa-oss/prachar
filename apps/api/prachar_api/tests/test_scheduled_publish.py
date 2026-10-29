@@ -374,3 +374,47 @@ class TestCloneWinnerFallback:
         assert len(variations) == 2
         assert all(len(v["caption"]) <= 400 for v in variations)
         assert all(v["angle"] for v in variations)
+
+
+class TestChannelTokenRefresh:
+    """Every OAuth2 channel adapter must support token refresh or Page-token
+    persistence so connections do not die after 1-2 hours."""
+
+    def test_adapters_expose_refresh_access_token(self):
+        from prachar_shared.adapters.organic.facebook import FacebookAdapter
+        from prachar_shared.adapters.organic.google import GoogleSearchAdapter
+        from prachar_shared.adapters.organic.gsc import GSCAdapter
+        from prachar_shared.adapters.organic.instagram import InstagramAdapter
+        from prachar_shared.adapters.organic.linkedin import LinkedInAdapter
+        from prachar_shared.adapters.organic.pinterest import PinterestAdapter
+        from prachar_shared.adapters.organic.tiktok import TikTokAdapter
+        from prachar_shared.adapters.organic.x import XAdapter
+        from prachar_shared.adapters.organic.youtube import YouTubeAdapter
+
+        for cls in (
+            YouTubeAdapter,
+            GSCAdapter,
+            GoogleSearchAdapter,
+            XAdapter,
+            FacebookAdapter,
+            InstagramAdapter,
+            LinkedInAdapter,
+            TikTokAdapter,
+            PinterestAdapter,
+        ):
+            assert hasattr(cls(), "refresh_access_token"), f"{cls.__name__} missing refresh_access_token"
+
+    def test_refresh_if_expiring_preserves_meta_page_token_connection(self):
+        past = (datetime.now(UTC) - timedelta(hours=2)).isoformat()
+        bundle = {
+            "access_token": "old-user-tok",
+            "refresh_token": None,
+            "expires_at": past,
+            "scopes": ["pages_manage_posts"],
+            "metadata": {"page_id": "136029", "page_access_token": "non-expiring-page-tok"},
+            "channel": "facebook",
+        }
+        adapter = MagicMock(spec=[])
+        out, changed = refresh_if_expiring(adapter, bundle)
+        assert changed is True
+        assert datetime.fromisoformat(out["expires_at"]) > datetime.now(UTC) + timedelta(days=30)

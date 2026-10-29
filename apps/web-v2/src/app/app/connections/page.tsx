@@ -110,10 +110,10 @@ function LogoTile({ channel }: { channel: string }) {
 function connUiState(entry: RegistryEntry, conn: Connection | undefined, connectingKey: string | null): UiState {
   if (connectingKey === entry.channel) return "connecting";
   if (conn) {
-    const expired = conn.expires_at && new Date(conn.expires_at).getTime() < Date.now();
-    if (conn.status === "active" && !expired) return "connected";
-    if (conn.status === "expired" || conn.status === "revoked" || expired) return "reconnect_required";
-    if (conn.status === "pending") return "reconnect_required";
+    if (conn.status === "active") return "connected";
+    if (conn.status === "expired" || conn.status === "revoked" || conn.status === "pending") {
+      return "reconnect_required";
+    }
   }
   if (entry.coming_soon) return "coming_soon";
   return entry.configured ? "not_connected" : "config_required";
@@ -170,9 +170,16 @@ export default function ConnectionsPage() {
 
   const connsByChannel = useMemo(() => {
     const m = new Map<string, Connection>();
-    for (const c of connections ?? []) m.set(c.channel, c);
+    const list = connections ?? [];
+    // Prefer active connections for the currently selected brand, then any active connection
+    const sorted = [...list].sort((a, b) => {
+      const aScore = (a.brand_id === brand?.id ? 2 : 0) + (a.status === "active" ? 1 : 0);
+      const bScore = (b.brand_id === brand?.id ? 2 : 0) + (b.status === "active" ? 1 : 0);
+      return aScore - bScore;
+    });
+    for (const c of sorted) m.set(c.channel, c);
     return m;
-  }, [connections]);
+  }, [connections, brand?.id]);
 
   /** The connection that backs a registry card (ads cards inherit their
    *  organic provider's connection). */

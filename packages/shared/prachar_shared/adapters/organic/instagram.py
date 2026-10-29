@@ -101,6 +101,34 @@ class InstagramAdapter(ChannelAdapter):
             scopes=IG_SCOPES,
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange an Instagram/Meta user token for a fresh 60-day long-lived token."""
+        from datetime import datetime, timedelta
+
+        s = get_settings()
+        if not s.meta_app_id or not s.meta_app_secret:
+            raise NotImplementedError("META_APP_ID/META_APP_SECRET not configured")
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.get(
+                f"{IG_GRAPH_BASE}/oauth/access_token",
+                params={
+                    "grant_type": "fb_exchange_token",
+                    "client_id": s.meta_app_id,
+                    "client_secret": s.meta_app_secret,
+                    "fb_exchange_token": refresh_token,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        access_token = data.get("access_token") or refresh_token
+        expires_in = int(data.get("expires_in", 5184000))
+        return TokenSet(
+            access_token=access_token,
+            refresh_token=None,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=IG_SCOPES,
+        )
+
     async def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         async with httpx.AsyncClient() as client:
             resp = await client.get(
@@ -112,29 +140,38 @@ class InstagramAdapter(ChannelAdapter):
         pages = data.get("data", [])
         if not pages:
             return ChannelProfile(channel=self.channel, handle="", display_name="")
-        page = pages[0]
-        # Get IG business account for the page.
+
+        chosen_page = pages[0]
+        ig_id = ""
+        ig_info: dict[str, Any] = {}
         async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"{IG_GRAPH_BASE}/{page['id']}",
-                params={"fields": "instagram_business_account", "access_token": tokens.access_token},
-            )
-            ig_data = resp.json().get("instagram_business_account", {})
-            ig_id = ig_data.get("id", "")
-            if ig_id:
+            for page in pages:
                 resp = await client.get(
-                    f"{IG_GRAPH_BASE}/{ig_id}",
-                    params={"fields": "username,followers_count,media_count", "access_token": tokens.access_token},
+                    f"{IG_GRAPH_BASE}/{page['id']}",
+                    params={"fields": "instagram_business_account", "access_token": page.get("access_token") or tokens.access_token},
                 )
-                ig_info = resp.json()
-            else:
-                ig_info = {}
+                ig_data = resp.json().get("instagram_business_account", {}) if resp.status_code == 200 else {}
+                candidate_ig_id = ig_data.get("id", "")
+                if candidate_ig_id:
+                    chosen_page = page
+                    ig_id = candidate_ig_id
+                    resp_info = await client.get(
+                        f"{IG_GRAPH_BASE}/{ig_id}",
+                        params={"fields": "username,followers_count,media_count", "access_token": page.get("access_token") or tokens.access_token},
+                    )
+                    if resp_info.status_code == 200:
+                        ig_info = resp_info.json()
+                    break
         return ChannelProfile(
             channel=self.channel,
             handle=ig_info.get("username", ""),
             display_name=ig_info.get("username", ""),
             follower_count=ig_info.get("followers_count"),
-            metadata={"ig_id": ig_id, "page_id": page["id"]},
+            metadata={
+                "ig_id": ig_id,
+                "page_id": chosen_page["id"],
+                "page_access_token": chosen_page.get("access_token", ""),
+            },
         )
 
     def generate_schema(self) -> dict:
@@ -173,29 +210,35 @@ class InstagramAdapter(ChannelAdapter):
 
     async def publish(self, tokens: TokenSet, payload: dict[str, Any]) -> PublishedRef:
         # Two-step IG publishing: create media container, then publish.
+        import asyncio
         from datetime import datetime
 
-        profile_meta = payload.get("_profile_metadata", {})
+        profile_meta = dict(payload.get("_profile_metadata") or {})
         ig_id = profile_meta.get("ig_id", "")
+        if not ig_id:
+            try:
+                prof = await self.fetch_profile(tokens)
+                ig_id = (prof.metadata or {}).get("ig_id", "")
+                if (prof.metadata or {}).get("page_access_token"):
+                    profile_meta["page_access_token"] = prof.metadata["page_access_token"]
+            except Exception:
+                pass
         if not ig_id:
             raise ValueError("No instagram_business_account id in profile metadata")
         media_urls = payload.get("media_urls", [])
         if not media_urls:
             raise ValueError("No media_urls in payload")
-        async with httpx.AsyncClient() as client:
+        auth_token = profile_meta.get("page_access_token") or tokens.access_token
+        post_type = payload.get("post_type", "feed")
+        async with httpx.AsyncClient(timeout=60.0) as client:
             # Step 1: create container
-            container_params = {
-                "access_token": tokens.access_token,
-                "caption": payload.get("caption", ""),
-                "media_type": payload.get("post_type", "feed"),
-            }
-            if payload.get("post_type") == "carousel" and len(media_urls) > 1:
+            if post_type == "carousel" and len(media_urls) > 1:
                 children_ids = []
                 for url in media_urls:
                     resp = await client.post(
                         f"{IG_GRAPH_BASE}/{ig_id}/media",
                         params={
-                            "access_token": tokens.access_token,
+                            "access_token": auth_token,
                             "is_carousel_item": "true",
                             "image_url": url,
                         },
@@ -205,21 +248,48 @@ class InstagramAdapter(ChannelAdapter):
                 resp = await client.post(
                     f"{IG_GRAPH_BASE}/{ig_id}/media",
                     params={
-                        "access_token": tokens.access_token,
+                        "access_token": auth_token,
                         "caption": payload.get("caption", ""),
                         "media_type": "CAROUSEL",
                         "children": ",".join(children_ids),
                     },
                 )
+            elif post_type == "reels":
+                resp = await client.post(
+                    f"{IG_GRAPH_BASE}/{ig_id}/media",
+                    params={
+                        "access_token": auth_token,
+                        "caption": payload.get("caption", ""),
+                        "media_type": "REELS",
+                        "video_url": media_urls[0],
+                    },
+                )
             else:
-                container_params["image_url"] = media_urls[0]
-                resp = await client.post(f"{IG_GRAPH_BASE}/{ig_id}/media", params=container_params)
+                # Single image feed post: Instagram Graph API requires image_url
+                # without media_type="feed" (which is not a valid Graph enum).
+                resp = await client.post(
+                    f"{IG_GRAPH_BASE}/{ig_id}/media",
+                    params={
+                        "access_token": auth_token,
+                        "caption": payload.get("caption", ""),
+                        "image_url": media_urls[0],
+                    },
+                )
             resp.raise_for_status()
             creation_id = resp.json()["id"]
+            if post_type == "reels":
+                for _ in range(10):
+                    st_resp = await client.get(
+                        f"{IG_GRAPH_BASE}/{creation_id}",
+                        params={"fields": "status_code", "access_token": auth_token},
+                    )
+                    if st_resp.status_code == 200 and st_resp.json().get("status_code") == "FINISHED":
+                        break
+                    await asyncio.sleep(2)
             # Step 2: publish
             resp = await client.post(
                 f"{IG_GRAPH_BASE}/{ig_id}/media_publish",
-                params={"creation_id": creation_id, "access_token": tokens.access_token},
+                params={"creation_id": creation_id, "access_token": auth_token},
             )
             resp.raise_for_status()
             media_id = resp.json()["id"]

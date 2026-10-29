@@ -42,9 +42,17 @@ def _settings():
     return get_settings()
 
 
+def _client_id(s) -> str:
+    return (s.gsc_client_id or s.google_client_id or "").strip()
+
+
+def _client_secret(s) -> str:
+    return (s.gsc_client_secret or s.google_client_secret or "").strip()
+
+
 def _has_creds() -> bool:
     s = _settings()
-    return bool(s.gsc_client_id.strip() and s.gsc_client_secret.strip())
+    return bool(_client_id(s) and _client_secret(s))
 
 
 async def _request(
@@ -100,7 +108,7 @@ class GSCAdapter(ChannelAdapter):
     # ---- OAuth ----
     def auth_url(self, state: str) -> str:
         s = _settings()
-        client_id = s.gsc_client_id or "GSC_CLIENT_ID_PLACEHOLDER"
+        client_id = _client_id(s) or "GSC_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
             "redirect_uri": self.redirect_uri,
@@ -115,7 +123,7 @@ class GSCAdapter(ChannelAdapter):
     def exchange_code(self, code: str) -> TokenSet:
         if not _has_creds():
             raise NotImplementedError(
-                "GSC OAuth exchange requires GSC_CLIENT_ID and GSC_CLIENT_SECRET in settings."
+                "GSC OAuth exchange requires GOOGLE_CLIENT_ID/SECRET (or GSC_CLIENT_ID/SECRET) in settings."
             )
         s = _settings()
         resp = asyncio.run(
@@ -124,8 +132,8 @@ class GSCAdapter(ChannelAdapter):
                 _GSC_TOKEN_URL,
                 data={
                     "code": code,
-                    "client_id": s.gsc_client_id,
-                    "client_secret": s.gsc_client_secret,
+                    "client_id": _client_id(s),
+                    "client_secret": _client_secret(s),
                     "redirect_uri": self.redirect_uri,
                     "grant_type": "authorization_code",
                 },
@@ -139,6 +147,33 @@ class GSCAdapter(ChannelAdapter):
             refresh_token=body.get("refresh_token"),
             expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
             scopes=body.get("scope", _GSC_SCOPE).split(" "),
+        )
+
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange a Google refresh token for a fresh 1-hour access token."""
+        if not _has_creds():
+            raise NotImplementedError("GSC refresh requires GOOGLE_CLIENT_ID/SECRET")
+        s = _settings()
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _GSC_TOKEN_URL,
+                data={
+                    "refresh_token": refresh_token,
+                    "client_id": _client_id(s),
+                    "client_secret": _client_secret(s),
+                    "grant_type": "refresh_token",
+                },
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 3600))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or _GSC_SCOPE).split(" "),
         )
 
     # ---- profile ----

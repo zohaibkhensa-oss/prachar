@@ -163,6 +163,33 @@ class XAdapter(ChannelAdapter):
             scopes=body.get("scope", " ".join(_X_SCOPES)).split(" "),
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange an X OAuth2 refresh_token for a new 2-hour access_token."""
+        if not _has_creds():
+            raise NotImplementedError("X refresh requires X_CLIENT_ID and X_CLIENT_SECRET")
+        s = get_settings()
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _X_TOKEN_URL,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": s.x_client_id,
+                },
+                basic_auth=(s.x_client_id, s.x_client_secret),
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 7200))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or " ".join(_X_SCOPES)).split(" "),
+        )
+
     # ---- profile ----
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         resp = asyncio.run(

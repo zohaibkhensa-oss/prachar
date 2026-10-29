@@ -105,9 +105,9 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.large,
-        tenant_id=str(ctx.tenant_id), max_tokens=2500,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=2500,
     )
-    page = extract_json(response.content) or {}
+    page = extract_json(response.text) or {}
 
     return {
         "page": page,

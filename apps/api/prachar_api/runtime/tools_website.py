@@ -94,12 +94,12 @@ Return JSON only:
     response = await gateway.async_complete(
         prompt=prompt,
         tier=Tier.large,
-        tenant_id=str(ctx.tenant_id),
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan,
         max_tokens=4000,
     )
 
     from prachar_shared.ai_gateway.json_utils import extract_json
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     blueprint = result.get("blueprint", {})
     pages = result.get("pages", [])
@@ -172,10 +172,10 @@ Return JSON:
     response = await gateway.async_complete(
         prompt=prompt,
         tier=Tier.MEDIUM,
-        tenant_id=str(ctx.tenant_id),
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan,
         max_tokens=1500,
     )
-    page = extract_json(response.content) or {}
+    page = extract_json(response.text) or {}
 
     return {
         "page": page,

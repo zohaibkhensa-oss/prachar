@@ -150,6 +150,16 @@ def _publish(item: Any, session: Any) -> Any:
         ),
         {"bid": item["brand_id"], "ch": channel},
     ).mappings().first()
+    if conn is None:
+        conn = session.execute(
+            text(
+                "SELECT id, oauth_tokens_enc FROM connections "
+                "WHERE tenant_id = current_setting('app.tenant_id')::uuid "
+                "AND channel = :ch AND status = 'active' "
+                "ORDER BY created_at DESC LIMIT 1"
+            ),
+            {"ch": channel},
+        ).mappings().first()
     if conn is None or not conn["oauth_tokens_enc"]:
         raise RuntimeError(f"{channel} is not connected")
 

@@ -108,9 +108,9 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.large,
-        tenant_id=str(ctx.tenant_id), max_tokens=2000,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=2000,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     return {
         "campaign": result,
@@ -172,8 +172,8 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.MEDIUM,
-        tenant_id=str(ctx.tenant_id), max_tokens=800,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=800,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     return {"broadcast": result}

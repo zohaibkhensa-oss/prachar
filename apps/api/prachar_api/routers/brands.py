@@ -217,6 +217,13 @@ async def brand_metrics_sync(
         )
     )).scalars().all()
     if not conns:
+        conns = (await session.execute(
+            select(Connection).where(
+                Connection.tenant_id == user.tenant_id,
+                Connection.status == "active",
+            )
+        )).scalars().all()
+    if not conns:
         return {"ok": False, "reason": "no_connected_channels", "synced": []}
 
     import asyncio
@@ -500,6 +507,21 @@ async def publish_post(
         )
     )
     conn = res.scalar_one_or_none()
+    if conn is None:
+        # Fallback: if the tenant connected this channel under another brand
+        # in the same workspace, reuse the newest active connection so switching
+        # brands never breaks publishing.
+        res_any = await session.execute(
+            select(Connection)
+            .where(
+                Connection.tenant_id == user.tenant_id,
+                Connection.channel == body.channel,
+                Connection.status == "active",
+            )
+            .order_by(Connection.created_at.desc())
+            .limit(1)
+        )
+        conn = res_any.scalar_one_or_none()
     if conn is None or not conn.oauth_tokens_enc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{body.channel} is not connected")
 
@@ -512,8 +534,8 @@ async def publish_post(
     bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
     md = bundle.get("metadata") or {}
 
-    # Refresh an expired/expiring access token before publish — Google tokens
-    # live ~1h; without this every post fails 401 once the hour lapses.
+    # Refresh an expired/expiring access token before publish — Google/X tokens
+    # live 1-2h; without this every post fails 401 once the window lapses.
     from prachar_shared.publishing import (
         build_channel_payload,
         call_adapter_publish,
@@ -526,7 +548,7 @@ async def publish_post(
     except PermissionError as exc:
         raise HTTPException(
             status.HTTP_401_UNAUTHORIZED,
-            "YOUTUBE_REAUTH_REQUIRED: token refresh failed — reconnect the channel",
+            f"{body.channel.upper()}_REAUTH_REQUIRED: token refresh failed — reconnect {body.channel} in Channels",
         ) from exc
     if changed:
         from prachar_shared.security import encrypt_token
@@ -536,6 +558,31 @@ async def publish_post(
 
     tokens = tokens_from_bundle(bundle)
     ch = body.channel
+
+    # Backfill missing channel identity metadata (e.g. ig_id, page_id, member_id)
+    # on connections created before callback profile discovery was added.
+    needs_profile = (
+        (ch == "instagram" and not md.get("ig_id"))
+        or (ch == "facebook" and not md.get("page_id"))
+        or (ch == "linkedin" and not md.get("member_id"))
+    )
+    if needs_profile and hasattr(adapter, "fetch_profile"):
+        import asyncio as _asyncio
+
+        try:
+            if _asyncio.iscoroutinefunction(adapter.fetch_profile):
+                prof = await adapter.fetch_profile(tokens)
+            else:
+                prof = await _asyncio.to_thread(adapter.fetch_profile, tokens)
+            if prof and prof.metadata:
+                md.update(prof.metadata)
+                bundle["metadata"] = md
+                from prachar_shared.security import encrypt_token
+
+                conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
+                await session.commit()
+        except Exception:
+            pass
     try:
         payload = build_channel_payload(
             ch, body.text, body.media_url, body.media_type, body.chat_id, md, media_urls=body.media_urls
@@ -829,6 +876,17 @@ async def _load_brand_autopilot_context(
         ch for (ch,) in conn_res.all()
         if ch not in ("gsc", "gmb", "google")
     ]
+    if not active_channels:
+        conn_any = await session.execute(
+            select(Connection.channel).where(
+                Connection.tenant_id == tenant_id,
+                Connection.status == "active",
+            )
+        )
+        active_channels = list(dict.fromkeys(
+            ch for (ch,) in conn_any.all()
+            if ch not in ("gsc", "gmb", "google")
+        ))
 
     sched_res = await session.execute(
         select(ContentItem).where(
@@ -2087,6 +2145,18 @@ async def visibility_radar(
         )
     )
     gsc_conn = cres.scalar_one_or_none()
+    if gsc_conn is None:
+        cres_any = await session.execute(
+            select(Connection)
+            .where(
+                Connection.tenant_id == user.tenant_id,
+                Connection.channel == "gsc",
+                Connection.status == "active",
+            )
+            .order_by(Connection.created_at.desc())
+            .limit(1)
+        )
+        gsc_conn = cres_any.scalar_one_or_none()
     if gsc_conn and gsc_conn.oauth_tokens_enc:
         gsc_out["connected"] = True
         try:

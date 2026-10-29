@@ -153,6 +153,33 @@ class LinkedInAdapter(ChannelAdapter):
             scopes=body.get("scope", " ".join(_LI_SCOPES)).split(" "),
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange a LinkedIn refresh_token for a new access_token."""
+        if not _has_creds():
+            raise NotImplementedError("LinkedIn refresh requires LINKEDIN_CLIENT_ID/SECRET")
+        s = get_settings()
+        resp = asyncio.run(
+            _request(
+                "POST",
+                _LI_TOKEN_URL,
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                    "client_id": s.linkedin_client_id,
+                    "client_secret": s.linkedin_client_secret,
+                },
+            )
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        expires_in = int(body.get("expires_in", 5184000))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or " ".join(_LI_SCOPES)).split(" "),
+        )
+
     # ---- profile ----
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:
         resp = asyncio.run(
@@ -162,14 +189,35 @@ class LinkedInAdapter(ChannelAdapter):
                 token=tokens.access_token,
             )
         )
-        resp.raise_for_status()
-        body = resp.json()
-        member_id = body.get("sub", "")
-        handle = body.get("preferred_username") or member_id
-        display = body.get("name", "") or handle
+        if resp.status_code == 200:
+            body = resp.json()
+            member_id = body.get("sub", "")
+            handle = body.get("preferred_username") or member_id
+            display = body.get("name", "") or handle
+            return ChannelProfile(
+                channel=self.channel,
+                handle=handle,
+                display_name=display,
+                follower_count=None,
+                metadata={"member_id": member_id},
+            )
+        # Fallback to /v2/me when OpenID /v2/userinfo is not in the token scopes
+        resp_me = asyncio.run(
+            _request(
+                "GET",
+                f"{_LI_API}/v2/me",
+                token=tokens.access_token,
+            )
+        )
+        resp_me.raise_for_status()
+        body = resp_me.json()
+        member_id = str(body.get("id", ""))
+        first = body.get("localizedFirstName", "")
+        last = body.get("localizedLastName", "")
+        display = f"{first} {last}".strip() or member_id
         return ChannelProfile(
             channel=self.channel,
-            handle=handle,
+            handle=member_id,
             display_name=display,
             follower_count=None,
             metadata={"member_id": member_id},
@@ -228,7 +276,17 @@ class LinkedInAdapter(ChannelAdapter):
     def publish(self, tokens: TokenSet, payload: dict[str, Any]) -> PublishedRef:
         text = str(payload.get("text", ""))
         visibility = payload.get("visibility", "public")
-        author = payload.get("_author_urn", "urn:li:person:UNKNOWN")
+        author = str(payload.get("_author_urn") or "").strip()
+        if not author or author.endswith(":") or author.endswith("UNKNOWN"):
+            try:
+                prof = self.fetch_profile(tokens)
+                mid = (prof.metadata or {}).get("member_id") or prof.handle
+                if mid:
+                    author = f"urn:li:person:{mid}"
+            except Exception:
+                pass
+        if not author or author.endswith(":"):
+            author = "urn:li:person:UNKNOWN"
         body: dict[str, Any] = {
             "author": author,
             "lifecycleState": "PUBLISHED",

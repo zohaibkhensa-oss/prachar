@@ -101,9 +101,9 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.large,
-        tenant_id=str(ctx.tenant_id), max_tokens=2500,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=2500,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
     steps = result.get("steps", [])
 
     return {
@@ -165,8 +165,8 @@ Return JSON: {{"subject_lines": [...]}}"""
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.MEDIUM,
-        tenant_id=str(ctx.tenant_id), max_tokens=800,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=800,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     return {"subject_lines": result.get("subject_lines", [])}

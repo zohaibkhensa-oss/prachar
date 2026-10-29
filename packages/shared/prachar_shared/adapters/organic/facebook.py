@@ -95,6 +95,34 @@ class FacebookAdapter(ChannelAdapter):
             scopes=FB_SCOPES,
         )
 
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        """Exchange a Facebook user token for a fresh 60-day long-lived token."""
+        from datetime import datetime, timedelta
+
+        s = get_settings()
+        if not s.meta_app_id or not s.meta_app_secret:
+            raise NotImplementedError("META_APP_ID/META_APP_SECRET not configured")
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.get(
+                f"{FB_GRAPH_BASE}/oauth/access_token",
+                params={
+                    "grant_type": "fb_exchange_token",
+                    "client_id": s.meta_app_id,
+                    "client_secret": s.meta_app_secret,
+                    "fb_exchange_token": refresh_token,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        access_token = data.get("access_token") or refresh_token
+        expires_in = int(data.get("expires_in", 5184000))
+        return TokenSet(
+            access_token=access_token,
+            refresh_token=None,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=FB_SCOPES,
+        )
+
     async def fetch_ad_accounts(self, tokens: TokenSet) -> list[dict[str, Any]]:
         """Discover Meta ad accounts owned by the authenticated user.
 
@@ -171,9 +199,18 @@ class FacebookAdapter(ChannelAdapter):
         from datetime import datetime
 
         # Need page access token — fetch from tokens or profile metadata.
-        page_token = payload.get("_page_access_token", tokens.access_token)
-        page_id = payload.get("_page_id", "me")
-        async with httpx.AsyncClient() as client:
+        page_token = payload.get("_page_access_token") or tokens.access_token
+        page_id = payload.get("_page_id") or "me"
+        if page_id == "me" or not payload.get("_page_access_token"):
+            try:
+                prof = await self.fetch_profile(tokens)
+                if (prof.metadata or {}).get("page_id"):
+                    page_id = prof.metadata["page_id"]
+                if (prof.metadata or {}).get("page_access_token"):
+                    page_token = prof.metadata["page_access_token"]
+            except Exception:
+                pass
+        async with httpx.AsyncClient(timeout=60.0) as client:
             params: dict[str, Any] = {
                 "message": payload.get("message", ""),
                 "access_token": page_token,

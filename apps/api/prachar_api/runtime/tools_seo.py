@@ -73,9 +73,9 @@ Return JSON: {{"keywords": [...], "total_volume": 12345}}"""
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.large,
-        tenant_id=str(ctx.tenant_id), max_tokens=2000,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=2000,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
     keywords = result.get("keywords", [])
 
     return {
@@ -141,9 +141,9 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.MEDIUM,
-        tenant_id=str(ctx.tenant_id), max_tokens=1500,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=1500,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     return {
         "score": result.get("score", 0),
@@ -207,8 +207,8 @@ Return JSON with:
 
     response = await gateway.async_complete(
         prompt=prompt, tier=Tier.MEDIUM,
-        tenant_id=str(ctx.tenant_id), max_tokens=1200,
+        tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=1200,
     )
-    result = extract_json(response.content) or {}
+    result = extract_json(response.text) or {}
 
     return {"optimised": result}

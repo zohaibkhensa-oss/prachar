@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
+
+import httpx
 
 from ...contracts import (
     ChannelProfile,
@@ -18,6 +20,7 @@ from .base import ChannelAdapter
 logger = logging.getLogger(__name__)
 
 _GOOGLE_OAUTH_BASE = "https://accounts.google.com/o/oauth2/v2/auth"
+_GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _GOOGLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
 
 
@@ -27,19 +30,23 @@ def _settings():
     return get_settings()
 
 
+def _client_id(s) -> str:
+    return (s.google_client_id or s.google_ads_client_id or "").strip()
+
+
+def _client_secret(s) -> str:
+    return (s.google_client_secret or s.google_ads_client_secret or "").strip()
+
+
 @register_organic
 class GoogleSearchAdapter(ChannelAdapter):
-    """Generic Google search presence adapter (SERP monitoring).
-
-    Google does not expose an organic publish API; this adapter is used for
-    SERP monitoring / rank tracking only.
-    """
+    """Generic Google search presence adapter (SERP monitoring & Google OAuth)."""
 
     channel = "google"
 
     def auth_url(self, state: str) -> str:
         s = _settings()
-        client_id = s.google_client_id or "GOOGLE_CLIENT_ID_PLACEHOLDER"
+        client_id = _client_id(s) or "GOOGLE_CLIENT_ID_PLACEHOLDER"
         params = {
             "client_id": client_id,
             "redirect_uri": self.redirect_uri,
@@ -52,8 +59,56 @@ class GoogleSearchAdapter(ChannelAdapter):
         return f"{_GOOGLE_OAUTH_BASE}?{urlencode(params)}"
 
     def exchange_code(self, code: str) -> TokenSet:
-        raise NotImplementedError(
-            "GoogleSearchAdapter does not support OAuth exchange; use SERP API key instead."
+        s = _settings()
+        cid, csec = _client_id(s), _client_secret(s)
+        if not (cid and csec):
+            raise NotImplementedError(
+                "Google OAuth exchange requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
+            )
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                _GOOGLE_TOKEN_URL,
+                data={
+                    "code": code,
+                    "client_id": cid,
+                    "client_secret": csec,
+                    "redirect_uri": self.redirect_uri,
+                    "grant_type": "authorization_code",
+                },
+            )
+            resp.raise_for_status()
+            body = resp.json()
+        expires_in = int(body.get("expires_in", 3600))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token"),
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or _GOOGLE_SCOPE).split(" "),
+        )
+
+    def refresh_access_token(self, refresh_token: str) -> TokenSet:
+        s = _settings()
+        cid, csec = _client_id(s), _client_secret(s)
+        if not (cid and csec):
+            raise NotImplementedError("Google refresh requires GOOGLE_CLIENT_ID/SECRET")
+        with httpx.Client(timeout=30.0) as client:
+            resp = client.post(
+                _GOOGLE_TOKEN_URL,
+                data={
+                    "refresh_token": refresh_token,
+                    "client_id": cid,
+                    "client_secret": csec,
+                    "grant_type": "refresh_token",
+                },
+            )
+            resp.raise_for_status()
+            body = resp.json()
+        expires_in = int(body.get("expires_in", 3600))
+        return TokenSet(
+            access_token=body["access_token"],
+            refresh_token=body.get("refresh_token") or refresh_token,
+            expires_at=datetime.now(UTC) + timedelta(seconds=expires_in),
+            scopes=(body.get("scope") or _GOOGLE_SCOPE).split(" "),
         )
 
     def fetch_profile(self, tokens: TokenSet) -> ChannelProfile:

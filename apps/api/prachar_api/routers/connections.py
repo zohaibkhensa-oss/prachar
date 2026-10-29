@@ -415,23 +415,33 @@ async def integration_registry(user: CurrentUser) -> list[dict]:
 
 
 @router.get("", response_model=list[ConnectionOut])
-async def list_connections(user: CurrentUser, session: SessionDep) -> list[ConnectionOut]:
-    res = await session.execute(
-        select(Connection).where(Connection.tenant_id == user.tenant_id)
-    )
+async def list_connections(
+    user: CurrentUser,
+    session: SessionDep,
+    brand_id: uuid.UUID | None = None,
+) -> list[ConnectionOut]:
+    stmt = select(Connection).where(Connection.tenant_id == user.tenant_id)
+    if brand_id is not None:
+        stmt = stmt.where(Connection.brand_id == brand_id)
+    res = await session.execute(stmt)
     out = []
     for c in res.scalars().all():
         item = ConnectionOut.model_validate(c)
         item.account_label = _connection_label(c)
-        # Connections backed by a refresh_token (Google/YouTube/GSC/X) auto-refresh
-        # on demand, so their 1-hour access_token expiry does not mean the
-        # connection itself is expired.
-        if c.oauth_tokens_enc:
+        # Active connections backed by a refresh_token (Google/YouTube/GSC/X)
+        # or Meta/Page tokens auto-refresh on demand, so their short-lived
+        # access_token timestamp does not mean the connection itself is expired.
+        if c.status == "active" and c.oauth_tokens_enc:
             try:
                 from prachar_shared.security import decrypt_token
 
                 bundle = json.loads(decrypt_token(c.oauth_tokens_enc))
-                if bundle.get("refresh_token"):
+                meta = bundle.get("metadata") or {}
+                if (
+                    bundle.get("refresh_token")
+                    or meta.get("page_access_token")
+                    or c.channel in ("facebook", "instagram", "meta", "linkedin")
+                ):
                     item.expires_at = None
             except Exception:
                 pass

@@ -142,6 +142,28 @@ def refresh_if_expiring(
             }
         )
         return bundle, True
+    # Meta (Facebook/Instagram) uses fb_exchange_token on the access_token
+    # itself (no separate refresh_token) and non-expiring Page access tokens.
+    ch = getattr(adapter, "channel", None) or bundle.get("channel")
+    meta = bundle.get("metadata") or {}
+    if ch in ("facebook", "instagram") and hasattr(adapter, "refresh_access_token") and bundle.get("access_token"):
+        try:
+            new = adapter.refresh_access_token(bundle["access_token"])
+            bundle.update(
+                {
+                    "access_token": new.access_token,
+                    "expires_at": new.expires_at.isoformat(),
+                    "scopes": new.scopes,
+                }
+            )
+            return bundle, True
+        except Exception:
+            if meta.get("page_access_token"):
+                bundle["expires_at"] = (now + timedelta(days=60)).isoformat()
+                return bundle, True
+    elif meta.get("page_access_token"):
+        bundle["expires_at"] = (now + timedelta(days=60)).isoformat()
+        return bundle, True
     if expires_at <= now:
         raise PermissionError("REAUTH_REQUIRED")
     return bundle, False
