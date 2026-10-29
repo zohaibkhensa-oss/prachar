@@ -171,7 +171,7 @@ Return JSON:
 
     response = await gateway.async_complete(
         prompt=prompt,
-        tier=Tier.MEDIUM,
+        tier=Tier.small,
         tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan,
         max_tokens=1500,
     )

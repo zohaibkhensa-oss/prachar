@@ -269,28 +269,73 @@ class FacebookAdapter(ChannelAdapter):
     async def metrics(self, tokens: TokenSet, since: Any) -> list[MetricEvent]:
         from datetime import datetime
 
-        async with httpx.AsyncClient() as client:
+        meta = tokens.metadata or {}
+        page_id = meta.get("page_id") or "me"
+        page_token = meta.get("page_access_token") or tokens.access_token
+        events: list[MetricEvent] = []
+        ts = datetime.now(UTC)
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{FB_GRAPH_BASE}/me/insights",
+                f"{FB_GRAPH_BASE}/{page_id}/insights",
                 params={
                     "metric": "page_impressions,page_post_engagements,page_fan_adds",
                     "period": "day",
-                    "access_token": tokens.access_token,
+                    "access_token": page_token,
                 },
             )
-            resp.raise_for_status()
-            data = resp.json()
-        events = []
-        ts = datetime.now(UTC)
-        for metric_data in data.get("data", []):
-            metric_name = f"fb_{metric_data['name']}"
-            for val in metric_data.get("values", []):
-                events.append(MetricEvent(
-                    channel=self.channel,
-                    entity_type="page",
-                    entity_id="self",
-                    metric=metric_name,
-                    value=float(val.get("value", 0)),
-                    ts=ts,
-                ))
+            if resp.status_code == 200:
+                data = resp.json()
+                for metric_data in data.get("data", []):
+                    metric_name = f"fb_{metric_data['name']}"
+                    for val in metric_data.get("values", []):
+                        events.append(MetricEvent(
+                            channel=self.channel,
+                            entity_type="page",
+                            entity_id=page_id,
+                            metric=metric_name,
+                            value=float(val.get("value", 0)),
+                            ts=ts,
+                        ))
+            # Also aggregate recent post reactions/comments/shares & page followers
+            # so pages with <100 followers or New Pages Experience always report real activity.
+            if page_id != "me":
+                try:
+                    p_resp = await client.get(
+                        f"{FB_GRAPH_BASE}/{page_id}",
+                        params={"fields": "followers_count,fan_count", "access_token": page_token},
+                    )
+                    if p_resp.status_code == 200:
+                        pdata = p_resp.json()
+                        fans = float(pdata.get("followers_count") or pdata.get("fan_count") or 0)
+                        if fans > 0:
+                            events.append(MetricEvent(
+                                channel=self.channel,
+                                entity_type="page",
+                                entity_id=page_id,
+                                metric="followers",
+                                value=fans,
+                                ts=ts,
+                            ))
+                    feed_resp = await client.get(
+                        f"{FB_GRAPH_BASE}/{page_id}/posts",
+                        params={
+                            "fields": "shares,likes.summary(true),comments.summary(true)",
+                            "limit": "25",
+                            "access_token": page_token,
+                        },
+                    )
+                    if feed_resp.status_code == 200:
+                        posts = feed_resp.json().get("data", [])
+                        likes = sum(float((p.get("likes") or {}).get("summary", {}).get("total_count", 0)) for p in posts)
+                        comments = sum(float((p.get("comments") or {}).get("summary", {}).get("total_count", 0)) for p in posts)
+                        shares = sum(float((p.get("shares") or {}).get("count", 0)) for p in posts)
+                        if likes > 0:
+                            events.append(MetricEvent(channel=self.channel, entity_type="page", entity_id=page_id, metric="likes", value=likes, ts=ts))
+                        if comments > 0:
+                            events.append(MetricEvent(channel=self.channel, entity_type="page", entity_id=page_id, metric="comments", value=comments, ts=ts))
+                        if shares > 0:
+                            events.append(MetricEvent(channel=self.channel, entity_type="page", entity_id=page_id, metric="shares", value=shares, ts=ts))
+                except Exception:
+                    pass
         return events

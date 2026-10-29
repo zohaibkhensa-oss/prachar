@@ -76,7 +76,7 @@ Brand: {brand_graph}
 OUTPUT (JSON array of {count} objects):
 [{{"copy": "string", "hook_type": "pain|proof|curiosity|offer", "rationale": "string"}}]
 """
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=mutation_prompt,
             tier=Tier.small,
             task="creative_copy",

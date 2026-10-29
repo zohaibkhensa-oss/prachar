@@ -170,7 +170,7 @@ OUTPUT (JSON array of 3-5 learning objects):
 [{{"insight": "string", "channel": "string", "action": "string", "confidence": 0.0-1.0}}]
 """
 
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=prompt,
             tier=Tier.small,
             task="realtime_learning",

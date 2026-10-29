@@ -36,7 +36,7 @@ async def generate_ig_caption(
             competitor_examples="N/A (stub mode)",
             target_keyword=target_keyword,
         )
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=prompt,
             tier=Tier.small,
             task="captions",
@@ -99,7 +99,7 @@ async def generate_fb_post(
             locale=locale,
             target_keyword=target_keyword,
         )
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=prompt, tier=Tier.small, task="captions",
             tenant_id=brand_id, plan="starter",
         )
@@ -142,7 +142,7 @@ async def generate_hashtag_sets(
         prompt = HASHTAG_ENGINE_PROMPT.format(
             channel=channel, brand_graph=brand_graph, topic=topic, locale=locale,
         )
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=prompt, tier=Tier.small, task="captions",
             tenant_id=uuid.UUID(int=0), plan="starter",
         )

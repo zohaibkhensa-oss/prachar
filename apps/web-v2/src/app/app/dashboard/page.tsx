@@ -25,6 +25,33 @@ interface MetricsSummary {
   days: number;
   period_start: string;
   totals: Record<string, { current: number; previous: number }>;
+  commercial?: {
+    impressions: number;
+    engagements: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+    revenue: number;
+    followers: number;
+    ctr: number;
+    engagement_rate: number;
+    cpc: number;
+    cpa: number;
+    roas: number;
+  };
+  by_channel?: {
+    channel: string;
+    impressions: number;
+    engagements: number;
+    clicks: number;
+    conversions: number;
+    spend: number;
+    revenue: number;
+    ctr: number;
+    engagement_rate: number;
+    cpa: number;
+    roas: number;
+  }[];
   series: Record<string, { date: string; value: number }[]>;
   last_synced: string | null;
 }
@@ -132,6 +159,8 @@ const METRIC_LABELS: Record<string, string> = {
   impressions: "People Reached",
   engagements: "Engagements",
   clicks: "Website Visits",
+  conversions: "Conversions & Leads",
+  revenue: "Attributed Revenue",
   spend: "Ad Spend",
 };
 
@@ -750,6 +779,56 @@ export default function DashboardPage() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Commercial ROI & Efficiency Strip */}
+          <div className="rounded-2xl border border-line/10 bg-bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <IndianRupee className="w-4 h-4 text-emerald-400" />
+                <span className="font-display text-sm font-semibold text-text">Commercial Metrics &amp; ROI</span>
+              </div>
+              <Link href="/app/analytics" className="text-xs text-accent hover:underline font-medium">
+                Full ROI &amp; Log Conversions →
+              </Link>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl bg-white/[0.02] border border-line/10 p-3">
+                <div className="text-[11px] text-text-secondary">Conversions / Leads</div>
+                <div className="font-display text-lg font-semibold text-text mt-0.5">
+                  {metrics?.commercial?.conversions ? fmt(metrics.commercial.conversions) : "0"}
+                </div>
+                <div className="text-[10px] text-text-muted mt-0.5">
+                  {metrics?.commercial?.cpa ? `CPA ₹${metrics.commercial.cpa}` : "Pixel + logged leads"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-white/[0.02] border border-line/10 p-3">
+                <div className="text-[11px] text-text-secondary">Attributed Revenue</div>
+                <div className="font-display text-lg font-semibold text-emerald-400 mt-0.5">
+                  {metrics?.commercial?.revenue ? fmt(metrics.commercial.revenue, "₹") : "₹0"}
+                </div>
+                <div className="text-[10px] text-text-muted mt-0.5">Last {days} days</div>
+              </div>
+              <div className="rounded-xl bg-white/[0.02] border border-line/10 p-3">
+                <div className="text-[11px] text-text-secondary">ROAS (Return on Spend)</div>
+                <div className="font-display text-lg font-semibold text-accent mt-0.5">
+                  {metrics?.commercial?.roas ? `${metrics.commercial.roas.toFixed(2)}x` : "—"}
+                </div>
+                <div className="text-[10px] text-text-muted mt-0.5">
+                  {metrics?.commercial?.spend ? `on ${fmt(metrics.commercial.spend, "₹")} spend` : "Log spend or run ads"}
+                </div>
+              </div>
+              <div className="rounded-xl bg-white/[0.02] border border-line/10 p-3">
+                <div className="text-[11px] text-text-secondary">CTR &amp; Engagement Rate</div>
+                <div className="font-display text-lg font-semibold text-sky-400 mt-0.5">
+                  {metrics?.commercial?.ctr ? `${metrics.commercial.ctr}%` : "0%"}
+                  <span className="text-xs text-text-muted font-normal"> CTR</span>
+                </div>
+                <div className="text-[10px] text-text-muted mt-0.5">
+                  {metrics?.commercial?.engagement_rate ?? 0}% engagement rate
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Chart */}

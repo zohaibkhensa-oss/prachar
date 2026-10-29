@@ -322,7 +322,11 @@ class GSCAdapter(ChannelAdapter):
 
     # ---- metrics ----
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
-        site = "sc-domain:example.com"
+        from urllib.parse import quote
+
+        meta = tokens.metadata or {}
+        sites = meta.get("verified_sites") or []
+        site = sites[0] if sites else (meta.get("account_name") or "sc-domain:example.com")
         body = {
             "startDate": since.date().isoformat(),
             "endDate": datetime.now(UTC).date().isoformat(),
@@ -332,7 +336,7 @@ class GSCAdapter(ChannelAdapter):
         resp = asyncio.run(
             _request(
                 "POST",
-                _GSC_SEARCH_ANALYTICS_URL.format(site=site),
+                _GSC_SEARCH_ANALYTICS_URL.format(site=quote(site, safe="")),
                 json_body=body,
                 token=tokens.access_token,
             )
@@ -350,6 +354,15 @@ class GSCAdapter(ChannelAdapter):
                     entity_id=query,
                     metric="impressions",
                     value=float(row.get("impressions", 0)),
+                )
+            )
+            events.append(
+                MetricEvent(
+                    channel=self.channel,
+                    entity_type="query",
+                    entity_id=query,
+                    metric="clicks",
+                    value=float(row.get("clicks", 0)),
                 )
             )
             events.append(

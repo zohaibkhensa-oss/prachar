@@ -341,7 +341,9 @@ class LinkedInAdapter(ChannelAdapter):
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
         # LinkedIn does not expose per-post organic metrics trivially; we query
         # organizationalEntityShareStatistics when an org URN is present.
-        org_urn = ""
+        org_urn = (tokens.metadata or {}).get("org_urn", "")
+        if not org_urn:
+            return []
         resp = asyncio.run(
             _request(
                 "GET",

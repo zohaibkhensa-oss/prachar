@@ -44,7 +44,7 @@ class Completion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str
-    json_value: dict[str, Any] | None = None
+    json_value: dict[str, Any] | list[Any] | None = None
     tokens_used: int = 0
     model: str
     cached: bool = False
@@ -53,6 +53,20 @@ class Completion(BaseModel):
     cost_usd: float = 0.0
     request_id: str = ""
     confidence: float = 0.0  # 0.0-1.0, estimated confidence in response quality
+
+    @property
+    def content(self) -> str:
+        """Alias for ``text`` so callers reading ``.content`` never fail."""
+        return self.text
+
+    def __await__(self):
+        async def _coro():
+            return self
+
+        return _coro().__await__()
+
+
+_ZERO_UUID = uuid.UUID(int=0)
 
 
 class AIGateway:
@@ -90,8 +104,8 @@ class AIGateway:
         tier: Tier = Tier.small,
         schema: dict[str, Any] | None = None,
         task: str = "generic",
-        tenant_id: uuid.UUID,
-        plan: str,
+        tenant_id: uuid.UUID | str = _ZERO_UUID,
+        plan: str = "starter",
         max_tokens: int = 1024,
         temperature: float = 0.2,
         retries: int = 1,
@@ -525,7 +539,7 @@ class AIGateway:
             )
             content = resp.choices[0].message.content or "{}"
             # Use universal JSON extractor (handles markdown fences, prose, etc.)
-            json_value = extract_json(content)
+            json_value = self._coerce_to_schema(schema, extract_json(content))
             if json_value is None or not isinstance(json_value, dict):
                 raise RuntimeError(f"Groq returned non-JSON despite json_object format: {content[:200]}")
             self._validate_json(schema, json_value)
@@ -574,7 +588,7 @@ class AIGateway:
                 ],
             )
             content = resp.choices[0].message.content or "{}"
-            json_value = extract_json(content)
+            json_value = self._coerce_to_schema(schema, extract_json(content))
             if json_value is None or not isinstance(json_value, dict):
                 raise RuntimeError(f"Gemini returned non-JSON despite json_object format: {content[:200]}")
             self._validate_json(schema, json_value)
@@ -693,7 +707,7 @@ class AIGateway:
             )
             content = resp.choices[0].message.content or "{}"
             # Use universal JSON extractor
-            json_value = extract_json(content)
+            json_value = self._coerce_to_schema(schema, extract_json(content))
             if json_value is None or not isinstance(json_value, dict):
                 raise RuntimeError(f"OpenAI returned non-JSON despite json_object format: {content[:200]}")
             self._validate_json(schema, json_value)
@@ -708,6 +722,27 @@ class AIGateway:
         text = resp.choices[0].message.content or ""
         tokens = resp.usage.total_tokens if resp.usage else 0
         return Completion(text=text, tokens_used=tokens, model=model, provider="openai")
+
+    @staticmethod
+    def _coerce_to_schema(schema: dict[str, Any] | None, value: Any) -> Any:
+        """If the LLM returned a bare JSON list (or single item dict) when the
+        schema expects an object with one array property (e.g. ``{"faq": [...]}``),
+        wrap it into that property automatically."""
+        if schema is None or value is None:
+            return value
+        props = schema.get("properties", {})
+        array_props = [
+            k for k, spec in props.items()
+            if isinstance(spec, dict) and spec.get("type") == "array"
+        ]
+        if isinstance(value, list) and len(array_props) == 1:
+            return {array_props[0]: value}
+        if isinstance(value, dict) and len(array_props) == 1 and array_props[0] not in value:
+            arr_key = array_props[0]
+            item_props = (props[arr_key].get("items") or {}).get("properties") or {}
+            if item_props and set(value.keys()) & set(item_props.keys()):
+                return {arr_key: [value]}
+        return value
 
     @staticmethod
     def _validate_json(schema: dict[str, Any], value: dict[str, Any]) -> None:

@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Share2, ImageIcon, Video, Calendar, Settings, Menu,
-  LogOut, Plus, MessageSquare, PanelLeftClose, PanelLeftOpen,
+  LogOut, Plus, MessageSquare, PanelLeftClose, PanelLeftOpen, BarChart3, Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getToken, clearToken } from "@/lib/auth";
@@ -22,6 +22,8 @@ interface NavItem {
 
 const WORKSPACE_NAV: NavItem[] = [
   { label: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
+  { label: "Analytics & ROI", href: "/app/analytics", icon: BarChart3 },
+  { label: "Campaigns", href: "/app/campaigns", icon: Megaphone },
   { label: "Channels", href: "/app/connections", icon: Share2 },
   { label: "Images", href: "/app/images", icon: ImageIcon },
   { label: "Video", href: "/app/video", icon: Video },

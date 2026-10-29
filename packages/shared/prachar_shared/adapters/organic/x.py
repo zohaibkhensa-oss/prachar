@@ -294,11 +294,13 @@ class XAdapter(ChannelAdapter):
 
     # ---- metrics ----
     def metrics(self, tokens: TokenSet, since: datetime) -> list[MetricEvent]:
-        # X public metrics are returned per-tweet; fetch recent tweets then aggregate.
+        # X public metrics are returned per-tweet; fetch recent user tweets then aggregate.
+        user_id = (tokens.metadata or {}).get("user_id")
+        endpoint = f"{_X_API}/users/{user_id}/tweets" if user_id else f"{_X_API}/tweets"
         resp = asyncio.run(
             _request(
                 "GET",
-                f"{_X_API}/tweets",
+                endpoint,
                 params={
                     "max_results": 100,
                     "tweet.fields": "public_metrics,created_at",

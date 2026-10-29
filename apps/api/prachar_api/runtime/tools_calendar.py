@@ -174,7 +174,7 @@ Include a mix of:
 Return JSON: {{"events": [...]}}"""
 
     response = await gateway.async_complete(
-        prompt=prompt, tier=Tier.MEDIUM,
+        prompt=prompt, tier=Tier.small,
         tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=1000,
     )
     result = extract_json(response.text) or {}

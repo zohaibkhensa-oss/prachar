@@ -122,6 +122,47 @@ async def record_conversion(body: ConversionEvent, request: Request) -> Conversi
     # Clear touchpoints for this session.
     _touchpoints.pop(body.session_id, None)
 
+    # Persist commercial conversion & revenue to metric_events when brand_id + tenant_id are provided
+    if body.brand_id and body.tenant_id:
+        try:
+            from sqlalchemy import text
+
+            from ..db import get_session_factory
+            from ..models import MetricEvent
+
+            async with get_session_factory() as session:
+                await session.execute(
+                    text("SELECT set_config('app.tenant_id', :tid, true)"),
+                    {"tid": str(body.tenant_id)},
+                )
+                ch = attributed_network or "direct"
+                session.add(
+                    MetricEvent(
+                        tenant_id=body.tenant_id,
+                        brand_id=body.brand_id,
+                        channel=ch,
+                        entity_type="pixel_conversion",
+                        entity_id=str(conv_id),
+                        metric="conversions",
+                        value=1.0,
+                    )
+                )
+                if body.value and body.value > 0:
+                    session.add(
+                        MetricEvent(
+                            tenant_id=body.tenant_id,
+                            brand_id=body.brand_id,
+                            channel=ch,
+                            entity_type="pixel_conversion",
+                            entity_id=str(conv_id),
+                            metric="revenue",
+                            value=float(body.value),
+                        )
+                    )
+                await session.commit()
+        except Exception:
+            pass
+
     return ConversionOut(
         id=conv_id,
         attributed_network=attributed_network,

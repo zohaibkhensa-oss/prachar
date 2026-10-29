@@ -303,29 +303,65 @@ class InstagramAdapter(ChannelAdapter):
     async def metrics(self, tokens: TokenSet, since: Any) -> list[MetricEvent]:
         from datetime import datetime
 
-        # Pull IG insights: impressions, reach, engagement.
-        async with httpx.AsyncClient() as client:
+        meta = tokens.metadata or {}
+        ig_id = meta.get("ig_id") or "me"
+        auth_token = meta.get("page_access_token") or tokens.access_token
+        events: list[MetricEvent] = []
+        ts = datetime.now(UTC)
+
+        # Pull IG insights: impressions, reach, engagement + media-level likes/comments.
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(
-                f"{IG_GRAPH_BASE}/me/insights",
+                f"{IG_GRAPH_BASE}/{ig_id}/insights",
                 params={
                     "metric": "impressions,reach,profile_views",
                     "period": "day",
-                    "access_token": tokens.access_token,
+                    "access_token": auth_token,
                 },
             )
-            resp.raise_for_status()
-            data = resp.json()
-        events = []
-        ts = datetime.now(UTC)
-        for metric_data in data.get("data", []):
-            metric_name = f"ig_{metric_data['name']}"
-            for val in metric_data.get("values", []):
-                events.append(MetricEvent(
-                    channel=self.channel,
-                    entity_type="profile",
-                    entity_id="self",
-                    metric=metric_name,
-                    value=float(val.get("value", 0)),
-                    ts=ts,
-                ))
+            if resp.status_code == 200:
+                data = resp.json()
+                for metric_data in data.get("data", []):
+                    metric_name = f"ig_{metric_data['name']}"
+                    for val in metric_data.get("values", []):
+                        events.append(MetricEvent(
+                            channel=self.channel,
+                            entity_type="profile",
+                            entity_id=ig_id,
+                            metric=metric_name,
+                            value=float(val.get("value", 0)),
+                            ts=ts,
+                        ))
+            if ig_id != "me":
+                try:
+                    prof_resp = await client.get(
+                        f"{IG_GRAPH_BASE}/{ig_id}",
+                        params={"fields": "followers_count,media_count", "access_token": auth_token},
+                    )
+                    if prof_resp.status_code == 200:
+                        pdata = prof_resp.json()
+                        followers = float(pdata.get("followers_count") or 0)
+                        if followers > 0:
+                            events.append(MetricEvent(
+                                channel=self.channel,
+                                entity_type="profile",
+                                entity_id=ig_id,
+                                metric="followers",
+                                value=followers,
+                                ts=ts,
+                            ))
+                    media_resp = await client.get(
+                        f"{IG_GRAPH_BASE}/{ig_id}/media",
+                        params={"fields": "like_count,comments_count", "limit": "25", "access_token": auth_token},
+                    )
+                    if media_resp.status_code == 200:
+                        items = media_resp.json().get("data", [])
+                        likes = sum(float(m.get("like_count", 0)) for m in items)
+                        comments = sum(float(m.get("comments_count", 0)) for m in items)
+                        if likes > 0:
+                            events.append(MetricEvent(channel=self.channel, entity_type="profile", entity_id=ig_id, metric="likes", value=likes, ts=ts))
+                        if comments > 0:
+                            events.append(MetricEvent(channel=self.channel, entity_type="profile", entity_id=ig_id, metric="comments", value=comments, ts=ts))
+                except Exception:
+                    pass
         return events

@@ -101,7 +101,7 @@ async def brand_metrics_summary(
 
     from sqlalchemy import func
 
-    from ..models import MetricEvent
+    from ..models import Campaign, CampaignPerformance, MetricEvent
 
     now = datetime.now(UTC)
     start = now - timedelta(days=max(1, min(days, 365)))
@@ -113,6 +113,7 @@ async def brand_metrics_summary(
     day_expr = func.date_trunc("day", MetricEvent.ts).label("d")
     rows = await session.execute(
         select(
+            MetricEvent.channel,
             MetricEvent.metric,
             day_expr,
             func.sum(MetricEvent.value),
@@ -122,42 +123,194 @@ async def brand_metrics_summary(
             MetricEvent.tenant_id == user.tenant_id,
             MetricEvent.ts >= prev_start,
         )
-        .group_by(MetricEvent.metric, day_expr)
+        .group_by(MetricEvent.channel, MetricEvent.metric, day_expr)
         .order_by(day_expr)
     )
+    metric_rows = rows.all()
+    if not metric_rows:
+        # Fallback to workspace-wide metric_events if synced under a sibling brand
+        rows_any = await session.execute(
+            select(
+                MetricEvent.channel,
+                MetricEvent.metric,
+                day_expr,
+                func.sum(MetricEvent.value),
+            )
+            .where(
+                MetricEvent.tenant_id == user.tenant_id,
+                MetricEvent.ts >= prev_start,
+            )
+            .group_by(MetricEvent.channel, MetricEvent.metric, day_expr)
+            .order_by(day_expr)
+        )
+        metric_rows = rows_any.all()
 
-    # Canonicalise provider metric names into the dashboard's four buckets.
-    # (reach = impressions+views documented as "times content was seen";
-    # engagements = likes/comments/shares; visits = clicks; spend = spend/cost)
+    # Canonicalise provider metric names into the commercial & growth buckets:
+    # impressions, engagements, clicks, conversions, spend, revenue, followers.
     _BUCKETS = {
         "impressions": "impressions",
         "views": "impressions",
+        "reach": "impressions",
+        "fb_page_impressions": "impressions",
+        "ig_impressions": "impressions",
+        "ig_reach": "impressions",
+        "search_impressions": "impressions",
+        "sent": "impressions",
+        "delivered": "impressions",
         "likes": "engagements",
         "comments": "engagements",
         "shares": "engagements",
         "saves": "engagements",
+        "retweets": "engagements",
+        "replies": "engagements",
         "engagements": "engagements",
+        "fb_page_post_engagements": "engagements",
+        "watch_time_minutes": "engagements",
         "clicks": "clicks",
         "website_visits": "clicks",
+        "profile_clicks": "clicks",
+        "ig_profile_views": "clicks",
+        "directions_requests": "clicks",
+        "read": "clicks",
         "spend": "spend",
         "cost": "spend",
+        "conversions": "conversions",
+        "purchases": "conversions",
+        "leads": "conversions",
+        "orders": "conversions",
+        "signups": "conversions",
+        "calls": "conversions",
+        "replied": "conversions",
+        "revenue": "revenue",
+        "conversion_value": "revenue",
+        "sales": "revenue",
+        "followers": "followers",
+        "subscribers_gained": "followers",
+        "fb_page_fan_adds": "followers",
     }
 
     totals: dict[str, dict[str, float]] = {}
     series: dict[str, dict[str, float]] = {}
+    channel_agg: dict[str, dict[str, float]] = {}
     raw_metrics: set[str] = set()
-    for metric, day, value in rows.all():
+
+    def _accumulate(ch: str, canonical: str, day_dt: datetime, val: float) -> None:
+        t = totals.setdefault(canonical, {"current": 0.0, "previous": 0.0})
+        bucket = "current" if day_dt >= start else "previous"
+        t[bucket] += val
+        if day_dt >= start:
+            iso = day_dt.date().isoformat()
+            series.setdefault(canonical, {})[iso] = (
+                series.setdefault(canonical, {}).get(iso, 0.0) + val
+            )
+            ch_entry = channel_agg.setdefault(
+                ch or "direct",
+                {
+                    "impressions": 0.0,
+                    "engagements": 0.0,
+                    "clicks": 0.0,
+                    "conversions": 0.0,
+                    "spend": 0.0,
+                    "revenue": 0.0,
+                    "followers": 0.0,
+                },
+            )
+            if canonical in ch_entry:
+                ch_entry[canonical] += val
+
+    for ch, metric, day, value in metric_rows:
         canonical = _BUCKETS.get(metric)
         raw_metrics.add(metric)
-        if canonical is None:
+        if canonical is None or day is None:
             continue
-        t = totals.setdefault(canonical, {"current": 0.0, "previous": 0.0})
-        bucket = "current" if day >= start else "previous"
-        t[bucket] += float(value or 0)
-        if day >= start:
-            series.setdefault(canonical, {})[day.date().isoformat()] = (
-                series.setdefault(canonical, {}).get(day.date().isoformat(), 0.0) + float(value or 0)
-            )
+        _accumulate(str(ch or "organic"), canonical, day, float(value or 0))
+
+    # Also merge CampaignPerformance rows for this brand's paid/organic campaigns
+    perf_rows = await session.execute(
+        select(
+            CampaignPerformance.channel,
+            CampaignPerformance.date,
+            func.sum(CampaignPerformance.impressions),
+            func.sum(CampaignPerformance.clicks),
+            func.sum(CampaignPerformance.conversions),
+            func.sum(CampaignPerformance.spend),
+            func.sum(CampaignPerformance.revenue),
+        )
+        .join(Campaign, Campaign.id == CampaignPerformance.campaign_id)
+        .where(
+            Campaign.brand_id == brand_id,
+            Campaign.tenant_id == user.tenant_id,
+            CampaignPerformance.date >= prev_start.date(),
+        )
+        .group_by(CampaignPerformance.channel, CampaignPerformance.date)
+    )
+    for ch, d_val, imp, clk, conv, sp, rev in perf_rows.all():
+        if d_val is None:
+            continue
+        day_dt = datetime(d_val.year, d_val.month, d_val.day, tzinfo=UTC)
+        ch_name = str(ch or "campaigns")
+        for k, v in (
+            ("impressions", imp),
+            ("clicks", clk),
+            ("conversions", conv),
+            ("spend", sp),
+            ("revenue", rev),
+        ):
+            fv = float(v or 0)
+            if fv > 0:
+                raw_metrics.add(k)
+                _accumulate(ch_name, k, day_dt, fv)
+
+    # Compute derived commercial KPIs (CTR, Engagement Rate, CPC, CPA, ROAS)
+    cur_imp = totals.get("impressions", {}).get("current", 0.0)
+    cur_eng = totals.get("engagements", {}).get("current", 0.0)
+    cur_clk = totals.get("clicks", {}).get("current", 0.0)
+    cur_conv = totals.get("conversions", {}).get("current", 0.0)
+    cur_spend = totals.get("spend", {}).get("current", 0.0)
+    cur_rev = totals.get("revenue", {}).get("current", 0.0)
+    cur_fol = totals.get("followers", {}).get("current", 0.0)
+
+    commercial = {
+        "impressions": round(cur_imp, 2),
+        "engagements": round(cur_eng, 2),
+        "clicks": round(cur_clk, 2),
+        "conversions": round(cur_conv, 2),
+        "spend": round(cur_spend, 2),
+        "revenue": round(cur_rev, 2),
+        "followers": round(cur_fol, 2),
+        "ctr": round((cur_clk / cur_imp) * 100.0, 2) if cur_imp > 0 else 0.0,
+        "engagement_rate": round((cur_eng / cur_imp) * 100.0, 2) if cur_imp > 0 else 0.0,
+        "cpc": round(cur_spend / cur_clk, 2) if cur_clk > 0 else 0.0,
+        "cpa": round(cur_spend / cur_conv, 2) if cur_conv > 0 else 0.0,
+        "roas": round(cur_rev / cur_spend, 2) if cur_spend > 0 else 0.0,
+    }
+
+    by_channel: list[dict[str, Any]] = []
+    for ch_name, agg in sorted(
+        channel_agg.items(),
+        key=lambda kv: (kv[1]["revenue"], kv[1]["conversions"], kv[1]["impressions"], kv[1]["engagements"]),
+        reverse=True,
+    ):
+        imp_c = agg["impressions"]
+        clk_c = agg["clicks"]
+        eng_c = agg["engagements"]
+        conv_c = agg["conversions"]
+        sp_c = agg["spend"]
+        rev_c = agg["revenue"]
+        by_channel.append({
+            "channel": ch_name,
+            "impressions": round(imp_c, 2),
+            "engagements": round(eng_c, 2),
+            "clicks": round(clk_c, 2),
+            "conversions": round(conv_c, 2),
+            "spend": round(sp_c, 2),
+            "revenue": round(rev_c, 2),
+            "followers": round(agg["followers"], 2),
+            "ctr": round((clk_c / imp_c) * 100.0, 2) if imp_c > 0 else 0.0,
+            "engagement_rate": round((eng_c / imp_c) * 100.0, 2) if imp_c > 0 else 0.0,
+            "cpa": round(sp_c / conv_c, 2) if conv_c > 0 else 0.0,
+            "roas": round(rev_c / sp_c, 2) if sp_c > 0 else 0.0,
+        })
 
     # When the last metrics.sync ran (empty if never)
     from ..models import AuditEvent
@@ -173,6 +326,8 @@ async def brand_metrics_summary(
         "days": days,
         "period_start": start.isoformat(),
         "totals": totals,
+        "commercial": commercial,
+        "by_channel": by_channel,
         "series": {
             m: [{"date": d, "value": v} for d, v in sorted(s.items())]
             for m, s in series.items()
@@ -180,6 +335,76 @@ async def brand_metrics_summary(
         "last_synced": last_synced.isoformat() if last_synced else None,
         "raw_metrics": sorted(raw_metrics),
     }
+
+
+class RecordConversionIn(BaseModel):
+    channel: str = "whatsapp"
+    conversions: float = Field(default=1.0, ge=0.0)
+    revenue: float = Field(default=0.0, ge=0.0)
+    spend: float = Field(default=0.0, ge=0.0)
+    clicks: float = Field(default=0.0, ge=0.0)
+    impressions: float = Field(default=0.0, ge=0.0)
+    note: str = ""
+
+
+@router.post("/{brand_id}/metrics/record-conversion", status_code=status.HTTP_201_CREATED)
+async def record_brand_conversion(
+    brand_id: uuid.UUID,
+    body: RecordConversionIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Log commercial conversions, revenue, or ad spend for a brand/channel
+    (e.g. WhatsApp/Instagram DM sales, offline store orders, or manual ad spend)."""
+    from ..models import MetricEvent
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    if res.scalar_one_or_none() is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    ch = (body.channel or "direct").strip().lower()
+    entries = [
+        ("conversions", body.conversions),
+        ("revenue", body.revenue),
+        ("spend", body.spend),
+        ("clicks", body.clicks),
+        ("impressions", body.impressions),
+    ]
+    written = 0
+    for metric_name, val in entries:
+        if val and val > 0:
+            session.add(
+                MetricEvent(
+                    tenant_id=user.tenant_id,
+                    brand_id=brand_id,
+                    channel=ch,
+                    entity_type="conversion",
+                    entity_id=body.note[:100] if body.note else "manual",
+                    metric=metric_name,
+                    value=float(val),
+                )
+            )
+            written += 1
+
+    await log_audit(
+        session,
+        tenant_id=user.tenant_id,
+        actor=Actor.user,
+        action="metrics.record_conversion",
+        entity_type="brand",
+        entity_id=brand_id,
+        payload={
+            "channel": ch,
+            "conversions": body.conversions,
+            "revenue": body.revenue,
+            "spend": body.spend,
+            "note": body.note[:120],
+        },
+    )
+    await session.commit()
+    return {"ok": True, "written": written, "channel": ch}
 
 
 # ─── Metrics sync (pull provider analytics → metric_events) ──────────────────
@@ -240,9 +465,10 @@ async def brand_metrics_sync(
 
     for conn in conns:
         ch = conn.channel
+        adapter_ch = "facebook" if ch in ("meta", "meta_ads") else ch
         try:
-            adapter = _organic_adapter(ch)
-        except HTTPException:
+            adapter = _organic_adapter(adapter_ch)
+        except (HTTPException, KeyError):
             results.append({"channel": ch, "status": "unsupported"})
             continue
         if not hasattr(adapter, "metrics") and not hasattr(adapter, "fetch_metrics"):
@@ -251,13 +477,14 @@ async def brand_metrics_sync(
 
         try:
             bundle = json.loads(decrypt_token(conn.oauth_tokens_enc))
+            md = bundle.get("metadata") or {}
             tokens = TokenSet(
                 access_token=bundle["access_token"],
                 refresh_token=bundle.get("refresh_token"),
                 expires_at=datetime.fromisoformat(bundle["expires_at"])
                     if bundle.get("expires_at") else datetime.now(UTC),
                 scopes=bundle.get("scopes") or [],
-                metadata=bundle.get("metadata") or {},
+                metadata=md,
             )
             # refresh if expiring (same rule as publish)
             if tokens.expires_at <= datetime.now(UTC) + timedelta(seconds=30):
@@ -274,7 +501,35 @@ async def brand_metrics_sync(
                     conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
                     conn.expires_at = new_tokens.expires_at
                     await session.flush()
-                    tokens = new_tokens
+                    tokens = TokenSet(
+                        access_token=new_tokens.access_token,
+                        refresh_token=new_tokens.refresh_token or rt,
+                        expires_at=new_tokens.expires_at,
+                        scopes=new_tokens.scopes,
+                        metadata=md,
+                    )
+            # Backfill missing identity metadata (page_id, ig_id, verified_sites, user_id)
+            needs_meta = (
+                (adapter_ch == "facebook" and not md.get("page_id"))
+                or (adapter_ch == "instagram" and not md.get("ig_id"))
+                or (adapter_ch == "gsc" and not md.get("verified_sites"))
+                or (adapter_ch == "x" and not md.get("user_id"))
+            )
+            if needs_meta and hasattr(adapter, "fetch_profile"):
+                try:
+                    if asyncio.iscoroutinefunction(adapter.fetch_profile):
+                        prof = await adapter.fetch_profile(tokens)
+                    else:
+                        prof = await asyncio.to_thread(adapter.fetch_profile, tokens)
+                    if prof and prof.metadata:
+                        md.update(prof.metadata)
+                        bundle["metadata"] = md
+                        tokens.metadata = md
+                        from prachar_shared.security import encrypt_token
+                        conn.oauth_tokens_enc = encrypt_token(json.dumps(bundle, default=str))
+                        await session.flush()
+                except Exception:
+                    pass
 
             fn = getattr(adapter, "metrics", None) or getattr(adapter, "fetch_metrics", None)
             if asyncio.iscoroutinefunction(fn):

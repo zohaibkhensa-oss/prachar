@@ -78,7 +78,7 @@ async def create_variant_test(
 
     gw = AIGateway()
     try:
-        result = await gw.complete(
+        result = await gw.async_complete(
             prompt=f"""\
 You are an expert ad copywriter. Create {num_variants} A/B test variants of this ad:
 
@@ -123,7 +123,8 @@ OUTPUT (JSON array of {num_variants} objects):
                     url = result.image_url
                     model = result.model
                 else:
-                    from ..config import get_settings
+                    from prachar_shared.config import get_settings
+
                     from ..routers.video_gen import VideoGenRequest, _call_fal_video
                     fal_key = get_settings().fal_key.strip()
                     if fal_key:

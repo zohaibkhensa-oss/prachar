@@ -112,10 +112,16 @@ async def generate_page_content(
         plan="starter",
     )
     jv = comp.json_value or {}
+    title = str(jv.get("title", "") or "")
+    if len(title) > 60:
+        title = title[:57].rstrip() + "..."
+    meta = str(jv.get("meta", "") or "")
+    if len(meta) > 155:
+        meta = meta[:152].rstrip() + "..."
     # Ensure all required keys exist.
     return {
-        "title": jv.get("title", ""),
-        "meta": jv.get("meta", ""),
+        "title": title,
+        "meta": meta,
         "h_structure": jv.get("h_structure", []),
         "schema_org": jv.get("schema_org", {}),
         "internal_links": jv.get("internal_links", []),
@@ -235,16 +241,19 @@ async def generate_faq_block(
     )
     if gw._stub_mode():
         return _stub_faq_block(topic, locale)
-    comp = gw.complete(
-        prompt,
-        tier=Tier.small,
-        task="captions",
-        schema=schema,
-        tenant_id=brand_id,
-        plan="starter",
-    )
-    jv = comp.json_value or {}
-    faq = jv.get("faq", [])
+    try:
+        comp = gw.complete(
+            prompt,
+            tier=Tier.small,
+            task="captions",
+            schema=schema,
+            tenant_id=brand_id,
+            plan="starter",
+        )
+        jv = comp.json_value or {}
+        faq = jv.get("faq", [])
+    except Exception:
+        faq = []
     if not faq or len(faq) < 3:
         return _stub_faq_block(topic, locale)
     return faq

@@ -140,7 +140,7 @@ Return JSON:
 }}"""
 
     response = await gateway.async_complete(
-        prompt=prompt, tier=Tier.MEDIUM,
+        prompt=prompt, tier=Tier.small,
         tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=1500,
     )
     result = extract_json(response.text) or {}
@@ -206,7 +206,7 @@ Return JSON with:
 }}"""
 
     response = await gateway.async_complete(
-        prompt=prompt, tier=Tier.MEDIUM,
+        prompt=prompt, tier=Tier.small,
         tenant_id=str(ctx.tenant_id), plan=ctx.billing.plan, max_tokens=1200,
     )
     result = extract_json(response.text) or {}

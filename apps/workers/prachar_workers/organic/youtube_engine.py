@@ -247,6 +247,13 @@ async def optimize_youtube_metadata(
         _, chapters = _stub_description(transcript, brand_graph, locale)
     if not description:
         description, _ = _stub_description(transcript, brand_graph, locale)
+    elif "Chapters:" not in description and chapters:
+        ch_lines = "\n".join(
+            f"{c.get('time', '0:00')} - {c.get('title', 'Section')}"
+            for c in chapters
+            if isinstance(c, dict)
+        )
+        description = f"{description.rstrip()}\n\nChapters:\n{ch_lines}"
 
     tags_comp = gw.complete(
         tags_prompt,

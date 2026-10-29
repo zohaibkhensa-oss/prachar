@@ -7,7 +7,11 @@ from ..config import get_settings
 
 class Tier(StrEnum):
     small = "small"
+    medium = "small"
     large = "large"
+    SMALL = "small"
+    MEDIUM = "small"
+    LARGE = "large"
 
 
 def pick_model(tier: Tier) -> str:
