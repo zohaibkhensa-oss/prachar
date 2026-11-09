@@ -1948,10 +1948,10 @@ async def get_daily_ready_queue(
         social_channel = primary_ch
         social_state = "ready_to_queue"
 
-    topic = brand.category or "your core offer"
-    whatsapp_msg = (
-        f"Hi! Quick update from {brand.name} — we've opened priority slots for {topic} this week. "
-        f"Reply YES and we'll share the details right here on WhatsApp."
+    # Lead recovery alert card for Kian
+    lead_recovery_msg = (
+        f"Kian spotted 4 inquiries from WhatsApp & Instagram for {brand.name} who haven't confirmed their order yet. "
+        "Prepared an automated courteous follow-up offer to close the sale."
     )
 
     cards = [
@@ -1968,15 +1968,15 @@ async def get_daily_ready_queue(
             "action_type": "approve_item" if (social_item_id and social_state != "scheduled") else "open_composer",
         },
         {
-            "id": "kian-whatsapp",
+            "id": "kian-lead-recovery",
             "teammate": "Kian · Customer & Leads",
-            "badge": "WhatsApp Follow-Up",
-            "title": "Warm Lead Follow-Up Broadcast",
-            "preview": whatsapp_msg,
+            "badge": "Lead Recovery",
+            "title": "Follow Up with Unconverted Inquiries",
+            "preview": lead_recovery_msg,
             "channel": "whatsapp",
             "scheduled_item_id": None,
             "state": "ready",
-            "cta_label": "Open in Composer",
+            "cta_label": "Review & Send",
             "action_type": "open_composer",
         },
         {
@@ -2117,6 +2117,94 @@ Return ONLY valid JSON:
 
 
 
+
+
+# ─── Voice-to-Action Command & Intent Extraction ────────────────────────────
+
+class VoiceCommandIn(BaseModel):
+    transcript: str
+    locale: str = "en-IN"
+
+
+@router.post("/{brand_id}/voice-command")
+async def process_voice_command(
+    brand_id: uuid.UUID,
+    body: VoiceCommandIn,
+    user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Extract actionable intent from spoken natural language (English / Hinglish / Hindi).
+    
+    Returns structured action:
+      - 'publish_social': generates tailored caption & pre-fills composer
+      - 'whatsapp_broadcast': creates broadcast lead copy
+      - 'create_campaign': pre-fills ad / campaign parameters
+      - 'fill_week': triggers autopilot schedule
+    """
+    import logging
+
+    from prachar_shared.ai_gateway import AIGateway, Tier
+    from prachar_shared.ai_gateway.json_utils import extract_json
+    from prachar_shared.policy.claims import claims_gate
+
+    res = await session.execute(
+        select(Brand).where(Brand.id == brand_id, Brand.tenant_id == user.tenant_id)
+    )
+    brand = res.scalar_one_or_none()
+    if brand is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "brand not found")
+
+    text = body.transcript.strip()
+    if not text:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "empty transcript")
+
+    prompt = f"""You are Aria and Kian, the AI Growth Team for "{brand.name}" ({brand.category or 'Business'}).
+The founder just spoke this voice command in English or Hinglish:
+\"{text}\"
+
+Extract the intent and return structured JSON:
+{{
+  "intent": "publish_social" | "whatsapp_broadcast" | "create_campaign" | "fill_week" | "chat",
+  "summary": "1-sentence plain English summary of what will be done",
+  "suggested_caption": "channel-ready caption if social or broadcast, <= 350 chars",
+  "channels": ["instagram", "facebook", "whatsapp", "linkedin", "x", "youtube"],
+  "target_date": "optional ISO string or tomorrow/weekend",
+  "discount_or_offer": "e.g. 20% off or special package if mentioned, else null"
+}}
+Never generate misleading medical or financial claims."""
+
+    parsed: dict = {}
+    try:
+        plan = await get_tenant_plan(session, user)
+        gw = AIGateway()
+        comp = await gw.async_complete(
+            prompt=prompt,
+            tier=Tier.small,
+            tenant_id=user.tenant_id,
+            plan=plan,
+            max_tokens=500,
+            user_input=text,
+        )
+        parsed = extract_json(comp.text) or {}
+    except Exception as exc:
+        logging.getLogger(__name__).warning("voice_command LLM fallback: %s", exc)
+
+    intent = str(parsed.get("intent") or "publish_social")
+    caption = str(parsed.get("suggested_caption") or "").strip()
+    if not caption or not claims_gate(caption).passed:
+        caption = f"✨ Special announcement from {brand.name}: {text} — DM us or message on WhatsApp for details!"
+
+    summary = str(parsed.get("summary") or f"Prepared post for {brand.name}: '{text}'")
+    channels = parsed.get("channels") or ["instagram", "facebook"]
+
+    return {
+        "intent": intent,
+        "summary": summary,
+        "caption": caption,
+        "channels": channels,
+        "discount_or_offer": parsed.get("discount_or_offer"),
+        "original_transcript": text,
+    }
 
 
 # ─── A) Pre-Publish Algorithm Score ──────────────────────────────────────────

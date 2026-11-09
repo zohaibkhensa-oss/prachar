@@ -559,7 +559,15 @@ export default function DashboardPage() {
     });
   }, []);
 
-  // ─── Voice input ──────────────────────────────────────────────────────────
+  const [voiceActionResult, setVoiceActionResult] = useState<{
+    summary: string;
+    caption: string;
+    channels: string[];
+    intent: string;
+  } | null>(null);
+  const [processingVoice, setProcessingVoice] = useState(false);
+
+  // ─── Voice input with Hinglish / Voice-Command Processing ──────────────────
   const startListening = useCallback(() => {
     const SpeechRecognition =
       (typeof window !== "undefined" && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)) || null;
@@ -577,15 +585,33 @@ export default function DashboardPage() {
     recognition.onstart = () => {
       setIsListening(true);
       setOrbState("listening");
+      setVoiceActionResult(null);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = async (event: any) => {
       const transcript = event.results[0][0].transcript;
       setPrompt(transcript);
       if (event.results[0][0].isFinal) {
         const text = transcript.trim();
         if (text) {
           recognition.stop();
+          // Extract structured action if brand exists
+          if (brand?.id) {
+            setProcessingVoice(true);
+            try {
+              const res = await apiPost<{
+                intent: string;
+                summary: string;
+                caption: string;
+                channels: string[];
+              }>(`/brands/${brand.id}/voice-command`, { transcript: text, locale: "en-IN" });
+              setVoiceActionResult(res);
+            } catch {
+              // Fallback: keep text in prompt box
+            } finally {
+              setProcessingVoice(false);
+            }
+          }
         }
       }
     };
@@ -602,7 +628,7 @@ export default function DashboardPage() {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [orbState]);
+  }, [orbState, brand?.id]);
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop();
@@ -743,30 +769,97 @@ export default function DashboardPage() {
     return (
       <div className="min-h-[calc(100vh-64px)] flex">
         <div className="flex-1 min-w-0 flex flex-col items-center justify-start px-4 py-8 lg:py-12">
-        {/* ═══ Greeting ═══ */}
+        {/* ═══ Greeting & Morning Briefing ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-2xl text-center"
+          className="w-full max-w-4xl text-center"
         >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-xs font-semibold text-accent mb-3">
+            <Sparkles className="w-3.5 h-3.5" /> Your Autonomous AI Marketing &amp; Sales Team
+          </div>
           <h1 className="font-display text-2xl lg:text-3xl font-semibold text-text">
             {greeting}, {displayName}{" "}
             <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
               👋
             </span>
           </h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            What are we creating today?
+          <p className="mt-2 text-sm text-text-secondary max-w-lg mx-auto">
+            Aria, Nova, and Kian have prepared today&apos;s growth moves. Tap approve below or speak your command.
           </p>
         </motion.div>
+
+        {/* ═══ Morning Briefing & 1-Tap Approval Stack (Placed Above Prompts!) ═══ */}
+        {readyCards.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mt-6 w-full max-w-4xl"
+          >
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-accent" /> Morning Briefing · Ready for 1-Tap Approval
+              </span>
+              <button
+                type="button"
+                onClick={() => router.push("/app/calendar")}
+                className="text-xs text-accent hover:underline flex items-center gap-1"
+              >
+                Open Full Schedule →
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {readyCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="rounded-2xl border border-white/[0.08] bg-bg-card/90 p-4 flex flex-col justify-between gap-3 hover:border-accent/40 shadow-lg transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-semibold text-accent flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent" /> {card.teammate}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-secondary">
+                        {card.badge}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-text mb-1">{card.title}</h3>
+                    <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
+                      {card.preview}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyCardId === card.id}
+                    onClick={() => {
+                      if (card.state === "scheduled") {
+                        router.push("/app/calendar");
+                      } else {
+                        handleReadyCardAction(card);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {busyCardId === card.id ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Executing…</>
+                    ) : (
+                      <><CheckCircle2 className="w-3.5 h-3.5" /> {card.cta_label}</>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* ═══ Orb — the hero ═══ */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-          className="mt-8 lg:mt-10"
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-6 lg:mt-8"
         >
           <motion.button
             onClick={handleOrbClick}
@@ -857,6 +950,51 @@ export default function DashboardPage() {
           )}
         </motion.div>
 
+        {/* ═══ Voice Action Extracted Preview (Solo-style Instant Execution) ═══ */}
+        {processingVoice && (
+          <div className="mt-3 flex items-center gap-2 text-xs text-accent">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> Understanding your voice command…
+          </div>
+        )}
+        {voiceActionResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 w-full max-w-2xl rounded-2xl border border-accent/40 bg-accent/10 p-4"
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold text-accent flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> Spoken Intent Recognized
+              </span>
+              <button
+                type="button"
+                onClick={() => setVoiceActionResult(null)}
+                className="text-xs text-text-muted hover:text-text"
+              >
+                Dismiss
+              </button>
+            </div>
+            <p className="text-sm font-medium text-text mb-1.5">{voiceActionResult.summary}</p>
+            {voiceActionResult.caption && (
+              <p className="text-xs text-text-secondary bg-black/20 p-2.5 rounded-xl border border-white/[0.04] mb-3">
+                &ldquo;{voiceActionResult.caption}&rdquo;
+              </p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const cap = encodeURIComponent(voiceActionResult.caption);
+                  router.push(`/app/post?caption=${cap}`);
+                }}
+                className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-semibold hover:bg-accent-dark transition flex items-center gap-1.5"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Open in Post Composer →
+              </button>
+            </div>
+          </motion.div>
+        )}
+
         {/* ═══ Gemini-style multimodal input ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -901,70 +1039,6 @@ export default function DashboardPage() {
             </button>
           ))}
         </motion.div>
-
-        {/* ═══ Today's Ready Queue (SOLO-style 1-tap approval feed) ═══ */}
-        {readyCards.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.45 }}
-            className="mt-8 w-full max-w-4xl"
-          >
-            <div className="flex items-center justify-between mb-3 px-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-                <Zap className="w-3.5 h-3.5 text-accent" /> Ready for Your 1-Tap Approval Today
-              </span>
-              <button
-                type="button"
-                onClick={() => router.push("/app/calendar")}
-                className="text-xs text-accent hover:underline"
-              >
-                Open Content Calendar →
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {readyCards.map((card) => (
-                <div
-                  key={card.id}
-                  className="rounded-2xl border border-white/[0.08] bg-bg-card/80 p-4 flex flex-col justify-between gap-3 hover:border-accent/30 transition"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-[11px] font-semibold text-accent">
-                        {card.teammate}
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-secondary">
-                        {card.badge}
-                      </span>
-                    </div>
-                    <h3 className="text-sm font-semibold text-text mb-1">{card.title}</h3>
-                    <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
-                      {card.preview}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    disabled={busyCardId === card.id}
-                    onClick={() => {
-                      if (card.state === "scheduled") {
-                        router.push("/app/calendar");
-                      } else {
-                        handleReadyCardAction(card);
-                      }
-                    }}
-                    className="w-full py-2 px-3 rounded-xl bg-accent/15 border border-accent/30 text-accent text-xs font-semibold hover:bg-accent/25 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
-                  >
-                    {busyCardId === card.id ? (
-                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Working…</>
-                    ) : (
-                      <><CheckCircle2 className="w-3.5 h-3.5" /> {card.cta_label}</>
-                    )}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
         </div>
       </div>
     );
