@@ -325,8 +325,11 @@ class GSCAdapter(ChannelAdapter):
         from urllib.parse import quote
 
         meta = tokens.metadata or {}
-        sites = meta.get("verified_sites") or []
-        site = sites[0] if sites else (meta.get("account_name") or "sc-domain:example.com")
+        sites = [s for s in (meta.get("verified_sites") or []) if s and s != "no-sites"]
+        acct = meta.get("account_name")
+        site = sites[0] if sites else (acct if acct and acct != "no-sites" else "")
+        if not site:
+            return []
         body = {
             "startDate": since.date().isoformat(),
             "endDate": datetime.now(UTC).date().isoformat(),
