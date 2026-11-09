@@ -309,29 +309,45 @@ class InstagramAdapter(ChannelAdapter):
         events: list[MetricEvent] = []
         ts = datetime.now(UTC)
 
-        # Pull IG insights: impressions, reach, engagement + media-level likes/comments.
+        # Pull IG insights: reach/impressions + media-level likes/comments.
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{IG_GRAPH_BASE}/{ig_id}/insights",
-                params={
-                    "metric": "impressions,reach,profile_views",
-                    "period": "day",
-                    "access_token": auth_token,
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                for metric_data in data.get("data", []):
-                    metric_name = f"ig_{metric_data['name']}"
-                    for val in metric_data.get("values", []):
-                        events.append(MetricEvent(
-                            channel=self.channel,
-                            entity_type="profile",
-                            entity_id=ig_id,
-                            metric=metric_name,
-                            value=float(val.get("value", 0)),
-                            ts=ts,
-                        ))
+            for metric_params in (
+                {"metric": "impressions,reach,profile_views", "period": "day", "access_token": auth_token},
+                {"metric": "reach", "period": "day", "access_token": auth_token},
+                {"metric": "reach,profile_views,accounts_engaged,total_interactions", "metric_type": "total_value", "period": "day", "access_token": auth_token},
+            ):
+                resp = await client.get(
+                    f"{IG_GRAPH_BASE}/{ig_id}/insights",
+                    params=metric_params,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for metric_data in data.get("data", []):
+                        raw_name = metric_data.get("name", "")
+                        metric_name = f"ig_{raw_name}"
+                        if "total_value" in metric_data and isinstance(metric_data["total_value"], dict):
+                            v = float(metric_data["total_value"].get("value", 0) or 0)
+                            if v > 0:
+                                events.append(MetricEvent(
+                                    channel=self.channel,
+                                    entity_type="profile",
+                                    entity_id=ig_id,
+                                    metric=metric_name,
+                                    value=v,
+                                    ts=ts,
+                                ))
+                        for val in metric_data.get("values", []):
+                            v = float(val.get("value", 0) or 0)
+                            if v > 0:
+                                events.append(MetricEvent(
+                                    channel=self.channel,
+                                    entity_type="profile",
+                                    entity_id=ig_id,
+                                    metric=metric_name,
+                                    value=v,
+                                    ts=ts,
+                                ))
+                    break
             if ig_id != "me":
                 try:
                     prof_resp = await client.get(

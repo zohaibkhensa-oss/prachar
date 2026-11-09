@@ -276,27 +276,39 @@ class FacebookAdapter(ChannelAdapter):
         ts = datetime.now(UTC)
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{FB_GRAPH_BASE}/{page_id}/insights",
-                params={
-                    "metric": "page_impressions,page_post_engagements,page_fan_adds",
-                    "period": "day",
-                    "access_token": page_token,
-                },
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                for metric_data in data.get("data", []):
-                    metric_name = f"fb_{metric_data['name']}"
-                    for val in metric_data.get("values", []):
-                        events.append(MetricEvent(
-                            channel=self.channel,
-                            entity_type="page",
-                            entity_id=page_id,
-                            metric=metric_name,
-                            value=float(val.get("value", 0)),
-                            ts=ts,
-                        ))
+            for metric_key in ("page_impressions,page_post_engagements,page_fan_adds", "page_impressions_unique,page_post_engagements,page_views_total"):
+                resp = await client.get(
+                    f"{FB_GRAPH_BASE}/{page_id}/insights",
+                    params={
+                        "metric": metric_key,
+                        "period": "day",
+                        "access_token": page_token,
+                    },
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for metric_data in data.get("data", []):
+                        raw_name = metric_data.get("name", "")
+                        if raw_name in ("page_impressions", "page_impressions_unique"):
+                            metric_name = "fb_page_impressions"
+                        elif raw_name == "page_post_engagements":
+                            metric_name = "fb_page_post_engagements"
+                        elif raw_name == "page_views_total":
+                            metric_name = "clicks"
+                        else:
+                            metric_name = f"fb_{raw_name}"
+                        for val in metric_data.get("values", []):
+                            v = float(val.get("value", 0) or 0)
+                            if v > 0:
+                                events.append(MetricEvent(
+                                    channel=self.channel,
+                                    entity_type="page",
+                                    entity_id=page_id,
+                                    metric=metric_name,
+                                    value=v,
+                                    ts=ts,
+                                ))
+                    break
             # Also aggregate recent post reactions/comments/shares & page followers
             # so pages with <100 followers or New Pages Experience always report real activity.
             if page_id != "me":

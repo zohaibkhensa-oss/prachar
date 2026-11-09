@@ -165,7 +165,8 @@ async def brand_metrics_summary(
         "replies": "engagements",
         "engagements": "engagements",
         "fb_page_post_engagements": "engagements",
-        "watch_time_minutes": "engagements",
+        "ig_accounts_engaged": "engagements",
+        "ig_total_interactions": "engagements",
         "clicks": "clicks",
         "website_visits": "clicks",
         "profile_clicks": "clicks",
@@ -430,24 +431,21 @@ async def brand_metrics_sync(
 
     from datetime import datetime, timedelta
 
-    from sqlalchemy import delete, func
+    from sqlalchemy import delete
 
     from ..models import Connection, MetricEvent
 
-    conns = (await session.execute(
+    all_active = (await session.execute(
         select(Connection).where(
-            Connection.brand_id == brand_id,
             Connection.tenant_id == user.tenant_id,
             Connection.status == "active",
         )
     )).scalars().all()
-    if not conns:
-        conns = (await session.execute(
-            select(Connection).where(
-                Connection.tenant_id == user.tenant_id,
-                Connection.status == "active",
-            )
-        )).scalars().all()
+    # Merge by channel, preferring the connection attached to the active brand_id
+    by_ch: dict[str, Connection] = {}
+    for c in sorted(all_active, key=lambda x: 1 if x.brand_id == brand_id else 0):
+        by_ch[c.channel] = c
+    conns = list(by_ch.values())
     if not conns:
         return {"ok": False, "reason": "no_connected_channels", "synced": []}
 
@@ -460,8 +458,17 @@ async def brand_metrics_sync(
     from .connections import _organic_adapter
 
     since = datetime.now(UTC) - timedelta(days=30)
-    today = datetime.now(UTC).date()
     results: list[dict] = []
+
+    # Remove orphaned non-manual MetricEvent rows from disconnected channels
+    active_channel_names = list(by_ch.keys())
+    await session.execute(
+        delete(MetricEvent).where(
+            MetricEvent.tenant_id == user.tenant_id,
+            MetricEvent.channel.notin_(active_channel_names),
+            MetricEvent.entity_type.notin_(("conversion", "pixel_conversion")),
+        )
+    )
 
     for conn in conns:
         ch = conn.channel
@@ -508,9 +515,10 @@ async def brand_metrics_sync(
                         scopes=new_tokens.scopes,
                         metadata=md,
                     )
-            # Backfill missing identity metadata (page_id, ig_id, verified_sites, user_id)
+            # Backfill missing identity metadata (page_id, ig_id, verified_sites, user_id, account_name)
             needs_meta = (
-                (adapter_ch == "facebook" and not md.get("page_id"))
+                not md.get("account_name")
+                or (adapter_ch == "facebook" and not md.get("page_id"))
                 or (adapter_ch == "instagram" and not md.get("ig_id"))
                 or (adapter_ch == "gsc" and not md.get("verified_sites"))
                 or (adapter_ch == "x" and not md.get("user_id"))
@@ -521,8 +529,12 @@ async def brand_metrics_sync(
                         prof = await adapter.fetch_profile(tokens)
                     else:
                         prof = await asyncio.to_thread(adapter.fetch_profile, tokens)
-                    if prof and prof.metadata:
-                        md.update(prof.metadata)
+                    if prof:
+                        if prof.metadata:
+                            md.update(prof.metadata)
+                        label = prof.display_name or prof.handle
+                        if label:
+                            md["account_name"] = label
                         bundle["metadata"] = md
                         tokens.metadata = md
                         from prachar_shared.security import encrypt_token
@@ -537,12 +549,13 @@ async def brand_metrics_sync(
             else:
                 events = await asyncio.to_thread(fn, tokens, since)
 
-            # Idempotent: replace today's rows for this channel before insert
+            # Replace all provider-synced rows for this channel in the workspace
+            # so stale/older test rows never linger or double-count across days.
             await session.execute(
                 delete(MetricEvent).where(
-                    MetricEvent.brand_id == brand_id,
+                    MetricEvent.tenant_id == user.tenant_id,
                     MetricEvent.channel == ch,
-                    func.date(MetricEvent.ts) == today,
+                    MetricEvent.entity_type.notin_(("conversion", "pixel_conversion")),
                 )
             )
             written = 0

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ interface MetricsSummary {
     conversions: number;
     spend: number;
     revenue: number;
+    followers?: number;
     ctr: number;
     engagement_rate: number;
     cpa: number;
@@ -282,6 +283,19 @@ export default function DashboardPage() {
   const expiredConns = brandConns.filter((c) => c.status !== "active");
   const activeConns = brandConns.filter((c) => c.status === "active");
   const connectedCount = activeConns.length;
+  const autoSyncedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!brand?.id || activeConns.length === 0) return;
+    if (autoSyncedRef.current === brand.id) return;
+    autoSyncedRef.current = brand.id;
+    apiPost(`/brands/${brand.id}/metrics/sync`)
+      .then(() => {
+        queryClient.invalidateQueries({ queryKey: ["metrics-summary"] });
+        queryClient.invalidateQueries({ queryKey: ["connections"] });
+      })
+      .catch(() => {});
+  }, [brand?.id, activeConns.length, queryClient]);
   const pendingReviews = (reviewQueue ?? []).length;
   const recentContent = (content ?? []).slice(0, 5);
   const recentCampaigns = (campaigns ?? []).slice(0, 3);
@@ -829,6 +843,26 @@ export default function DashboardPage() {
                 </div>
               </div>
             </div>
+
+            {(metrics?.by_channel?.length ?? 0) > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                <div className="text-[11px] text-text-muted mb-2">Live breakdown by channel (last {days}d):</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {(metrics?.by_channel ?? []).map((ch) => (
+                    <div
+                      key={ch.channel}
+                      className="flex items-center justify-between rounded-lg bg-white/[0.02] border border-white/[0.05] px-3 py-2 text-xs"
+                    >
+                      <span className="font-semibold text-text capitalize">{ch.channel}</span>
+                      <span className="text-text-secondary tabular-nums">
+                        {fmt(ch.impressions)} reach · {fmt(ch.engagements)} eng
+                        {ch.followers ? ` · ${fmt(ch.followers)} followers` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Chart */}
