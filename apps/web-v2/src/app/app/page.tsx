@@ -181,7 +181,6 @@ export default function DashboardPage() {
   const [readyCards, setReadyCards] = useState<ReadyQueueCard[]>([]);
   const [busyCardId, setBusyCardId] = useState<string | null>(null);
   const [snappingHome, setSnappingHome] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -764,60 +763,146 @@ export default function DashboardPage() {
   }, []);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // LANDING STATE — Solo-style app feed: greeting, teammate pills, ready cards,
-  // snap-to-campaign, and a voice-first command bar (composer behind a toggle)
+  // LANDING STATE — Orb hero, greeting, central copy, prompt, suggestion chips
   // ═══════════════════════════════════════════════════════════════════════════
-  const TEAM_CARD: Record<string, { badge: string; cta: string }> = {
-    aria: {
-      badge: "bg-accent/15 text-[#C4B5FD] border border-accent/30",
-      cta: "bg-accent text-white hover:bg-accent-dark",
-    },
-    kian: {
-      badge: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30",
-      cta: "bg-emerald-400 text-slate-950 hover:bg-emerald-300",
-    },
-    nova: {
-      badge: "bg-pink-500/15 text-pink-400 border border-pink-500/30",
-      cta: "bg-pink-500 text-white hover:bg-pink-400",
-    },
-  };
-  const cardTeam = (id: string) => TEAM_CARD[id.split("-")[0] ?? ""] ?? TEAM_CARD.aria!;
-  const filteredCards = readyCards.filter(
-    (c) => selectedTeammate === "all" || c.id.startsWith(selectedTeammate)
-  );
-  const PILL_LABEL: Record<TeammateId, string> = {
-    all: "All Team",
-    aria: "Aria · Marketing",
-    nova: "Nova · Creative",
-    kian: "Kian · Leads",
-  };
-
   if (!inConversation) {
     return (
       <div className="min-h-[calc(100vh-64px)] flex">
-        <div className="flex-1 min-w-0 flex flex-col px-4 pt-6 pb-8 w-full max-w-xl mx-auto">
-        {/* ═══ Greeting ═══ */}
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-start px-4 py-8 lg:py-12">
+        {/* ═══ Greeting & Morning Briefing ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
+          className="w-full max-w-4xl text-center"
         >
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 border border-accent/20 text-xs font-semibold text-accent mb-3">
+            <Sparkles className="w-3.5 h-3.5" /> Your Autonomous AI Marketing &amp; Sales Team
+          </div>
           <h1 className="font-display text-2xl lg:text-3xl font-semibold text-text">
-            {greeting}, {displayName} 👋
+            {greeting}, {displayName}{" "}
+            <span className="inline-block animate-[wave_2s_ease-in-out_infinite] origin-[70%_70%]">
+              👋
+            </span>
           </h1>
-          <p className="mt-1.5 text-sm text-text-secondary">
-            {filteredCards.length > 0
-              ? `${filteredCards.length} action${filteredCards.length === 1 ? "" : "s"} ready for your 1-tap approval today`
-              : "Your AI team is on it — speak or snap to start."}
+          <p className="mt-2 text-sm text-text-secondary max-w-lg mx-auto">
+            Aria, Nova, and Kian have prepared today&apos;s growth moves. Tap approve below or speak your command.
           </p>
         </motion.div>
 
-        {/* ═══ Teammate filter pills ═══ */}
+        {/* ═══ Morning Briefing & 1-Tap Approval Stack (Placed Above Prompts!) ═══ */}
+        {readyCards.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+            className="mt-6 w-full max-w-4xl"
+          >
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-accent" /> Morning Briefing · Ready for 1-Tap Approval
+              </span>
+              <button
+                type="button"
+                onClick={() => router.push("/app/calendar")}
+                className="text-xs text-accent hover:underline flex items-center gap-1"
+              >
+                Open Full Schedule →
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {readyCards.map((card) => (
+                <div
+                  key={card.id}
+                  className="rounded-2xl border border-white/[0.08] bg-bg-card/90 p-4 flex flex-col justify-between gap-3 hover:border-accent/40 shadow-lg transition-all"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-semibold text-accent flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent" /> {card.teammate}
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.06] text-text-secondary">
+                        {card.badge}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-text mb-1">{card.title}</h3>
+                    <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">
+                      {card.preview}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={busyCardId === card.id}
+                    onClick={() => {
+                      if (card.state === "scheduled") {
+                        router.push("/app/calendar");
+                      } else {
+                        handleReadyCardAction(card);
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-accent/20 border border-accent/40 text-accent hover:bg-accent/30 text-xs font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {busyCardId === card.id ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Executing…</>
+                    ) : (
+                      <><CheckCircle2 className="w-3.5 h-3.5" /> {card.cta_label}</>
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ═══ Orb — the hero ═══ */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          className="mt-6 lg:mt-8"
+        >
+          <motion.button
+            onClick={handleOrbClick}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="relative cursor-pointer"
+            aria-label="Chat with CURV AI — click to focus the prompt"
+          >
+            <CurvOrb state={orbState} size={120} showWaves={orbState === "listening"} />
+            <motion.div
+              className="absolute inset-0 rounded-full pointer-events-none"
+              animate={{
+                boxShadow: [
+                  "0 0 0 0px rgba(236,72,153,0.25)",
+                  "0 0 0 16px rgba(139,92,246,0)",
+                ],
+              }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut" }}
+            />
+          </motion.button>
+        </motion.div>
+
+        {/* ═══ Central copy ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mt-8 text-center"
+        >
+          <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight leading-tight">
+            Ask <span className="text-gradient-accent">CURV AI</span> anything
+          </h2>
+          <p className="mt-3 text-sm sm:text-base text-text-secondary max-w-lg mx-auto">
+            Create campaigns, ads, videos, images or get insights — all in one place.
+          </p>
+        </motion.div>
+
+        {/* ═══ AI Teammate Switcher (Aria · Nova · Kian) ═══ */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.08 }}
-          className="mt-4 flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none"
+          transition={{ duration: 0.35, delay: 0.25 }}
+          className="mt-6 flex flex-wrap items-center justify-center gap-2 max-w-2xl"
         >
           {TEAMMATES.map((tm) => {
             const activePill = selectedTeammate === tm.id;
@@ -827,126 +912,45 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setSelectedTeammate(tm.id)}
                 className={cn(
-                  "px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap border transition-all flex-shrink-0",
+                  "px-3.5 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5",
                   activePill
-                    ? "bg-accent border-accent text-white shadow-glow"
-                    : "bg-white/[0.03] border-white/[0.08] text-text-secondary hover:text-text"
+                    ? "bg-accent/20 border-accent/50 text-text shadow-glow"
+                    : "bg-white/[0.03] border-white/[0.06] text-text-secondary hover:text-text"
                 )}
               >
-                {PILL_LABEL[tm.id]}
+                <span className="font-semibold">{tm.name}</span>
+                <span className="text-[10px] text-text-muted">· {tm.role}</span>
               </button>
             );
           })}
+
+          {brand?.id && (
+            <>
+              <button
+                type="button"
+                disabled={snappingHome}
+                onClick={() => snapHomeInputRef.current?.click()}
+                className="px-3.5 py-1.5 rounded-full text-xs font-semibold border border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25 transition flex items-center gap-1.5 disabled:opacity-50"
+                title="Upload 1 product photo → AI creates a 3-slide carousel + caption"
+              >
+                {snappingHome ? (
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Building Campaign…</>
+                ) : (
+                  <><Camera className="w-3.5 h-3.5" /> Snap Product → Campaign</>
+                )}
+              </button>
+              <input
+                ref={snapHomeInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleSnapProductHome(e.target.files?.[0] ?? null)}
+              />
+            </>
+          )}
         </motion.div>
 
-        {/* ═══ Ready-for-approval feed (1 tap to act) ═══ */}
-        <div className="mt-4 flex flex-col gap-3">
-          {filteredCards.map((card, i) => {
-            const team = cardTeam(card.id);
-            const isScheduled = card.state === "scheduled";
-            return (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: 0.12 + i * 0.07 }}
-                className="rounded-2xl border border-white/[0.08] bg-bg-card/90 p-4"
-              >
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className={cn("text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full", team.badge)}>
-                    {card.teammate} · {card.badge}
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-text">{card.title}</h3>
-                <p className="mt-1 text-xs text-text-secondary line-clamp-2 leading-relaxed">
-                  {card.preview}
-                </p>
-                <button
-                  type="button"
-                  disabled={busyCardId === card.id}
-                  onClick={() => {
-                    if (isScheduled) {
-                      router.push("/app/calendar");
-                    } else {
-                      handleReadyCardAction(card);
-                    }
-                  }}
-                  className={cn(
-                    "mt-3 w-full py-3 px-4 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 disabled:opacity-50",
-                    isScheduled
-                      ? "bg-white/[0.05] border border-white/[0.1] text-text-secondary hover:text-text"
-                      : team.cta
-                  )}
-                >
-                  {busyCardId === card.id ? (
-                    <><Loader2 className="w-4 h-4 animate-spin" /> Working…</>
-                  ) : isScheduled ? (
-                    "View in Calendar →"
-                  ) : (
-                    <><CheckCircle2 className="w-4 h-4" /> {card.cta_label}</>
-                  )}
-                </button>
-              </motion.div>
-            );
-          })}
-
-          {filteredCards.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.12 }}
-              className="rounded-2xl border border-white/[0.08] bg-bg-card/90 p-4"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full bg-accent/15 text-[#C4B5FD] border border-accent/30">
-                Your AI Team
-              </span>
-              <div className="mt-3 flex flex-col divide-y divide-white/[0.05]">
-                {activeTeammate.suggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleSuggestion(s)}
-                    className="py-3 text-left text-sm text-text-secondary hover:text-text transition flex items-center justify-between gap-2"
-                  >
-                    <span>{s}</span>
-                    <span className="text-accent">→</span>
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </div>
-
-        {/* ═══ Snap Product → Instant Campaign ═══ */}
-        {brand?.id && (
-          <motion.button
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.3 }}
-            type="button"
-            disabled={snappingHome}
-            onClick={() => snapHomeInputRef.current?.click()}
-            className="mt-4 w-full rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-amber-500/15 transition disabled:opacity-50"
-            title="Upload 1 product photo → AI creates a 3-slide carousel + caption"
-          >
-            <span className="flex items-center gap-2.5 text-sm font-semibold text-amber-300">
-              {snappingHome ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Building your campaign…</>
-              ) : (
-                <><Camera className="w-4 h-4" /> Snap a product photo → instant campaign</>
-              )}
-            </span>
-            <span className="text-amber-300/70">→</span>
-          </motion.button>
-        )}
-        <input
-          ref={snapHomeInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => handleSnapProductHome(e.target.files?.[0] ?? null)}
-        />
-
-        {/* ═══ Voice Action Extracted Preview ═══ */}
+        {/* ═══ Voice Action Extracted Preview (Solo-style Instant Execution) ═══ */}
         {processingVoice && (
           <div className="mt-3 flex items-center gap-2 text-xs text-accent">
             <Loader2 className="w-3.5 h-3.5 animate-spin" /> Understanding your voice command…
@@ -956,7 +960,7 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 w-full rounded-2xl border border-accent/40 bg-accent/10 p-4"
+            className="mt-4 w-full max-w-2xl rounded-2xl border border-accent/40 bg-accent/10 p-4"
           >
             <div className="flex items-center justify-between gap-2 mb-2">
               <span className="text-xs font-semibold text-accent flex items-center gap-1.5">
@@ -991,90 +995,50 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* ═══ Voice-first command bar / expandable composer ═══ */}
-        <div className="mt-auto pt-6">
-          {composerOpen ? (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+        {/* ═══ Gemini-style multimodal input ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="mt-5 w-full max-w-2xl"
+        >
+          <PromptInput
+            inputRef={inputRef}
+            imageInputRef={imageInputRef}
+            videoInputRef={videoInputRef}
+            fileInputRef={fileInputRef}
+            prompt={prompt}
+            placeholder={activeTeammate.placeholder}
+            attachments={attachments}
+            isListening={isListening}
+            onInputChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onSubmit={handleSubmit}
+            onFileSelect={handleFileSelect}
+            onRemoveAttachment={removeAttachment}
+            onStartListening={startListening}
+            onStopListening={stopListening}
+          />
+        </motion.div>
+
+        {/* ═══ Suggestion chips ═══ */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+          className="mt-5 flex flex-wrap gap-2 justify-center max-w-2xl"
+        >
+          {activeTeammate.suggestions.map((suggestion) => (
+            <button
+              key={suggestion}
+              onClick={() => handleSuggestion(suggestion)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 min-h-[38px] rounded-full bg-white/[0.03] border border-white/[0.06] text-xs sm:text-sm text-text-secondary hover:bg-white/[0.06] hover:text-text hover:border-accent/20 transition-all cursor-pointer"
             >
-              <PromptInput
-                inputRef={inputRef}
-                imageInputRef={imageInputRef}
-                videoInputRef={videoInputRef}
-                fileInputRef={fileInputRef}
-                prompt={prompt}
-                placeholder={activeTeammate.placeholder}
-                attachments={attachments}
-                isListening={isListening}
-                onInputChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                onSubmit={handleSubmit}
-                onFileSelect={handleFileSelect}
-                onRemoveAttachment={removeAttachment}
-                onStartListening={startListening}
-                onStopListening={stopListening}
-              />
-              <div className="mt-3 flex flex-wrap gap-2">
-                {activeTeammate.suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => handleSuggestion(suggestion)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.06] text-xs text-text-secondary hover:bg-white/[0.06] hover:text-text transition-all"
-                  >
-                    <Sparkles className="w-3 h-3 text-accent/60" />
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.35 }}
-              className={cn(
-                "rounded-2xl border bg-bg-card/90 p-4 transition-colors",
-                isListening ? "border-accent/60 shadow-glow" : "border-accent/30"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={isListening ? stopListening : startListening}
-                  className={cn(
-                    "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 transition-all",
-                    isListening
-                      ? "bg-danger/20 text-danger animate-pulse"
-                      : "bg-accent text-white hover:bg-accent-dark"
-                  )}
-                  aria-label={isListening ? "Stop listening" : "Speak a command"}
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-text">
-                    {isListening ? "Listening… speak now" : "Hold to Speak (English / Hinglish)"}
-                  </p>
-                  <p className="text-xs text-text-muted truncate">
-                    &ldquo;Kal 20% weekend discount offer Instagram pe daal do&rdquo;
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setComposerOpen(true);
-                    setTimeout(() => inputRef.current?.focus(), 50);
-                  }}
-                  className="text-xs font-semibold text-accent hover:underline flex-shrink-0"
-                >
-                  Type instead
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </div>
+              <Sparkles className="w-3 h-3 text-accent/60" />
+              {suggestion}
+            </button>
+          ))}
+        </motion.div>
         </div>
       </div>
     );
