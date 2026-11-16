@@ -23,8 +23,45 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CURV AI — Your Autonomous Marketing Team",
-  description: "AI-driven premium advertising agency platform. One brand upload → organic + paid visibility across every major platform.",
+  metadataBase: new URL("https://www.curvai.org"),
+  title: "CURV AI — Your Entire Marketing Team. Powered by Intelligence.",
+  description:
+    "From strategy and creative production to social publishing and campaign growth, CURV AI brings your marketing workflow together in one intelligent platform.",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  openGraph: {
+    title: "CURV AI — Your Entire Marketing Team. Powered by Intelligence.",
+    description:
+      "From strategy and creative production to social publishing and campaign growth, CURV AI brings your marketing workflow together in one intelligent platform.",
+    url: "https://www.curvai.org",
+    siteName: "CURV AI",
+    images: [
+      {
+        url: "/curv-logo.png",
+        width: 800,
+        height: 800,
+        alt: "CURV AI",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CURV AI — Your Entire Marketing Team. Powered by Intelligence.",
+    description:
+      "From strategy and creative production to social publishing and campaign growth, CURV AI brings your marketing workflow together in one intelligent platform.",
+    images: ["/curv-logo.png"],
+  },
   icons: {
     icon: "/curv-logo.png",
     apple: "/curv-logo.png",
