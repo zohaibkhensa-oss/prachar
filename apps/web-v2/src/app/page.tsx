@@ -30,6 +30,14 @@ import {
   Play,
   RotateCcw,
   Check,
+  Calendar,
+  Lock,
+  Globe2,
+  Cpu,
+  MousePointerClick,
+  ChevronRight,
+  Smartphone,
+  ExternalLink,
 } from "lucide-react";
 
 const NAV_LINKS = [
@@ -47,21 +55,25 @@ const STATS = [
     value: "16+",
     label: "Connected Channels",
     desc: "Google, Meta, YouTube, TikTok, LinkedIn, X, Pinterest & WhatsApp",
+    badge: "Direct API",
   },
   {
     value: "10",
     label: "Ad Networks",
     desc: "Autonomous campaign creation across Google Ads, Meta Ads & more",
+    badge: "Spend-Capped",
   },
   {
     value: "14",
     label: "Global Locales",
     desc: "Multi-language regional routing, Hinglish, Arabic, Spanish & Asian packs",
+    badge: "Autonomous",
   },
   {
     value: "24/7",
     label: "AI Active",
     desc: "Autonomous weekly loops, real-time inquiry response & spend watchdogs",
+    badge: "Always On",
   },
 ];
 
@@ -73,15 +85,16 @@ const TEAM = [
     color: "#8B5CF6",
     badge: "Strategy & Growth",
     avatarBg: "rgba(139, 92, 246, 0.15)",
-    tagline: "Plans your marketing week and runs every campaign at peak hours.",
-    bio: "Aria analyzes your brand, competitors, and trending audience queries across Google and social channels. She drafts your weekly content calendar, scaffolds Google and Meta ad campaigns, and autonomously reallocates spend toward your winning channels.",
+    tagline: "Architects your 7-day marketing plan and dispatches campaigns at verified audience peak hours.",
+    bio: "Aria runs the Marketing Intelligence Engine and 9-Director Agency Council. She analyzes competitor footprints, Google Search query spikes, and audience conversion signals to deliver your weekly content calendar and autonomous ad allocations.",
     deliverables: [
       "Weekly Multi-Channel Content Calendar",
-      "Google & Meta Campaign Scaffolding",
+      "Google RSA & Meta CBO Campaign Scaffolding",
       "Softmax Budget Allocator with ±20% Guardrails",
       "Google Search Console Impression Spike Response",
     ],
-    sampleAction: "Synthesized 7 peak-hour posts + 2 Meta ad variations for approval.",
+    sampleLabel: "Aria's Weekly Strategy Telemetry",
+    sampleDetail: "7 peak-hour posts scheduled · 2 Meta ad variations · Budget shifted +25% to IG Reels",
   },
   {
     id: "nova",
@@ -90,15 +103,16 @@ const TEAM = [
     color: "#EC4899",
     badge: "Creative Studio & Video",
     avatarBg: "rgba(236, 72, 153, 0.15)",
-    tagline: "Turns one raw product snap into finished carousels, reels, and video.",
-    bio: "Nova is your 24/7 creative powerhouse. Powered by Wan 3.0 video generation and high-converting creative models, she transforms raw product photos into branded 1080×1080 carousels, video reels with typography, and high-CTR ad assets matching your brand guidelines.",
+    tagline: "Turns a single raw product photo into finished carousels, vertical reels, and high-CTR ad creatives.",
+    bio: "Nova is your 24/7 autonomous creative studio. Powered by Wan 3.0 video generation, she produces branded 1080×1080 multi-slide carousels, 9:16 vertical video reels with typography, and high-converting ad variants matching your brand palette.",
     deliverables: [
       "Wan 3.0 Canonical Video Generation",
       "Branded 5-Slide Instagram & LinkedIn Carousels",
-      "High-CTR Creative Evolution & Winner Mutation",
-      "Automated Product Watermarks & Aspect-Ratio Adaptation",
+      "Creative Evolution & Winner Child Mutations",
+      "Automated Product Watermarks & Multi-Aspect Exports",
     ],
-    sampleAction: "Rendered 5-slide product carousel + 1080p 5s reel with brand watermark.",
+    sampleLabel: "Nova's Studio Output",
+    sampleDetail: "5-slide product carousel + 1080p 5s vertical reel rendered with brand watermark",
   },
   {
     id: "kian",
@@ -107,15 +121,16 @@ const TEAM = [
     color: "#34D399",
     badge: "Lead Recovery & Sales",
     avatarBg: "rgba(52, 211, 153, 0.15)",
-    tagline: "Never lets an inquiry on WhatsApp or Instagram go cold.",
-    bio: "Kian monitors inbound inquiries across WhatsApp Business and Instagram DMs. He instantly crafts polite, high-converting response drafts in your brand tone and proactively alerts you with 1-tap follow-up nudges for unconfirmed leads before 24 hours elapse.",
+    tagline: "Never lets an inquiry on WhatsApp or Instagram go cold. Drafts personalized replies in under 48 seconds.",
+    bio: "Kian monitors inbound customer queries across WhatsApp Business and Instagram DMs. He instantly crafts polite, high-converting response drafts in your brand tone and proactively prepares 1-tap follow-up action cards for unconfirmed leads.",
     deliverables: [
       "Instant WhatsApp & Instagram Inquiry Drafts",
       "24-Hour Warm Lead Follow-Up Nudges",
       "Automated Order Confirmation & Catalog Sharing",
       "Attributed Conversions Tracking (Under 1-min response)",
     ],
-    sampleAction: "Identified 4 unconfirmed inquiries · Drafted courteous 15% discount follow-up.",
+    sampleLabel: "Kian's Lead Telemetry",
+    sampleDetail: "4 WhatsApp inquiries detected · 15% discount follow-up drafted · ₹4,200 order recovered",
   },
 ];
 
@@ -129,9 +144,8 @@ const CAPABILITIES = [
     tag: "Campaign Brain",
     description:
       "CURV AI doesn't just generate text — it runs an internal executive council. Our Strategy, Media, Budget, and Audience engines cross-reference competitor footprints and customer intent to architect complete campaigns before producing a single creative.",
-    previewType: "strategy",
     metric: "9 Autonomous Engines",
-    metricLabel: "Active analysis",
+    metricLabel: "Active executive council",
   },
   {
     id: "creative",
@@ -142,7 +156,6 @@ const CAPABILITIES = [
     tag: "Studio",
     description:
       "Upload a single product image. Nova generates a complete creative package: high-fidelity 1080×1080 carousels, vertical video reels powered by Wan 3.0, and compelling ad variants with proven visual hierarchy.",
-    previewType: "creative",
     metric: "Wan 3.0",
     metricLabel: "Default video model",
   },
@@ -155,7 +168,6 @@ const CAPABILITIES = [
     tag: "Distribution",
     description:
       "Schedule and publish directly across Instagram, Facebook, YouTube, TikTok, LinkedIn, and X. CURV automatically adapts captions, character limits, tags, and aspect ratios per network to maximize algorithm distribution.",
-    previewType: "publishing",
     metric: "16+ Channels",
     metricLabel: "Direct API publishing",
   },
@@ -168,7 +180,6 @@ const CAPABILITIES = [
     tag: "Paid Growth",
     description:
       "Scaffold Google RSA and Meta CBO campaigns in under 30 seconds. CURV AI monitors daily spend caps, enforces mandatory dry-run testing for the first seven days, and autonomously pauses underperforming ad sets.",
-    previewType: "ads",
     metric: "10 Networks",
     metricLabel: "Spend-cap guarded",
   },
@@ -181,7 +192,6 @@ const CAPABILITIES = [
     tag: "Leads & Sales",
     description:
       "Small businesses lose over 60% of potential orders due to slow follow-ups. Kian drafts personalized replies within 48 seconds and prepares morning action cards so you can confirm orders in one tap.",
-    previewType: "leads",
     metric: "< 48s",
     metricLabel: "Average draft speed",
   },
@@ -194,7 +204,6 @@ const CAPABILITIES = [
     tag: "Attribution",
     description:
       "Track every rupee or dollar generated. Our first-party attribution pixel and per-channel breakdown connect organic social reach, ad clicks, and WhatsApp orders to actual business revenue.",
-    previewType: "insights",
     metric: "Position-Based",
     metricLabel: "40/20/40 Attribution",
   },
@@ -203,9 +212,9 @@ const CAPABILITIES = [
 const WORKFLOW_STEPS = [
   {
     number: "01",
-    title: "Brand Brief & Intake",
+    title: "Brand Brief & Ingest",
     actor: "You",
-    desc: "Upload your logo, website URL, or drop a single product photo. No complex 15-field onboarding forms.",
+    desc: "Upload your logo, website URL, or drop a single product photo. Zero 15-field onboarding forms.",
     color: "#8B5CF6",
   },
   {
@@ -226,7 +235,7 @@ const WORKFLOW_STEPS = [
     number: "04",
     title: "Human 1-Tap Approval",
     actor: "You",
-    desc: "Mandatory gatekeeper: Nothing is published without your tap. Review the prepared cards in under 30 seconds.",
+    desc: "Mandatory gatekeeper: Nothing is published without your tap. Review prepared cards in 30 seconds.",
     color: "#F59E0B",
     isCheckpoint: true,
   },
@@ -325,22 +334,30 @@ export default function LandingPage() {
   const currentMember = TEAM.find((t) => t.id === activeTeamMember) ?? TEAM[0]!;
 
   return (
-    <div className="min-h-screen bg-bg text-text selection:bg-[#8B5CF6]/30 selection:text-white">
+    <div className="min-h-screen bg-[#07090E] text-text selection:bg-[#8B5CF6]/30 selection:text-white relative overflow-x-hidden">
       <VoiceAssistant />
 
+      {/* ─── Global Background Atmospheric Lighting ─── */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1100px] h-[550px] bg-gradient-to-b from-[#8B5CF6]/15 via-[#EC4899]/8 to-transparent blur-[140px]" />
+        <div className="absolute top-[35%] left-[-15%] w-[650px] h-[650px] bg-[#8B5CF6]/8 blur-[160px]" />
+        <div className="absolute top-[60%] right-[-15%] w-[700px] h-[700px] bg-[#EC4899]/6 blur-[160px]" />
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[1000px] h-[400px] bg-[#8B5CF6]/10 blur-[150px]" />
+      </div>
+
       {/* ─── 1. Header Navigation ─── */}
-      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-bg/75 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#07090E]/80 backdrop-blur-2xl">
         <div className="container flex items-center justify-between py-3.5">
-          <Link href="/" aria-label="CURV AI home" className="flex items-center gap-2">
+          <Link href="/" aria-label="CURV AI home" className="flex items-center gap-2 group">
             <Logo size="sm" />
           </Link>
 
-          <div className="hidden lg:flex items-center gap-7">
+          <div className="hidden lg:flex items-center gap-8">
             {NAV_LINKS.map((l) => (
               <a
                 key={l.label}
                 href={l.href}
-                className="text-xs uppercase tracking-wider font-mono text-text-secondary hover:text-text transition-colors"
+                className="text-xs uppercase tracking-[0.12em] font-mono text-text-secondary hover:text-text transition-colors duration-200"
               >
                 {l.label}
               </a>
@@ -350,13 +367,13 @@ export default function LandingPage() {
           <div className="hidden lg:flex items-center gap-3">
             <Link
               href="/login"
-              className="text-xs font-mono uppercase tracking-wider text-text-secondary hover:text-text px-4 py-2 rounded-lg border border-white/[0.08] hover:border-white/[0.18] transition-all"
+              className="text-xs font-mono uppercase tracking-wider text-text-secondary hover:text-text px-4 py-2 rounded-lg border border-white/[0.08] hover:border-white/[0.18] hover:bg-white/[0.02] transition-all"
             >
               Log In
             </Link>
             <Link
               href="/register"
-              className="btn-primary text-xs uppercase tracking-wider font-mono !py-2 !px-4 !min-h-[38px] shadow-[0_0_20px_rgba(139,92,246,0.25)] hover:shadow-[0_0_30px_rgba(139,92,246,0.4)]"
+              className="btn-primary text-xs uppercase tracking-wider font-mono !py-2.5 !px-5 !min-h-[38px] shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)]"
             >
               Sign Up <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </Link>
@@ -372,7 +389,7 @@ export default function LandingPage() {
         </div>
 
         {menuOpen && (
-          <div className="lg:hidden border-t border-white/[0.06] px-6 py-5 space-y-2 bg-bg/95 backdrop-blur-2xl">
+          <div className="lg:hidden border-t border-white/[0.08] px-6 py-5 space-y-2 bg-[#0A0D14]/98 backdrop-blur-2xl">
             {NAV_LINKS.map((l) => (
               <a
                 key={l.label}
@@ -383,7 +400,7 @@ export default function LandingPage() {
                 {l.label}
               </a>
             ))}
-            <div className="flex gap-3 pt-4 border-t border-white/[0.06]">
+            <div className="flex gap-3 pt-4 border-t border-white/[0.08]">
               <Link href="/login" className="btn-secondary text-xs flex-1 justify-center py-2.5">
                 Log In
               </Link>
@@ -395,33 +412,30 @@ export default function LandingPage() {
         )}
       </nav>
 
-      {/* ─── 2. Hero Section with Interactive 3D Orb ─── */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-16 lg:pb-28">
-        {/* Subtle Ambient Radial Lighting */}
-        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full blur-[140px] bg-[#8B5CF6]/10 pointer-events-none" />
-        <div className="absolute top-[20%] right-[-15%] w-[650px] h-[650px] rounded-full blur-[150px] bg-[#EC4899]/8 pointer-events-none" />
-
+      {/* ─── 2. Hero Section with Interactive 3D WebGL Orb ─── */}
+      <section className="relative z-10 pt-12 pb-20 lg:pt-16 lg:pb-28">
         <div className="container relative grid lg:grid-cols-2 gap-12 lg:gap-8 items-center">
-          {/* Left Column: Storytelling & Conversion */}
+          {/* Left Column: Vision & Conversion */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: EASE }}
             className="text-left"
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#8B5CF6]/30 bg-[#8B5CF6]/10 mb-7 backdrop-blur-md">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6] animate-pulse" />
-              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-medium">
+            {/* Animated Brand Badge */}
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-[#8B5CF6]/35 bg-[#8B5CF6]/10 mb-8 backdrop-blur-xl shadow-[0_0_20px_rgba(139,92,246,0.15)]">
+              <span className="w-2 h-2 rounded-full bg-[#8B5CF6] animate-pulse" />
+              <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#DDD6FE] font-medium">
                 YOUR AI MARKETING TEAM
               </span>
             </div>
 
-            <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02] text-balance">
+            <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.01] text-balance">
               Your entire marketing team.{" "}
               <span className="text-gradient">Powered by intelligence.</span>
             </h1>
 
-            <p className="mt-6 max-w-xl text-base sm:text-lg text-text-secondary leading-relaxed">
+            <p className="mt-6 max-w-xl text-base sm:text-lg text-text-secondary leading-relaxed font-body">
               From strategy and creative production to social publishing and campaign
               growth, CURV AI brings your entire marketing workflow together in one
               intelligent platform.
@@ -430,14 +444,14 @@ export default function LandingPage() {
             <div className="mt-9 flex flex-wrap items-center gap-4">
               <Link
                 href="/register"
-                className="btn-primary text-sm sm:text-base group !px-8 !min-h-[50px] shadow-[0_0_25px_rgba(139,92,246,0.3)] hover:shadow-[0_0_35px_rgba(139,92,246,0.5)]"
+                className="btn-primary text-sm sm:text-base group !px-8 !min-h-[50px] shadow-[0_0_25px_rgba(139,92,246,0.35)] hover:shadow-[0_0_40px_rgba(139,92,246,0.55)] transition-all"
               >
                 Start Creating
                 <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
               </Link>
               <a
                 href="#capabilities"
-                className="btn-secondary text-sm sm:text-base !px-7 !min-h-[50px]"
+                className="btn-secondary text-sm sm:text-base !px-7 !min-h-[50px] hover:border-white/[0.2] transition-all"
               >
                 Explore the Platform
               </a>
@@ -449,7 +463,7 @@ export default function LandingPage() {
             </div>
           </motion.div>
 
-          {/* Right Column: Genuine 3D Interactive WebGL Orb */}
+          {/* Right Column: Signature 3D Interactive Orb */}
           <motion.div
             initial={{ opacity: 0, scale: 0.94 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -462,7 +476,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── 3. Trust and Platform Scale Section ─── */}
-      <section id="platform" className="border-y border-white/[0.06] bg-[#0E1118]/80 backdrop-blur-md">
+      <section id="platform" className="relative z-10 border-y border-white/[0.08] bg-[#090C12]/85 backdrop-blur-2xl">
         <div className="container py-12 lg:py-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 lg:gap-12">
             {STATS.map((stat, i) => (
@@ -472,12 +486,17 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.1, ease: EASE }}
-                className="text-left"
+                className="text-left relative"
               >
-                <div className="font-display text-4xl lg:text-5xl font-bold tracking-tight text-gradient">
-                  {stat.value}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-display text-4xl lg:text-5xl font-bold tracking-tight text-gradient">
+                    {stat.value}
+                  </span>
+                  <span className="font-mono text-[9px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-text-muted">
+                    {stat.badge}
+                  </span>
                 </div>
-                <div className="font-mono text-xs uppercase tracking-wider text-text font-medium mt-1.5">
+                <div className="font-mono text-xs uppercase tracking-wider text-text font-semibold mt-1">
                   {stat.label}
                 </div>
                 <div className="text-xs text-text-secondary mt-1 leading-snug">
@@ -489,10 +508,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 4. Meet the AI Team ─── */}
-      <section id="ai-team" className="py-24 lg:py-32 relative overflow-hidden">
-        <div className="absolute top-1/2 left-0 w-[500px] h-[500px] rounded-full blur-[140px] bg-[#8B5CF6]/6 pointer-events-none" />
-
+      {/* ─── 4. Meet the AI Team (Executive AI Specialists) ─── */}
+      <section id="ai-team" className="relative z-10 py-24 lg:py-32">
         <div className="container relative">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-semibold mb-3">
@@ -519,7 +536,9 @@ export default function LandingPage() {
                   transition={{ duration: 0.6, delay: i * 0.12, ease: EASE }}
                   onClick={() => setActiveTeamMember(member.id)}
                   className={`card-3d rounded-2xl p-7 sm:p-8 flex flex-col justify-between relative cursor-pointer transition-all duration-300 ${
-                    isSelected ? "border-white/[0.2] glow-ring bg-bg-surface" : "border-white/[0.06]"
+                    isSelected
+                      ? "border-white/[0.22] glow-ring bg-gradient-to-b from-[#161B26] to-[#0D1017] shadow-3d-xl"
+                      : "border-white/[0.08] bg-[#0E121B]/80 hover:border-white/[0.14]"
                   }`}
                 >
                   <div
@@ -572,11 +591,72 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  <div className="mt-6 p-3 rounded-xl bg-white/[0.02] border border-white/[0.04]">
-                    <div className="font-mono text-[10px] text-text-muted uppercase tracking-wider mb-1">
-                      Live Sample Output
-                    </div>
-                    <p className="text-xs text-text italic">"{member.sampleAction}"</p>
+                  {/* Specialist Visual Output Widget */}
+                  <div className="mt-6 p-4 rounded-xl bg-bg/80 border border-white/[0.08]">
+                    {member.id === "aria" && (
+                      <div className="space-y-2.5 font-mono text-[11px]">
+                        <div className="flex items-center justify-between text-text-muted text-[10px] uppercase tracking-wider pb-2 border-b border-white/[0.05]">
+                          <span>Weekly Dispatch Grid</span>
+                          <span className="text-[#34D399]">● Peak Windows Synced</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5 text-[10px]">
+                          <div className="p-1.5 rounded bg-white/[0.03] text-center border border-white/[0.04]">
+                            <div className="text-[#A78BFA] font-bold">Mon 10:15</div>
+                            <div className="text-text-muted">Instagram</div>
+                          </div>
+                          <div className="p-1.5 rounded bg-white/[0.03] text-center border border-white/[0.04]">
+                            <div className="text-[#A78BFA] font-bold">Wed 12:30</div>
+                            <div className="text-text-muted">YouTube</div>
+                          </div>
+                          <div className="p-1.5 rounded bg-white/[0.03] text-center border border-white/[0.04]">
+                            <div className="text-[#A78BFA] font-bold">Fri 17:00</div>
+                            <div className="text-text-muted">LinkedIn</div>
+                          </div>
+                        </div>
+                        <div className="p-2 rounded bg-[#8B5CF6]/10 border border-[#8B5CF6]/20 text-[10px] text-[#DDD6FE] flex items-center justify-between">
+                          <span>GSC Query Surge: "special offer"</span>
+                          <span className="font-bold text-[#34D399]">+340%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {member.id === "nova" && (
+                      <div className="space-y-2.5 font-mono text-[11px]">
+                        <div className="flex items-center justify-between text-text-muted text-[10px] uppercase tracking-wider pb-2 border-b border-white/[0.05]">
+                          <span>Studio Asset Package</span>
+                          <span className="text-[#EC4899]">Wan 3.0 Default</span>
+                        </div>
+                        <div className="flex items-center gap-3 p-2 rounded bg-white/[0.03] border border-white/[0.04]">
+                          <div className="w-10 h-10 rounded-lg bg-[#EC4899]/20 flex items-center justify-center shrink-0">
+                            <Video className="w-5 h-5 text-[#EC4899]" />
+                          </div>
+                          <div className="text-[10px]">
+                            <div className="text-text font-bold">Diwali Reel · 1080×1920</div>
+                            <div className="text-text-muted">5.0s Wan 3.0 · Branded Typography</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between text-[10px] px-1 text-text-muted">
+                          <span>Carousel: 5 Slides (1:1)</span>
+                          <span className="text-[#34D399]">✓ Watermarked</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {member.id === "kian" && (
+                      <div className="space-y-2 font-mono text-[11px]">
+                        <div className="flex items-center justify-between text-text-muted text-[10px] uppercase tracking-wider pb-2 border-b border-white/[0.05]">
+                          <span>WhatsApp Lead Closer</span>
+                          <span className="text-[#34D399]">Avg Draft: 42s</span>
+                        </div>
+                        <div className="p-2 rounded bg-white/[0.03] text-[10px] text-text-muted border border-white/[0.04]">
+                          "Hi, is the 20% discount valid for Saturday?"
+                        </div>
+                        <div className="p-2 rounded bg-[#34D399]/10 border border-[#34D399]/20 text-[10px] text-[#34D399] flex items-center justify-between">
+                          <span>Kian: "Yes Rahul! Reserved coupon for you."</span>
+                          <span className="font-bold">+₹1,499</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </motion.div>
               );
@@ -585,8 +665,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 5. Product Capabilities (Visual Storytelling) ─── */}
-      <section id="capabilities" className="py-24 bg-[#0E1118]/90 border-y border-white/[0.06]">
+      {/* ─── 5. Implemented Capabilities (Bento Storytelling) ─── */}
+      <section id="capabilities" className="relative z-10 py-24 bg-[#090C12]/90 border-y border-white/[0.08]">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-semibold mb-3">
@@ -601,8 +681,8 @@ export default function LandingPage() {
           </div>
 
           <div className="grid lg:grid-cols-12 gap-8 items-start max-w-6xl mx-auto">
-            {/* Capability Nav Tabs (5 cols) */}
-            <div className="lg:col-span-5 space-y-2">
+            {/* Capability Switcher (5 cols) */}
+            <div className="lg:col-span-5 space-y-2.5">
               {CAPABILITIES.map((cap) => {
                 const isActive = activeCapability === cap.id;
                 const Icon = cap.icon;
@@ -612,15 +692,15 @@ export default function LandingPage() {
                     onClick={() => setActiveCapability(cap.id)}
                     className={`w-full text-left p-4 rounded-xl transition-all border flex items-center justify-between ${
                       isActive
-                        ? "bg-bg-card border-white/[0.15] shadow-3d-md"
-                        : "bg-transparent border-transparent hover:bg-white/[0.02] hover:border-white/[0.05]"
+                        ? "bg-[#141824] border-white/[0.18] shadow-3d-lg"
+                        : "bg-[#0B0E15]/60 border-white/[0.04] hover:bg-white/[0.02] hover:border-white/[0.08]"
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
                       <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                        className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 shadow-sm"
                         style={{
-                          background: `${cap.color}15`,
+                          background: `${cap.color}18`,
                           color: cap.color,
                         }}
                       >
@@ -632,14 +712,14 @@ export default function LandingPage() {
                       </div>
                     </div>
                     {isActive && (
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: cap.color }} />
+                      <span className="w-2 h-2 rounded-full" style={{ background: cap.color }} />
                     )}
                   </button>
                 );
               })}
             </div>
 
-            {/* Interactive Capability Preview Card (7 cols) */}
+            {/* Interactive Capability Preview Canvas (7 cols) */}
             <div className="lg:col-span-7">
               <AnimatePresence mode="wait">
                 <motion.div
@@ -648,7 +728,7 @@ export default function LandingPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -12 }}
                   transition={{ duration: 0.3 }}
-                  className="card-3d rounded-2xl p-6 sm:p-8 border-white/[0.1] relative overflow-hidden"
+                  className="card-3d rounded-2xl p-6 sm:p-8 border-white/[0.12] bg-[#0E121B] shadow-3d-xl relative overflow-hidden"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -673,18 +753,18 @@ export default function LandingPage() {
                   <h3 className="font-display text-2xl font-bold text-text mb-2">
                     {currentCap.title}
                   </h3>
-                  <p className="text-sm text-text-secondary leading-relaxed mb-6">
+                  <p className="text-sm text-text-secondary leading-relaxed mb-6 font-body">
                     {currentCap.description}
                   </p>
 
-                  {/* Mock Functional Product Interface */}
-                  <div className="rounded-xl p-4 sm:p-5 bg-bg/90 border border-white/[0.06] font-mono text-xs">
+                  {/* Functional Interface Preview Box */}
+                  <div className="rounded-xl p-5 bg-[#080A10] border border-white/[0.08] font-mono text-xs">
                     <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/[0.06] text-text-muted text-[11px]">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-success/80" />
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#34D399]" />
                         curvai.org/platform/{currentCap.id}
                       </span>
-                      <span>Execution: ACTIVE</span>
+                      <span className="text-[#34D399] uppercase">Verified Runtime</span>
                     </div>
 
                     {currentCap.id === "strategy" && (
@@ -701,7 +781,7 @@ export default function LandingPage() {
                           <span className="text-text-muted">Budget Philosophy:</span>
                           <span>Softmax Performance-First</span>
                         </div>
-                        <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04] text-[11px] text-text-secondary">
+                        <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] text-[11px] text-text-secondary">
                           "Shifting 35% budget from awareness toward Instagram Reels and YouTube Shorts targeting striking Google Search queries."
                         </div>
                       </div>
@@ -709,27 +789,27 @@ export default function LandingPage() {
 
                     {currentCap.id === "creative" && (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-16 h-16 rounded-lg bg-[#EC4899]/15 border border-[#EC4899]/30 flex items-center justify-center shrink-0">
-                            <Video className="w-6 h-6 text-[#EC4899]" />
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-16 h-16 rounded-xl bg-[#EC4899]/15 border border-[#EC4899]/30 flex items-center justify-center shrink-0">
+                            <Video className="w-7 h-7 text-[#EC4899]" />
                           </div>
                           <div>
-                            <div className="text-text font-semibold">Wan 3.0 Canonical Render</div>
+                            <div className="text-text font-semibold text-sm">Wan 3.0 Canonical Video Render</div>
                             <div className="text-text-muted text-[11px]">1080×1920 · 5.0s · 60fps · Watermarked</div>
-                            <div className="text-[#34D399] text-[11px] mt-0.5">✓ Ready for approval</div>
+                            <div className="text-[#34D399] text-[11px] mt-0.5">✓ Ready for approval queue</div>
                           </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
-                            <div className="text-text font-bold">5 Slides</div>
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
+                            <div className="text-text font-bold text-xs">5 Slides</div>
                             <div className="text-text-muted">Carousel</div>
                           </div>
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
-                            <div className="text-text font-bold">9:16 + 1:1</div>
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
+                            <div className="text-text font-bold text-xs">9:16 + 1:1</div>
                             <div className="text-text-muted">Dual Aspect</div>
                           </div>
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
-                            <div className="text-text font-bold">3 Copies</div>
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
+                            <div className="text-text font-bold text-xs">3 Copies</div>
                             <div className="text-text-muted">A/B Testing</div>
                           </div>
                         </div>
@@ -739,15 +819,15 @@ export default function LandingPage() {
                     {currentCap.id === "publishing" && (
                       <div className="space-y-2">
                         {[
-                          { ch: "Instagram", status: "Scheduled 10:15 AM (Peak Window)", ok: true },
+                          { ch: "Instagram", status: "Scheduled 10:15 AM (Audience Peak Window)", ok: true },
                           { ch: "YouTube Shorts", status: "Scheduled 12:30 PM (Peak Window)", ok: true },
                           { ch: "Facebook Page", status: "Published 08:00 AM", ok: true },
                           { ch: "LinkedIn", status: "UgcPost Scaffolding Complete", ok: true },
                         ].map((row) => (
-                          <div key={row.ch} className="flex items-center justify-between text-[11px]">
-                            <span className="text-text">{row.ch}</span>
-                            <span className="text-text-muted flex items-center gap-1">
-                              <Check className="w-3 h-3 text-[#34D399]" />
+                          <div key={row.ch} className="flex items-center justify-between text-[11px] py-0.5">
+                            <span className="text-text font-medium">{row.ch}</span>
+                            <span className="text-text-muted flex items-center gap-1.5">
+                              <Check className="w-3.5 h-3.5 text-[#34D399]" />
                               {row.status}
                             </span>
                           </div>
@@ -759,15 +839,15 @@ export default function LandingPage() {
                       <div className="space-y-2.5">
                         <div className="flex justify-between text-[11px]">
                           <span className="text-text-muted">Daily Hard Cap:</span>
-                          <span className="text-text">₹2,500 (Hard Cap Table Verified)</span>
+                          <span className="text-text font-medium">₹2,500 (Hard Cap Table Verified)</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
                           <span className="text-text-muted">Dry-Run Status:</span>
-                          <span className="text-[#34D399]">Completed (Day 9 of Live Bidding)</span>
+                          <span className="text-[#34D399] font-medium">Completed (Day 9 of Live Bidding)</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
                           <span className="text-text-muted">Underperforming Ad Watchdog:</span>
-                          <span className="text-[#F59E0B]">1 Ad Set Auto-Paused (CPA &gt; ₹320)</span>
+                          <span className="text-[#F59E0B] font-medium">1 Ad Set Auto-Paused (CPA &gt; ₹320)</span>
                         </div>
                       </div>
                     )}
@@ -777,34 +857,34 @@ export default function LandingPage() {
                         <div className="p-2.5 rounded bg-[#34D399]/10 border border-[#34D399]/20 text-[#34D399] text-[11px]">
                           ✓ Inbound WhatsApp inquiry detected (Rahul: "Price for weekend booking?")
                         </div>
-                        <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.04] text-[11px] text-text-secondary">
+                        <div className="p-3 rounded bg-white/[0.02] border border-white/[0.05] text-[11px] text-text-secondary leading-relaxed">
                           Kian Draft: "Hi Rahul! It's ₹1,499 with complimentary grooming. We have 3 slots left for Saturday — shall I reserve one for you?"
                         </div>
                         <div className="flex justify-end gap-2 text-[10px]">
-                          <span className="px-2 py-1 rounded bg-white/[0.05] text-text-muted">Dismiss</span>
-                          <span className="px-2.5 py-1 rounded bg-[#34D399] text-black font-semibold">1-Tap Send</span>
+                          <span className="px-2.5 py-1 rounded bg-white/[0.05] text-text-muted">Dismiss</span>
+                          <span className="px-3 py-1 rounded bg-[#34D399] text-black font-semibold">1-Tap Send</span>
                         </div>
                       </div>
                     )}
 
                     {currentCap.id === "insights" && (
-                      <div className="space-y-2.5">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
+                      <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-2.5 text-center">
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
                             <div className="text-text font-bold text-sm">₹94,800</div>
                             <div className="text-text-muted text-[10px]">Attributed Rev</div>
                           </div>
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
                             <div className="text-[#34D399] font-bold text-sm">4.8x</div>
                             <div className="text-text-muted text-[10px]">ROAS</div>
                           </div>
-                          <div className="p-2 rounded bg-white/[0.02] border border-white/[0.04]">
+                          <div className="p-2.5 rounded bg-white/[0.02] border border-white/[0.05]">
                             <div className="text-[#A78BFA] font-bold text-sm">124</div>
                             <div className="text-text-muted text-[10px]">Leads Closed</div>
                           </div>
                         </div>
                         <div className="text-[11px] text-text-muted">
-                          Touchpoints: GSC Organic (40%) → Meta Ad (20%) → WhatsApp Close (40%)
+                          Attribution Path: GSC Organic (40%) → Meta Ad Click (20%) → WhatsApp Close (40%)
                         </div>
                       </div>
                     )}
@@ -825,8 +905,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 6. Intelligent Workflow Animation Section ─── */}
-      <section id="workflow" className="py-24 lg:py-32 relative overflow-hidden">
+      {/* ─── 6. Intelligent Workflow Pipeline ─── */}
+      <section id="workflow" className="relative z-10 py-24 lg:py-32">
         <div className="container relative">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-semibold mb-3">
@@ -848,35 +928,35 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: i * 0.08, ease: EASE }}
-                className={`card-3d rounded-xl p-5 relative flex flex-col justify-between ${
+                className={`card-3d rounded-2xl p-6 relative flex flex-col justify-between ${
                   step.isCheckpoint
-                    ? "border-[#F59E0B]/50 bg-[#F59E0B]/5 glow-ring"
-                    : "border-white/[0.06]"
+                    ? "border-[#F59E0B]/50 bg-gradient-to-b from-[#1C160C] to-[#120F08] glow-ring shadow-3d-lg"
+                    : "border-white/[0.08] bg-[#0E121B]"
                 }`}
               >
                 <div>
-                  <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center justify-between mb-3.5">
                     <span
-                      className="font-mono text-sm font-bold"
+                      className="font-mono text-base font-bold"
                       style={{ color: step.color }}
                     >
                       {step.number}
                     </span>
-                    <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/[0.04] text-text-muted">
+                    <span className="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-white/[0.05] border border-white/[0.08] text-text-muted">
                       {step.actor}
                     </span>
                   </div>
                   <h4 className="font-display text-base font-bold text-text mb-1.5">
                     {step.title}
                   </h4>
-                  <p className="text-xs text-text-secondary leading-relaxed">
+                  <p className="text-xs text-text-secondary leading-relaxed font-body">
                     {step.desc}
                   </p>
                 </div>
 
                 {step.isCheckpoint && (
-                  <div className="mt-4 pt-3 border-t border-[#F59E0B]/20 flex items-center gap-1.5 text-[11px] text-[#FBBF24] font-mono">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                  <div className="mt-5 pt-3.5 border-t border-[#F59E0B]/25 flex items-center gap-2 text-xs text-[#FBBF24] font-mono">
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
                     <span>Mandatory user approval</span>
                   </div>
                 )}
@@ -886,8 +966,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 7. Product Demonstration / Interface Preview ─── */}
-      <section id="demo" className="py-24 bg-[#0E1118]/80 border-y border-white/[0.06]">
+      {/* ─── 7. Live Product Interface Showcase ─── */}
+      <section id="demo" className="relative z-10 py-24 bg-[#090C12]/90 border-y border-white/[0.08]">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-semibold mb-3">
@@ -906,14 +986,14 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: EASE }}
-            className="card-3d rounded-2xl p-6 sm:p-8 max-w-5xl mx-auto border-white/[0.1] shadow-3d-xl"
+            className="card-3d rounded-2xl p-6 sm:p-8 max-w-5xl mx-auto border-white/[0.12] bg-[#0D1017] shadow-3d-xl"
           >
             {/* Window chrome */}
-            <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between pb-4 mb-6 border-b border-white/[0.08]">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#EF4444]/60" />
-                <div className="w-3 h-3 rounded-full bg-[#F59E0B]/60" />
-                <div className="w-3 h-3 rounded-full bg-[#10B981]/60" />
+                <div className="w-3 h-3 rounded-full bg-[#EF4444]/70" />
+                <div className="w-3 h-3 rounded-full bg-[#F59E0B]/70" />
+                <div className="w-3 h-3 rounded-full bg-[#10B981]/70" />
                 <span className="font-mono text-xs text-text-muted ml-3">
                   curvai.org/app
                 </span>
@@ -927,78 +1007,78 @@ export default function LandingPage() {
             {/* Dashboard Demo Grid */}
             <div className="grid md:grid-cols-3 gap-4">
               {/* Card 1: Aria Ready to Post */}
-              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#8B5CF6] flex flex-col justify-between">
+              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#8B5CF6] bg-[#111522] flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-mono text-[11px] uppercase tracking-wider text-[#A78BFA] font-bold">
                       Aria · Marketing
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#8B5CF6]/15 text-[#A78BFA]">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#8B5CF6]/15 text-[#A78BFA]">
                       Ready
                     </span>
                   </div>
                   <h4 className="font-display text-sm font-semibold text-text">
                     Diwali Weekend Special Reel
                   </h4>
-                  <p className="text-xs text-text-secondary mt-1">
+                  <p className="text-xs text-text-secondary mt-1 font-body">
                     Scheduled for Instagram & YouTube Shorts at 10:15 AM peak window.
                   </p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="mt-4 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
                   <span className="text-[11px] font-mono text-text-muted">1-Tap:</span>
-                  <span className="px-3 py-1 rounded bg-[#8B5CF6] text-white text-xs font-medium cursor-pointer">
+                  <span className="px-3 py-1.5 rounded-lg bg-[#8B5CF6] text-white text-xs font-semibold cursor-pointer shadow-sm">
                     Approve & Schedule
                   </span>
                 </div>
               </div>
 
               {/* Card 2: Kian Lead Recovery */}
-              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#34D399] flex flex-col justify-between">
+              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#34D399] bg-[#111522] flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-mono text-[11px] uppercase tracking-wider text-[#34D399] font-bold">
                       Kian · Leads
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#34D399]/15 text-[#34D399]">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#34D399]/15 text-[#34D399]">
                       4 Leads
                     </span>
                   </div>
                   <h4 className="font-display text-sm font-semibold text-text">
                     Follow up unconfirmed inquiries
                   </h4>
-                  <p className="text-xs text-text-secondary mt-1">
+                  <p className="text-xs text-text-secondary mt-1 font-body">
                     4 inquiries from WhatsApp awaiting reply. 15% discount nudge drafted.
                   </p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="mt-4 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
                   <span className="text-[11px] font-mono text-text-muted">1-Tap:</span>
-                  <span className="px-3 py-1 rounded bg-[#34D399] text-black text-xs font-semibold cursor-pointer">
+                  <span className="px-3 py-1.5 rounded-lg bg-[#34D399] text-black text-xs font-bold cursor-pointer shadow-sm">
                     Review & Send
                   </span>
                 </div>
               </div>
 
               {/* Card 3: Nova Fill My Week */}
-              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#EC4899] flex flex-col justify-between">
+              <div className="card-3d rounded-xl p-5 border-l-4 border-l-[#EC4899] bg-[#111522] flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-mono text-[11px] uppercase tracking-wider text-[#F472B6] font-bold">
                       Nova · Studio
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#EC4899]/15 text-[#F472B6]">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#EC4899]/15 text-[#F472B6]">
                       Autopilot
                     </span>
                   </div>
                   <h4 className="font-display text-sm font-semibold text-text">
                     Fill this week's content calendar
                   </h4>
-                  <p className="text-xs text-text-secondary mt-1">
+                  <p className="text-xs text-text-secondary mt-1 font-body">
                     Generate 5 companion carousels using last week's top-performing product angles.
                   </p>
                 </div>
-                <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between">
+                <div className="mt-4 pt-3.5 border-t border-white/[0.06] flex items-center justify-between">
                   <span className="text-[11px] font-mono text-text-muted">1-Tap:</span>
-                  <span className="px-3 py-1 rounded bg-[#EC4899] text-white text-xs font-medium cursor-pointer">
+                  <span className="px-3 py-1.5 rounded-lg bg-[#EC4899] text-white text-xs font-semibold cursor-pointer shadow-sm">
                     Fill My Week
                   </span>
                 </div>
@@ -1008,8 +1088,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 8. Pricing Section ─── */}
-      <section id="pricing" className="py-24 lg:py-32">
+      {/* ─── 8. Transparent Pricing Section ─── */}
+      <section id="pricing" className="relative z-10 py-24 lg:py-32">
         <div className="container">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#C4B5FD] font-semibold mb-3">
@@ -1036,8 +1116,8 @@ export default function LandingPage() {
                 <div
                   className={`card-3d rounded-2xl p-7 sm:p-8 h-full flex flex-col justify-between relative ${
                     tier.featured
-                      ? "border-[#8B5CF6]/50 glow-ring bg-bg-surface"
-                      : "border-white/[0.06]"
+                      ? "border-[#8B5CF6]/50 glow-ring bg-gradient-to-b from-[#181D2A] to-[#0E121B] shadow-3d-xl"
+                      : "border-white/[0.08] bg-[#0E121B]"
                   }`}
                 >
                   {tier.featured && (
@@ -1048,7 +1128,7 @@ export default function LandingPage() {
 
                   <div>
                     <h3 className="font-display text-2xl font-bold text-text">{tier.name}</h3>
-                    <p className="text-xs text-text-secondary mt-1">{tier.desc}</p>
+                    <p className="text-xs text-text-secondary mt-1 font-body">{tier.desc}</p>
 
                     <div className="mt-5 flex items-baseline gap-1">
                       <span className="font-display text-4xl lg:text-5xl font-bold text-text">
@@ -1084,10 +1164,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── 9. Final Conversion Section ─── */}
-      <section id="about" className="py-24 lg:py-32 border-t border-white/[0.06] relative overflow-hidden">
-        <div className="absolute bottom-[-10%] left-1/2 -translate-x-1/2 w-[800px] h-[350px] rounded-full blur-[140px] bg-[#8B5CF6]/10 pointer-events-none" />
-
+      {/* ─── 9. Final Conversion Hero ─── */}
+      <section id="about" className="relative z-10 py-24 lg:py-32 border-t border-white/[0.08] relative overflow-hidden">
         <div className="container relative text-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -1097,7 +1175,7 @@ export default function LandingPage() {
             className="max-w-3xl mx-auto"
           >
             <div className="flex justify-center mb-8">
-              <div className="w-20 h-20 rounded-2xl bg-white/[0.02] border border-white/[0.08] flex items-center justify-center p-3 shadow-3d-lg">
+              <div className="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.1] flex items-center justify-center p-3 shadow-3d-xl backdrop-blur-md">
                 <img
                   src="/curv-logo.png"
                   alt="CURV AI"
@@ -1112,14 +1190,14 @@ export default function LandingPage() {
               Your next marketing team<br />is already here.
             </h2>
 
-            <p className="mt-5 text-base sm:text-lg text-text-secondary max-w-xl mx-auto">
+            <p className="mt-5 text-base sm:text-lg text-text-secondary max-w-xl mx-auto font-body">
               Bring your strategy, creativity and marketing operations together with CURV AI.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center justify-center gap-4">
               <Link
                 href="/register"
-                className="btn-primary text-sm sm:text-base group !px-8 !min-h-[50px] shadow-[0_0_25px_rgba(139,92,246,0.35)]"
+                className="btn-primary text-sm sm:text-base group !px-8 !min-h-[50px] shadow-[0_0_30px_rgba(139,92,246,0.4)]"
               >
                 Start Creating
                 <ArrowRight className="w-4 h-4 ml-1 transition-transform group-hover:translate-x-1" />
@@ -1136,7 +1214,7 @@ export default function LandingPage() {
       </section>
 
       {/* ─── 10. Footer ─── */}
-      <footer className="border-t border-white/[0.06] py-10 bg-bg">
+      <footer className="relative z-10 border-t border-white/[0.08] py-10 bg-[#06080D]">
         <div className="container flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
@@ -1145,26 +1223,26 @@ export default function LandingPage() {
             </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-6">
-            <a href="#platform" className="text-xs text-text-muted hover:text-text transition-colors">
+          <div className="flex flex-wrap items-center gap-6 font-mono text-xs">
+            <a href="#platform" className="text-text-muted hover:text-text transition-colors">
               Platform
             </a>
-            <a href="#ai-team" className="text-xs text-text-muted hover:text-text transition-colors">
+            <a href="#ai-team" className="text-text-muted hover:text-text transition-colors">
               AI Team
             </a>
-            <a href="#pricing" className="text-xs text-text-muted hover:text-text transition-colors">
+            <a href="#pricing" className="text-text-muted hover:text-text transition-colors">
               Pricing
             </a>
-            <Link href="/privacy" className="text-xs text-text-muted hover:text-text transition-colors">
+            <Link href="/privacy" className="text-text-muted hover:text-text transition-colors">
               Privacy
             </Link>
-            <Link href="/terms" className="text-xs text-text-muted hover:text-text transition-colors">
+            <Link href="/terms" className="text-text-muted hover:text-text transition-colors">
               Terms
             </Link>
-            <Link href="/support" className="text-xs text-text-muted hover:text-text transition-colors">
+            <Link href="/support" className="text-text-muted hover:text-text transition-colors">
               Support
             </Link>
-            <Link href="/login" className="text-xs text-text-muted hover:text-text transition-colors">
+            <Link href="/login" className="text-text-muted hover:text-text transition-colors">
               Login
             </Link>
           </div>
