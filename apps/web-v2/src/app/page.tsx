@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/Logo";
-import { PerformanceRing } from "@/components/ui/charts";
+import { CurvOrb } from "@/components/CurvOrb";
 import { VoiceAssistant } from "@/components/VoiceAssistant";
 import {
   ArrowRight,
@@ -13,12 +14,44 @@ import {
   BarChart3,
   Sparkles,
   Zap,
-  Globe,
   CheckCircle2,
-  TrendingUp,
-  Eye,
-  Target,
+  Menu,
+  X,
+  Palette,
+  MessageCircle,
 } from "lucide-react";
+
+const NAV_LINKS = [
+  { label: "Platform", href: "#platform" },
+  { label: "AI Team", href: "#ai-team" },
+  { label: "Features", href: "#features" },
+  { label: "Pricing", href: "#pricing" },
+  { label: "About", href: "#about" },
+];
+
+const TEAM = [
+  {
+    name: "Aria",
+    role: "Marketing & Growth",
+    color: "#8B5CF6",
+    desc: "Plans your week, writes your posts and campaigns, schedules across every channel at peak times, and reallocates budget where it performs.",
+    points: ["Weekly content plan", "Campaign strategy", "Multi-channel scheduling"],
+  },
+  {
+    name: "Nova",
+    role: "Creative Studio",
+    color: "#EC4899",
+    desc: "Turns a product photo into finished creatives — carousels, reels, thumbnails and ad assets — on-brand, every time.",
+    points: ["Carousels & reels", "Ad creatives", "Brand-consistent output"],
+  },
+  {
+    name: "Kian",
+    role: "Leads & Customers",
+    color: "#34D399",
+    desc: "Watches WhatsApp and Instagram inquiries, drafts replies in your voice, and follows up with unconfirmed leads before they go cold.",
+    points: ["Instant draft replies", "Lead follow-ups", "Sales recovery"],
+  },
+];
 
 const FEATURES = [
   { icon: Brain, title: "Your marketing team", desc: "We plan, write, and run your marketing — automatically, every week." },
@@ -42,150 +75,281 @@ const TIERS = [
   { name: "Agency", price: "₹9,999", period: "/mo", features: ["5 brands", "50 videos/mo", "500 images/mo", "API + White-label"], cta: "Contact us" },
 ];
 
+// Deterministic pseudo-random positions (stable across SSR/hydration).
+const PARTICLES = Array.from({ length: 24 }, (_, i) => {
+  const seed = (i * 2654435761) % 1000 / 1000;
+  const seed2 = (i * 40503 + 67) % 997 / 997;
+  return {
+    left: `${8 + seed * 84}%`,
+    top: `${6 + seed2 * 88}%`,
+    size: 2 + ((i * 7) % 4),
+    delay: (i % 8) * 0.9,
+    duration: 6 + (i % 5) * 2,
+  };
+});
+
+const EASE = [0.16, 1, 0.3, 1] as const;
+
 export default function LandingPage() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-bg text-text">
       <VoiceAssistant />
+
       {/* ─── Nav ─── */}
-      <nav className="sticky top-0 z-50 glass-strong border-b border-white/[0.04]">
+      <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-bg/70 backdrop-blur-xl">
         <div className="container flex items-center justify-between py-3">
-          <Link href="/"><Logo size="sm" /></Link>
-          <div className="flex items-center gap-3 sm:gap-6">
-            <Link href="/audit" className="text-sm text-text-secondary hover:text-text transition-colors min-h-[40px] flex items-center">Free Audit</Link>
-            <Link href="/login" className="text-sm text-text-secondary hover:text-text transition-colors min-h-[40px] flex items-center">Login</Link>
-            <Link href="/register" className="btn-primary text-sm min-h-[40px] flex items-center">Get Started <ArrowRight className="w-3.5 h-3.5" /></Link>
+          <Link href="/" aria-label="CURV AI home"><Logo size="sm" /></Link>
+
+          <div className="hidden lg:flex items-center gap-8">
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                className="text-sm text-text-secondary hover:text-text transition-colors"
+              >
+                {l.label}
+              </a>
+            ))}
           </div>
+
+          <div className="hidden lg:flex items-center gap-3">
+            <Link href="/login" className="btn-secondary text-sm !min-h-[38px]">Log In</Link>
+            <Link href="/register" className="btn-primary text-sm !min-h-[38px]">
+              Sign Up <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <button
+            className="lg:hidden p-2 text-text-secondary hover:text-text"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
+
+        {menuOpen && (
+          <div className="lg:hidden border-t border-white/[0.06] px-6 py-4 space-y-1 bg-bg/95 backdrop-blur-xl">
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                onClick={() => setMenuOpen(false)}
+                className="block py-2.5 text-sm text-text-secondary hover:text-text transition-colors"
+              >
+                {l.label}
+              </a>
+            ))}
+            <div className="flex gap-3 pt-3">
+              <Link href="/login" className="btn-secondary text-sm flex-1 justify-center">Log In</Link>
+              <Link href="/register" className="btn-primary text-sm flex-1 justify-center">Sign Up</Link>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ─── Hero ─── */}
-      <section className="relative overflow-hidden grid-pattern">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-info/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-accent/5 rounded-full blur-3xl" />
+      <section className="relative overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full blur-3xl bg-[#8B5CF6]/10" />
+        <div className="absolute bottom-[-20%] right-[-5%] w-[500px] h-[500px] rounded-full blur-3xl bg-[#EC4899]/8" />
 
-        <div className="container relative py-24 lg:py-32 text-center">
+        <div className="container relative grid lg:grid-cols-2 gap-12 lg:gap-8 items-center py-20 lg:py-28">
+          {/* Left */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.7, ease: EASE }}
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/20 mb-8">
-              <Sparkles className="w-3.5 h-3.5 text-accent" />
-              <span className="font-mono text-xs text-accent">Your AI marketing team</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#8B5CF6]/25 bg-[#8B5CF6]/10 mb-7">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#8B5CF6]" />
+              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-[#A78BFA]">Your AI Marketing Team</span>
             </div>
 
-            <h1 className="font-display text-5xl sm:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] text-balance">
-              <span className="text-gradient">One brand upload.</span>
-              <br />
-              <span className="text-text">Every platform.</span>
-              <br />
-              <span className="text-gradient-accent">Worldwide.</span>
+            <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.02] text-balance">
+              Your entire marketing team.{" "}
+              <span className="text-gradient">Powered by intelligence.</span>
             </h1>
 
-            <p className="mx-auto mt-8 max-w-2xl text-lg text-text-secondary leading-relaxed">
-              We run your marketing across Google, Instagram, YouTube, and every major platform —
-              automatically, every week. Built for small businesses. No marketing team required.
+            <p className="mt-6 max-w-lg text-lg text-text-secondary leading-relaxed">
+              From strategy and creative production to social publishing and campaign
+              growth, CURV AI brings your marketing workflow together in one
+              intelligent platform.
             </p>
 
-            <div className="mt-10 flex items-center justify-center gap-4">
-              <Link href="/register" className="btn-primary text-base group">
-                Talk to your AI strategist
+            <div className="mt-9 flex flex-wrap items-center gap-4">
+              <Link href="/register" className="btn-primary text-base group !px-7 !min-h-[48px]">
+                Get Started Free
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
-              <Link href="/audit" className="btn-secondary text-base">
-                Get Free Audit
-              </Link>
+              <Link href="/login" className="btn-secondary text-base !px-7 !min-h-[48px]">Log In</Link>
             </div>
+
+            <p className="mt-6 text-sm text-text-muted">One platform. Your entire marketing workflow.</p>
           </motion.div>
 
-          {/* Stats */}
+          {/* Right — Orb visual */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.9, delay: 0.15, ease: EASE }}
+            className="relative flex items-center justify-center min-h-[380px] lg:min-h-[520px]"
+            aria-hidden="true"
           >
-            {STATS.map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="font-display text-4xl font-semibold text-gradient-accent">{stat.value}</div>
-                <div className="font-mono text-xs uppercase tracking-wider text-text-muted mt-1">{stat.label}</div>
-              </div>
+            {/* Ambient rings */}
+            <div className="absolute w-[78%] aspect-square rounded-full bg-[#8B5CF6]/12 blur-3xl" />
+            <div className="absolute w-[52%] aspect-square rounded-full bg-[#EC4899]/14 blur-2xl" />
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+              className="absolute w-[88%] aspect-square rounded-full border border-white/[0.05]"
+            />
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
+              className="absolute w-[110%] aspect-square rounded-full border border-dashed border-[#8B5CF6]/15"
+            />
+
+            {/* Floating particles */}
+            {PARTICLES.map((p, i) => (
+              <motion.span
+                key={i}
+                className="absolute rounded-full"
+                style={{
+                  left: p.left,
+                  top: p.top,
+                  width: p.size,
+                  height: p.size,
+                  background: i % 3 === 0 ? "#EC4899" : i % 3 === 1 ? "#8B5CF6" : "#FBBF24",
+                  boxShadow: "0 0 8px currentColor",
+                }}
+                animate={{ y: [0, -18, 0], opacity: [0.15, 0.7, 0.15] }}
+                transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: "easeInOut" }}
+              />
             ))}
+
+            {/* The orb */}
+            <motion.div
+              animate={{ y: [0, -12, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              className="relative drop-shadow-[0_0_60px_rgba(139,92,246,0.45)]"
+            >
+              <CurvOrb size={240} state="idle" />
+            </motion.div>
+
+            {/* Floating mini-cards */}
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
+              className="absolute top-[8%] right-[2%] glass-strong rounded-xl px-4 py-3 hidden sm:block"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#8B5CF6]/20 flex items-center justify-center">
+                  <Brain className="w-3.5 h-3.5 text-[#A78BFA]" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-text">Aria</div>
+                  <div className="font-mono text-[10px] text-text-muted">Post scheduled · 10:00 AM</div>
+                </div>
+              </div>
+            </motion.div>
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1.2 }}
+              className="absolute bottom-[10%] left-[0%] glass-strong rounded-xl px-4 py-3 hidden sm:block"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#34D399]/20 flex items-center justify-center">
+                  <MessageCircle className="w-3.5 h-3.5 text-[#34D399]" />
+                </div>
+                <div>
+                  <div className="text-xs font-medium text-text">Kian</div>
+                  <div className="font-mono text-[10px] text-text-muted">4 leads followed up</div>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </section>
 
-      {/* ─── Dashboard Preview ─── */}
-      <section className="border-y border-white/[0.04] bg-bg-surface py-24">
-        <div className="container">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            className="relative max-w-5xl mx-auto"
-          >
-            <div className="card-3d rounded-2xl p-6 shadow-3d-xl">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-danger/40" />
-                  <div className="w-3 h-3 rounded-full bg-warning/40" />
-                  <div className="w-3 h-3 rounded-full bg-success/40" />
-                </div>
-                <span className="font-mono text-xs text-text-muted ml-2">curvai.org/dashboard</span>
+      {/* ─── Platform strip ─── */}
+      <section id="platform" className="border-y border-white/[0.06] bg-bg-surface">
+        <div className="container py-14">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="font-display text-3xl md:text-4xl font-semibold text-gradient-accent">{stat.value}</div>
+                <div className="font-mono text-[11px] uppercase tracking-wider text-text-muted mt-1.5">{stat.label}</div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="card-3d rounded-xl p-4 flex flex-col items-center">
-                  <span className="label-field mb-3">Visibility Score</span>
-                  <PerformanceRing value={87} size={100} strokeWidth={8} sublabel="out of 100" />
+            ))}
+          </div>
+          <p className="text-center text-sm text-text-muted mt-10 max-w-xl mx-auto">
+            One brand upload becomes organic + paid visibility across Google, Meta,
+            YouTube, TikTok, LinkedIn and regional networks — on a weekly autonomous loop.
+          </p>
+        </div>
+      </section>
+
+      {/* ─── AI Team ─── */}
+      <section id="ai-team" className="py-24 lg:py-32 relative overflow-hidden">
+        <div className="absolute top-1/3 right-0 w-[400px] h-[400px] rounded-full blur-3xl bg-[#8B5CF6]/6" />
+        <div className="container relative">
+          <div className="text-center mb-16 max-w-2xl mx-auto">
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#A78BFA] mb-4">Meet the team</div>
+            <h2 className="font-display text-4xl lg:text-5xl font-semibold text-text leading-tight">
+              Three specialists.<br />One intelligent platform.
+            </h2>
+            <p className="mt-5 text-text-secondary">
+              Every morning, your AI team prepares the work — you approve it in one tap.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {TEAM.map((t, i) => (
+              <motion.div
+                key={t.name}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1, ease: EASE }}
+                className="card-3d rounded-2xl p-7 relative overflow-hidden group"
+              >
+                <div
+                  className="absolute top-0 left-0 right-0 h-px"
+                  style={{ background: `linear-gradient(90deg, transparent, ${t.color}60, transparent)` }}
+                />
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center font-display text-lg font-bold mb-5"
+                  style={{ background: `${t.color}18`, color: t.color, boxShadow: `0 0 24px ${t.color}30` }}
+                >
+                  {t.name[0]}
                 </div>
-                <div className="card-3d rounded-xl p-4">
-                  <span className="label-field mb-3">Your marketing</span>
-                  <div className="flex items-center gap-2 mb-2">
-                    <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                    </motion.div>
-                    <span className="font-mono text-xs text-success">Running smoothly</span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs"><span className="text-text-secondary">Posts this week</span><span className="text-accent font-mono">12</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-text-secondary">Ads running</span><span className="text-info font-mono">4</span></div>
-                    <div className="flex justify-between text-xs"><span className="text-text-secondary">People reached</span><span className="text-text font-mono">8,400</span></div>
-                  </div>
-                </div>
-                <div className="card-3d rounded-xl p-4">
-                  <span className="label-field mb-3">This Week</span>
-                  <div className="space-y-3">
-                    {[
-                      { icon: Target, label: "New customers", value: "127", trend: "+23%" },
-                      { icon: Eye, label: "People reached", value: "284K", trend: "+8%" },
-                      { icon: TrendingUp, label: "Revenue per ₹100", value: "₹320", trend: "+12%" },
-                    ].map((m) => (
-                      <div key={m.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <m.icon className="w-3.5 h-3.5 text-text-muted" />
-                          <span className="text-xs text-text-secondary">{m.label}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-sm text-text">{m.value}</span>
-                          <span className="font-mono text-xs text-success">{m.trend}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+                <h3 className="font-display text-xl font-semibold text-text">{t.name}</h3>
+                <div className="font-mono text-[11px] uppercase tracking-wider mt-1" style={{ color: t.color }}>{t.role}</div>
+                <p className="mt-4 text-sm text-text-secondary leading-relaxed">{t.desc}</p>
+                <ul className="mt-5 space-y-2">
+                  {t.points.map((p) => (
+                    <li key={p} className="flex items-center gap-2 text-xs text-text-secondary">
+                      <span className="w-1 h-1 rounded-full" style={{ background: t.color }} />
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ─── Features ─── */}
-      <section className="py-24">
+      <section id="features" className="py-24 bg-bg-surface border-y border-white/[0.06]">
         <div className="container">
           <div className="text-center mb-16">
-            <h2 className="font-display text-4xl font-semibold text-text">Everything you need.<br />Nothing you don't.</h2>
-            <p className="mt-4 text-text-secondary max-w-xl mx-auto">A complete AI advertising platform built for the modern world.</p>
+            <h2 className="font-display text-4xl lg:text-5xl font-semibold text-text leading-tight">
+              Everything you need.<br />Nothing you don't.
+            </h2>
+            <p className="mt-4 text-text-secondary max-w-xl mx-auto">A complete AI marketing platform built for the modern world.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {FEATURES.map((feature, i) => (
@@ -194,11 +358,11 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.4, delay: i * 0.07, ease: EASE }}
               >
                 <div className="card-3d rounded-xl p-6 h-full group">
-                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:glow-ring transition-all">
-                    <feature.icon className="w-5 h-5 text-accent" />
+                  <div className="w-10 h-10 rounded-lg bg-[#8B5CF6]/12 flex items-center justify-center mb-4 group-hover:glow-ring transition-all">
+                    <feature.icon className="w-5 h-5 text-[#A78BFA]" />
                   </div>
                   <h3 className="font-display text-lg font-medium text-text mb-2">{feature.title}</h3>
                   <p className="text-sm text-text-secondary leading-relaxed">{feature.desc}</p>
@@ -210,10 +374,13 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Pricing ─── */}
-      <section className="py-24 bg-bg-surface border-y border-white/[0.04]">
+      <section id="pricing" className="py-24 lg:py-32">
         <div className="container">
           <div className="text-center mb-16">
-            <h2 className="font-display text-4xl font-semibold text-text">Simple pricing.<br />Powerful platform.</h2>
+            <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-[#A78BFA] mb-4">Pricing</div>
+            <h2 className="font-display text-4xl lg:text-5xl font-semibold text-text leading-tight">
+              Simple pricing.<br />Powerful platform.
+            </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
             {TIERS.map((tier, i) => (
@@ -225,7 +392,7 @@ export default function LandingPage() {
                 transition={{ duration: 0.4, delay: i * 0.1 }}
                 className={tier.featured ? "md:-translate-y-4" : ""}
               >
-                <div className={`card-3d rounded-2xl p-6 h-full ${tier.featured ? "border-accent/30 glow-ring" : ""}`}>
+                <div className={`card-3d rounded-2xl p-6 h-full ${tier.featured ? "border-[#8B5CF6]/40 glow-ring" : ""}`}>
                   {tier.featured && (
                     <div className="badge badge-accent mb-4">Most Popular</div>
                   )}
@@ -237,7 +404,7 @@ export default function LandingPage() {
                   <ul className="mt-6 space-y-3">
                     {tier.features.map((f) => (
                       <li key={f} className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-[#34D399] shrink-0" />
                         <span className="text-sm text-text-secondary">{f}</span>
                       </li>
                     ))}
@@ -255,21 +422,29 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── CTA ─── */}
-      <section className="py-24">
-        <div className="container text-center">
+      {/* ─── About / Final CTA ─── */}
+      <section id="about" className="py-24 border-t border-white/[0.06] relative overflow-hidden">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[700px] h-[300px] rounded-full blur-3xl bg-[#8B5CF6]/8" />
+        <div className="container relative text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
-            className="card-3d rounded-3xl p-12 max-w-2xl mx-auto glow-ring"
+            transition={{ duration: 0.6, ease: EASE }}
+            className="max-w-2xl mx-auto"
           >
-            <Globe className="w-12 h-12 text-accent mx-auto mb-6" />
-            <h2 className="font-display text-3xl font-semibold text-text">Ready to go global?</h2>
-            <p className="mt-4 text-text-secondary">Upload your brand. Let AI handle the rest.</p>
-            <Link href="/register" className="btn-primary text-base mt-8 group">
-              Start Free Trial
+            <div className="flex justify-center mb-8">
+              <CurvOrb size={88} state="idle" />
+            </div>
+            <h2 className="font-display text-3xl lg:text-4xl font-semibold text-text leading-tight">
+              Built for founders who'd rather<br />run the business than the marketing.
+            </h2>
+            <p className="mt-5 text-text-secondary">
+              CURV AI is an intelligent marketing platform that plans, creates,
+              publishes and grows — while you stay in control of every decision.
+            </p>
+            <Link href="/register" className="btn-primary text-base mt-9 group !px-8 !min-h-[48px]">
+              Get Started Free
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
           </motion.div>
@@ -277,16 +452,17 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-white/[0.04] py-8">
-        <div className="container flex items-center justify-between">
+      <footer className="border-t border-white/[0.06] py-8">
+        <div className="container flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Logo size="sm" />
-            <span className="font-mono text-xs text-text-muted">AI-DRIVEN GLOBAL AD AGENCY</span>
+            <span className="font-mono text-[11px] text-text-muted uppercase tracking-wider">Intelligent Marketing Platform</span>
           </div>
-          <div className="flex items-center gap-4 sm:gap-6">
-            <Link href="/audit" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Free Audit</Link>
-            <Link href="/login" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Login</Link>
-            <Link href="/register" className="text-xs text-text-muted hover:text-text transition-colors min-h-[40px] flex items-center">Register</Link>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="text-xs text-text-muted hover:text-text transition-colors">Privacy</Link>
+            <Link href="/terms" className="text-xs text-text-muted hover:text-text transition-colors">Terms</Link>
+            <Link href="/support" className="text-xs text-text-muted hover:text-text transition-colors">Support</Link>
+            <Link href="/login" className="text-xs text-text-muted hover:text-text transition-colors">Login</Link>
           </div>
         </div>
       </footer>
